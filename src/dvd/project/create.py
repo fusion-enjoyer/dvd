@@ -37,17 +37,9 @@ def _relative_source(source: Path, project_dir: Path) -> str:
 
 
 def _audio_tracks(info: SourceInfo) -> list[Audio]:
-    tracks = []
-    for a in info.audio[:MAX_AUDIO_TRACKS]:
-        surround = a.channels >= 6
-        tracks.append(
-            Audio(
-                track=a.index,
-                lang=to_dvd_code(a.language) or "en",
-                channels="5.1" if surround else "2.0",
-                bitrate=448 if surround else 192,
-            )
-        )
+    from dvd.project.edit import audio_from_source
+
+    tracks = [audio_from_source(a) for a in info.audio[:MAX_AUDIO_TRACKS]]
     if tracks:
         flagged = next((i for i, a in enumerate(info.audio[:MAX_AUDIO_TRACKS]) if a.default), 0)
         tracks[flagged].default = True
