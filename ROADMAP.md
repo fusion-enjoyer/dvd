@@ -64,6 +64,8 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 - [ ] Küçültme kernel'ları karşılaştırması (Spline36 / Lanczos / SSIM downsampler / linear-light)
 - [ ] BT.709 → BT.601 renk dönüşümü + doğru bayraklar
 - [ ] Yüksek bit derinliğinde işlem, deband, kontrollü dithering
+  - [x] Altyapı: 16-bit zincir (ölçekleme, matris, deband, bantlar), sonda tek dither adımı; deband vszip ile, kademe profil katmanlarından (`video.overrides` ile elle)
+  - [ ] Kademe ve dither türünü test korpusuyla ölç ve ayarla (ripler gelince)
 - [ ] Denoise / gren yönetimi, deinterlace (QTGMC), HDR → SDR tonemapping
 - [ ] Kişisel videolar: değişken kare hızı, 50/60 fps → interlaced encode, dikey video yerleşimi, telefon HDR'ı
 

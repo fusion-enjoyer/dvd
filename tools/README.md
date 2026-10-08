@@ -9,6 +9,7 @@ Arama sırası: `DVD_TOOLS_DIR` ortam değişkeni (yoksa bu klasör) ve onun bir
 |---|---|---|---|---|---|---|
 | FFmpeg / ffprobe | 9.0.2 (gyan.dev full **shared** build) | Decode, AC-3 encode, analiz | https://www.gyan.dev/ffmpeg/builds/ `ffmpeg-release-full-shared.7z`, `bin/` içindeki exe ve DLL'ler (ffplay hariç) | GPL | Evet (GPL) | `tools/ffmpeg/` |
 | VapourSynth | R81 | Ön işleme | PyPI `vapoursynth` (uv ile `.venv`'e kurulur) | LGPL 2.1 | Evet | `.venv` |
+| vszip | 22.1.0 | Deband, dither, kalite metrikleri (SSIMULACRA2, XPSNR) | PyPI `vapoursynth-vszip` | MIT | Evet | `.venv` |
 | BestSource | R22 | VapourSynth kaynak okuyucu (MKV, M2TS, MP4...) | PyPI `vapoursynth-bestsource` | MIT | Evet | `.venv` |
 | HCEnc | 0.28 (21.12.2015), 32-bit | MPEG-2 encode | http://hank315.nl/files/HC_028/HC028_21-12-2015.zip | Freeware | **Belirsiz**, izin kontrol edilecek | `tools/hcenc/` |
 | AviSynth+ | 3.7.5, yalnızca x86 `AviSynth.dll` | HCEnc'in betik okuması | [GitHub v3.7.5](https://github.com/AviSynth/AviSynthPlus/releases/tag/v3.7.5) `-filesonly.7z` | GPL 2+ | Evet | `tools/hcenc/AviSynth.dll` (tam paket `tools/avisynthplus/`) |
