@@ -19,7 +19,7 @@ Hedef: **Windows masaüstü uygulaması.** Her faz kendi başına kullanılabili
 - [ ] **Test korpusu**: zor kısa klipler (karanlık sahne/banding, film greni, hızlı hareket, ince detay, 2.39:1, 2D animasyon, interlaced yayın), 30–60 sn
 - [ ] **Referans DVD seti**: elimizdeki orijinal DVD'lerden farklı türlerde 5–10 tane seç, ripleyip sakla
 - [ ] **Referans analizi (elle)**: bitrate eğrisi, GOP, matrisler, pulldown, ses formatları, menü yapısı — bulguları `docs/referans/` altına yaz
-- [ ] **Cihaz matrisi**: test edeceğimiz oynatıcılar/TV'ler, her birinin PAL/NTSC/DVD-9 desteği
+- [ ] **Cihaz matrisi**: test edeceğimiz oynatıcılar/TV'ler, her birinin PAL/NTSC/DVD-9 desteği ([docs/cihazlar.md](docs/cihazlar.md); Sony DVP-NS38 eklendi, özellikleri ilk test diskiyle doğrulanacak)
 
 **Bitti kriteri:** Windows'ta araç zinciri elle çalışıyor; referans DVD'lerin teknik profili belgelenmiş.
 
@@ -31,7 +31,7 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 
 **Motor + CLI**
 - [ ] Proje modeli ve proje dosyası
-- [ ] Kaynak analizi (ffprobe)
+- [x] Kaynak analizi (ffprobe): `dvd probe`; HDR, interlaced, değişken kare hızı ve dikey video tespiti
 - [ ] Basit video encode (2 geçiş VBR, anamorfik 16:9 / 4:3, PAL / NTSC)
 - [ ] AC-3 ses, 48 kHz; SRT → subpicture (basit render)
 - [ ] Bölümleri içe aktar, I-frame zorla
