@@ -70,8 +70,11 @@ class Bitmap:
 def _qt() -> QGuiApplication:
     app = QGuiApplication.instance()
     if app is None:
+        # A full QApplication, so the desktop UI can still open windows in this process.
+        from PySide6.QtWidgets import QApplication
+
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-        app = QGuiApplication([])
+        app = QApplication([])
     if QFontDatabase.addApplicationFont(str(FONT_FILE)) < 0:
         raise RuntimeError(f"cannot load font {FONT_FILE}")
     return app

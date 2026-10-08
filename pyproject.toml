@@ -19,6 +19,9 @@ dependencies = [
 [project.scripts]
 dvd = "dvd.cli:app"
 
+[project.gui-scripts]
+dvd-studio = "dvd.gui.app:main"
+
 [dependency-groups]
 dev = [
     "pycdlib>=1.21.0",

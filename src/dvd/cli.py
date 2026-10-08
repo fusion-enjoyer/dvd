@@ -174,3 +174,11 @@ def iso_cmd(
         typer.echo(f"iso failed: {exc}", err=True)
         raise typer.Exit(1) from None
     typer.echo(f"wrote {out} (label {volume_label(name)})")
+
+
+@app.command()
+def gui(path: Path | None = typer.Argument(None, help="Video or project file to open")) -> None:
+    """Open the desktop application."""
+    from dvd.gui.app import main as gui_main
+
+    raise typer.Exit(gui_main(["dvd", str(path)] if path else ["dvd"]))

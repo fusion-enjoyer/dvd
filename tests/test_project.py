@@ -250,3 +250,14 @@ def test_turkish_subtitle_is_on_when_main_audio_is_not_turkish(tmp_path: Path):
     )
     assert new_project(english_first, tmp_path).titles[0].subtitles[0].default
     assert not new_project(info, tmp_path).titles[0].subtitles[0].default  # Turkish audio
+
+
+def test_estimate_uses_pal_playback_duration(tmp_path: Path):
+    from dvd.budget.planner import plan
+    from dvd.build import estimate
+
+    info = bluray_info(tmp_path / "x.mkv")  # 169 min at 23.976 fps
+    project = new_project(info, tmp_path)
+    p = estimate(project, [info])
+    assert p.duration == pytest.approx(10140 / (25 / (24000 / 1001)), rel=1e-6)
+    assert p.video_kbps == plan("dvd9", p.duration, [448 + 192], 1).video_kbps

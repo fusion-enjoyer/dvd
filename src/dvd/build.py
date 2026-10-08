@@ -26,7 +26,7 @@ from dvd.subs.extract import extract_text_track
 from dvd.subs.spumux import add_subtitle_stream
 from dvd.subs.srt import Cue, read_srt, retime
 from dvd.video.hcenc import EncodeSettings, encode
-from dvd.video.pipeline import Target, build_clip, plan_target
+from dvd.video.pipeline import Target, UnsupportedSource, build_clip, plan_target
 
 Progress = Callable[[str, float], None]
 
@@ -89,6 +89,29 @@ def _subtitle_cues(sub: Subtitle, p: _Prepared, project_file: Path, srt_out: Pat
             f"subtitle stream {sub.track} is {track.codec}; bitmap subtitles come in Phase 3"
         )
     return read_srt(extract_text_track(p.source, sub.track, srt_out))
+
+
+def estimate(project: Project, infos: list[SourceInfo]) -> Plan:
+    """Bitrate plan from container durations, without decoding: for the live budget bar."""
+    total = audio = 0.0
+    for title, info in zip(project.titles, infos, strict=True):
+        speedup = 1.0
+        if info.main_video is not None:
+            try:
+                target = plan_target(info.main_video, project.disc.standard, title.video)
+                speedup = float(target.speedup)
+            except UnsupportedSource:
+                pass
+        duration = (info.duration or 0) / speedup
+        total += duration
+        audio += duration * sum(a.bitrate for a in title.audio)
+    return plan(
+        project.disc.media,
+        max(total, 1.0),
+        [round(audio / total) if total else 0],
+        subtitle_tracks=max(len(t.subtitles) for t in project.titles),
+        viewing=project.disc.profiles.viewing,
+    )
 
 
 def _prepare(project: Project, project_file: Path) -> list[_Prepared]:

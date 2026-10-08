@@ -1,0 +1,110 @@
+"""Interface text (K11): Turkish first; every visible string goes through `t()`.
+
+English is added in v1 by filling the "en" table; missing keys fall back to Turkish.
+"""
+
+from __future__ import annotations
+
+TEXTS: dict[str, dict[str, str]] = {
+    "tr": {
+        "app.title": "DVD Stüdyo",
+        "mode.simple": "Basit",
+        "mode.pro": "Profesyonel",
+        "build.simple": "Diski oluştur",
+        "build.pro": "Build",
+        "nav.video": "Video",
+        "nav.picture.simple": "Görüntü ve kalite",
+        "nav.audio_subs": "Ses ve altyazı",
+        "nav.menu": "Menü",
+        "nav.build": "Diski oluştur",
+        "nav.sources": "Kaynaklar",
+        "nav.titles": "Başlıklar",
+        "nav.audio": "Ses",
+        "nav.subs": "Altyazı",
+        "nav.chapters": "Bölümler",
+        "nav.menus": "Menüler",
+        "nav.disc": "Disk",
+        "nav.output": "Çıktı",
+        "empty.title": "Videoyu buraya sürükleyin",
+        "empty.body": (
+            "MKV, M2TS, MP4, TS veya MOV. Blu-ray kopyası da olur, telefonla çekilmiş video da."
+        ),
+        "empty.open": "Dosya seç",
+        "empty.open_project": "Proje aç",
+        "empty.reading": "Video okunuyor…",
+        "page.later": "Bu bölüm henüz hazır değil.",
+        "video.title": "Kaynak video",
+        "video.duration": "Süre",
+        "video.file": "Dosya",
+        "video.picture": "Görüntü",
+        "video.audio": "Ses izleri",
+        "video.subs": "Altyazılar",
+        "video.chapters": "Bölümler",
+        "video.none": "yok",
+        "picture.title.simple": "Bu film için seçtiklerimiz",
+        "picture.preview_loading": "Önizleme hazırlanıyor…",
+        "picture.content": "Film türü",
+        "picture.viewing": "İzleneceği yer",
+        "picture.audio": "Ses",
+        "picture.all_settings": "Tüm ayarlar için Profesyonel mod",
+        "pro.video": "VİDEO",
+        "pro.source": "Kaynak",
+        "pro.target": "Hedef",
+        "pro.active": "Aktif",
+        "pro.crop": "Crop",
+        "pro.crop_auto": "otomatik (Faz 2)",
+        "pro.encoder": "Encoder",
+        "pro.bitrate": "Ortalama",
+        "pro.peak": "Tepe",
+        "pro.from_profile": "{profile} profilinden",
+        "budget.disc": "Disk",
+        "budget.fits": "Film diske rahat sığıyor",
+        "budget.tight": "Sığıyor ama kalite düşük",
+        "budget.too_big": "Diske sığmıyor",
+        "budget.empty": "Video eklenmedi",
+        "budget.video": "Video",
+        "budget.audio": "Ses",
+        "budget.subs": "Altyazı",
+        "budget.free": "Boş",
+        "quality.commercial": "Ticari DVD seviyesi",
+        "quality.good": "İyi kalite",
+        "quality.low": "Düşük kalite: DVD-9 önerilir",
+        "error.read": "Video okunamadı",
+        "content.modern-film": "Modern film",
+        "content.grenli-film": "Grenli film",
+        "content.eski-film": "Eski film",
+        "content.animasyon-2d": "2D animasyon",
+        "content.animasyon-3d": "3D animasyon",
+        "content.dizi": "Dizi",
+        "content.yayin": "TV yayını",
+        "content.icerik-4-3": "4:3 içerik",
+        "content.telefon": "Telefon videosu",
+        "content.kamera": "Kamera videosu",
+        "content.eski-kamera": "Eski kamera kaydı",
+        "content.ekran-kaydi": "Ekran kaydı",
+        "viewing.modern-tv": "Salon TV'si",
+        "viewing.projeksiyon": "Projeksiyon",
+        "viewing.crt": "Tüplü TV",
+        "viewing.bilgisayar": "Bilgisayar",
+        "viewing.konsol": "Oyun konsolu",
+        "viewing.tasinabilir": "Taşınabilir oynatıcı",
+        "viewing.evrensel": "Belli değil",
+        "audio.tv": "TV hoparlörü",
+        "audio.5.1": "5.1 ev sineması",
+        "audio.gece": "Gece modu",
+        "audio.hepsi": "5.1 ve stereo",
+    },
+    "en": {},
+}
+
+_language = "tr"
+
+
+def set_language(code: str) -> None:
+    global _language
+    _language = code if code in TEXTS else "tr"
+
+
+def t(key: str, **values: object) -> str:
+    text = TEXTS[_language].get(key) or TEXTS["tr"].get(key) or key
+    return text.format(**values) if values else text
