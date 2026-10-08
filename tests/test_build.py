@@ -1,0 +1,148 @@
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+from dvd import toolchain
+from dvd.author.dvdauthor import AuthorError, AuthorTitle, dvdauthor_xml, timecode
+from dvd.build import build, chapter_frames, safe_name
+from dvd.probe import probe
+from dvd.project import load, new_project, save
+from dvd.project.model import ChapterEvery
+
+DIRS = toolchain.tool_dirs()
+FFMPEG = toolchain.find_executable(["ffmpeg.exe", "ffmpeg"], DIRS)
+sys.path.insert(0, str(Path(__file__).parent))
+READY = all(
+    toolchain.find_executable([p], DIRS)
+    for p in ("HCenc_*.exe", "DvdSource.dll", "dvdauthor.exe", "ffmpeg.exe")
+)
+
+
+def test_timecode():
+    assert timecode(0) == "0:00:00.000"
+    assert timecode(3723.04) == "1:02:03.040"
+
+
+def test_safe_name():
+    assert safe_name('Film: "Bölüm 1/2"?') == "Film_ _Bölüm 1_2__"
+    assert safe_name(" . ") == "disc"
+
+
+def test_xml_for_widescreen_pal_with_two_titles():
+    t1 = AuthorTitle("t01.mpg", "16:9", ["tr", "en"], ["0:00:00.000", "0:10:00.000"])
+    t2 = AuthorTitle("t02.mpg", "16:9", ["tr", "en"])
+    xml = dvdauthor_xml([t1, t2], "pal")
+    assert '<video format="pal" aspect="16:9" widescreen="nopanscan"/>' in xml
+    assert xml.count("<audio lang=") == 2
+    assert 'chapters="0:00:00.000,0:10:00.000"' in xml
+    assert "<post>jump title 2;</post>" in xml
+    assert xml.count("<post>") == 1
+
+
+def test_xml_rejects_mixed_aspect():
+    with pytest.raises(AuthorError):
+        dvdauthor_xml([AuthorTitle("a", "16:9"), AuthorTitle("b", "4:3")], "pal")
+
+
+def _sample(tmp_path: Path, seconds: int = 12) -> Path:
+    (tmp_path / "meta.txt").write_text(
+        ";FFMETADATA1\ntitle=Deneme Filmi\n"
+        "[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=5000\ntitle=Açılış\n"
+        f"[CHAPTER]\nTIMEBASE=1/1000\nSTART=5005\nEND={seconds * 1000}\ntitle=Son\n",
+        encoding="utf-8",
+    )
+    src = tmp_path / "Deneme Filmi (2026).mkv"
+    subprocess.run(
+        [
+            str(FFMPEG), "-v", "error", "-y",
+            "-f", "lavfi", "-i", f"testsrc2=size=1920x804:rate=24000/1001:duration={seconds}",
+            "-f", "lavfi", "-i", f"sine=frequency=440:sample_rate=48000:duration={seconds}",
+            "-f", "lavfi", "-i", f"sine=frequency=660:sample_rate=48000:duration={seconds}",
+            "-i", str(tmp_path / "meta.txt"),
+            "-map", "0", "-map", "1", "-map", "2", "-map_metadata", "3", "-map_chapters", "3",
+            "-c:v", "libx264", "-preset", "ultrafast", "-colorspace", "bt709",
+            "-c:a:0", "ac3", "-ac:a:0", "6", "-c:a:1", "ac3", "-ac:a:1", "2",
+            "-metadata:s:a:0", "language=eng", "-metadata:s:a:1", "language=tur",
+            "-disposition:a:0", "0", "-disposition:a:1", "default",
+            str(src),
+        ],
+        check=True,
+    )  # fmt: skip
+    return src
+
+
+def test_chapter_frames(tmp_path: Path):
+    if FFMPEG is None:
+        pytest.skip("ffmpeg not installed")
+    from dvd.video.pipeline import plan_target
+
+    info = probe(_sample(tmp_path))
+    title = new_project(info, tmp_path).titles[0]
+    target = plan_target(info.main_video, "pal", title.video)
+    frames = 287  # 12 s at 23.976 fps
+    assert chapter_frames(title, info, target, frames) == [0, 120]  # 5.005 s * 23.976
+    assert chapter_frames(title, info, target, 100) == [0]  # chapter past the end is dropped
+    title.chapters = ChapterEvery(every=0.1)  # 6 s at 25 fps = 150 frames
+    assert chapter_frames(title, info, target, frames) == [0, 150]
+    title.chapters = ["0:00", "0:01.5"]
+    assert chapter_frames(title, info, target, frames) == [0, 36]
+
+
+@pytest.mark.skipif(not READY, reason="toolchain not installed")
+def test_build_menuless_pal_disc(tmp_path: Path):
+    project_dir = tmp_path / "Proje ğüş"
+    project_dir.mkdir()
+    src = _sample(project_dir)
+    project_file = project_dir / "deneme.dvd.yaml"
+    save(new_project(probe(src), project_dir), project_file)
+    stages = []
+
+    result = build(project_file, progress=lambda s, f: stages.append(s))
+
+    assert result.video_ts == project_dir / "Deneme Filmi" / "VIDEO_TS"
+    names = sorted(p.name for p in result.video_ts.iterdir())
+    assert names == ["VIDEO_TS.BUP", "VIDEO_TS.IFO", "VTS_01_0.BUP", "VTS_01_0.IFO",
+                     "VTS_01_1.VOB"]  # fmt: skip
+    vob = probe(result.video_ts / "VTS_01_1.VOB")
+    v = vob.main_video
+    assert (v.codec, v.width, v.height, v.fps) == ("mpeg2video", 720, 576, 25)
+    assert [(a.codec, a.channels) for a in vob.audio] == [("ac3", 2), ("ac3", 6)]  # default first
+    assert vob.duration == pytest.approx(12 * 24000 / 1001 / 25, abs=0.2)
+    assert "title 1 video" in stages and stages[-1] == "done"
+    assert load(project_file).titles[0].audio[1].default
+
+
+def count_nav_packs(mpg: Path) -> int:
+    """NAV packs as dvdauthor detects them: private stream 2 at bytes 38 and 1024 of a pack."""
+    data = mpg.read_bytes()
+    marker = b"\x00\x00\x01\xbf"
+    return sum(
+        1
+        for i in range(0, len(data) - 2047, 2048)
+        if data[i + 38 : i + 42] == marker and data[i + 1024 : i + 1028] == marker
+    )
+
+
+@pytest.mark.skipif(not READY, reason="toolchain not installed")
+def test_mux_starts_a_vobu_about_every_half_second(tmp_path: Path):
+    from test_frameserver import pattern_clip
+
+    from dvd.author.dvdauthor import mux
+    from dvd.video.hcenc import EncodeSettings, encode
+
+    m2v = encode(
+        pattern_clip(125),
+        tmp_path / "v.m2v",
+        EncodeSettings(4000, 8000, "16:9", "pal", profile="fast"),
+        tmp_path / "w",
+    )
+    ac3 = tmp_path / "a.ac3"
+    subprocess.run(
+        [str(FFMPEG), "-v", "error", "-y", "-f", "lavfi", "-i", "sine=duration=5",
+         "-c:a", "ac3", "-ar", "48000", str(ac3)],
+        check=True,
+    )  # fmt: skip
+    navs = count_nav_packs(mux(m2v, [ac3], tmp_path / "out.mpg"))
+    assert 5 <= navs <= 13  # 5 s of video, VOBUs of 0.4-1.0 s

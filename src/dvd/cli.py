@@ -104,3 +104,48 @@ def check(path: Path = typer.Argument(..., help="Project file")) -> None:
     typer.echo(
         f"ok: {d.name} | {d.standard.upper()} {d.media.upper()} | {len(proj.titles)} title(s)"
     )
+
+
+@app.command("build")
+def build_cmd(
+    path: Path = typer.Argument(..., help="Project file"),
+    out: Path | None = typer.Option(None, "--out", "-o", help="Folder for VIDEO_TS"),
+) -> None:
+    """Encode and author the disc into a VIDEO_TS folder."""
+    from dvd.audio.ac3 import AudioError
+    from dvd.author.dvdauthor import AuthorError
+    from dvd.build import BuildError, build
+    from dvd.video.hcenc import EncodeError
+    from dvd.video.pipeline import UnsupportedSource
+
+    try:
+        problems = check_sources(project.load(path), path)
+    except project.ProjectError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from None
+    if problems:
+        typer.echo("\n".join(problems), err=True)
+        raise typer.Exit(1)
+
+    last: dict[str, int] = {}
+
+    def show(stage: str, fraction: float) -> None:
+        step = int(fraction * 10)
+        if last.get(stage) != step:
+            last[stage] = step
+            typer.echo(f"{stage:<20} {fraction:>4.0%}")
+
+    errors = (BuildError, AudioError, AuthorError, EncodeError, UnsupportedSource, ProbeError)
+    try:
+        result = build(path, out_dir=out, progress=show)
+    except errors as exc:
+        typer.echo(f"build failed: {exc}", err=True)
+        raise typer.Exit(1) from None
+    p = result.plan
+    for w in result.warnings:
+        typer.echo(f"warning: {w}")
+    typer.echo(
+        f"video {p.video_kbps / 1000:.2f} Mbps avg, {p.peak_kbps / 1000:.1f} peak | "
+        f"estimated {p.estimated_bytes / 1e9:.2f} of {p.capacity_bytes / 1e9:.2f} GB"
+    )
+    typer.echo(f"wrote {result.video_ts}")
