@@ -19,6 +19,7 @@ dvd = "dvd.cli:app"
 
 [dependency-groups]
 dev = [
+    "pycdlib>=1.21.0",
     "pytest>=8.4",
     "ruff>=0.13",
 ]
