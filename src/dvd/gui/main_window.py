@@ -26,6 +26,7 @@ from dvd.budget.planner import Plan
 from dvd.build import estimate
 from dvd.gui import tasks
 from dvd.gui.i18n import t
+from dvd.gui.pages import BuildPage, TracksPage
 from dvd.gui.theme import DENSITY, stylesheet
 from dvd.gui.widgets import BudgetBar, ModeSwitch, VideoWell
 from dvd.probe import SourceInfo, probe
@@ -318,7 +319,18 @@ class MainWindow(QMainWindow):
         self.picture_page.switch_to_pro.connect(lambda: self.set_mode("pro"))
         self.pages["video"] = self.video_page
         self.pages["picture"] = self.picture_page
-        for key in ("audio", "subs", "chapters", "menu", "disc", "build"):
+        self.audio_page = TracksPage("both")
+        self.subs_page = TracksPage("subs")
+        self.build_page = BuildPage()
+        for page in (self.audio_page, self.subs_page):
+            page.changed.connect(self._tracks_changed)
+            page.failed.connect(lambda msg: self.budget_label.setText(msg))
+        self.build_page.start_requested.connect(self.start_build)
+        self.pages["audio"] = self.audio_page
+        self.pages["subs"] = self.subs_page
+        self.pages["build"] = self.build_page
+        self.building = False
+        for key in ("chapters", "menu", "disc"):
             page = QWidget()
             later = QVBoxLayout(page)
             later.setContentsMargins(24, 20, 24, 20)
@@ -344,7 +356,7 @@ class MainWindow(QMainWindow):
         self.build_button = QPushButton()
         self.build_button.setObjectName("primary")
         self.build_button.setEnabled(False)
-        self.build_button.clicked.connect(lambda: self.show_page("build"))
+        self.build_button.clicked.connect(self.start_build)
         box.addWidget(self.name_label)
         box.addWidget(self.summary)
         box.addStretch()
@@ -396,6 +408,7 @@ class MainWindow(QMainWindow):
             self.nav_buttons[key] = b
         self.nav_box.addStretch()
         self.picture_page.set_mode(mode)
+        self.audio_page.show_kind = "both" if mode == "basit" else "audio"
         keys = [k for k, _ in NAV[mode]]
         if self.current not in ("empty", *keys):
             self.current = FALLBACK.get(self.current, "video")
@@ -509,6 +522,51 @@ class MainWindow(QMainWindow):
         self.budget_label.style().polish(self.budget_label)
         self.budget_numbers.setText(numbers)
         self.picture_page.show_project(p, self.infos[0], self.plan)
+        for page in (self.audio_page, self.subs_page):
+            page.show_project(p, self.infos[0], self.project_file.parent, self.mode)
+        self.build_page.set_summary(t("build.summary", folder=self._output_folder()))
+
+    def _output_folder(self) -> Path:
+        from dvd.build import safe_name
+
+        return self.project_file.parent / safe_name(self.project.disc.name)
+
+    def _tracks_changed(self) -> None:
+        proj.save(self.project, self.project_file)
+        self._refresh()
+
+    # ---------------------------------------------------------------- build
+
+    def start_build(self) -> None:
+        if self.project is None or self.building:
+            self.show_page("build")
+            return
+        from dvd.build import build
+
+        self.building = True
+        self.build_button.setEnabled(False)
+        self.show_page("build")
+        self.build_page.running()
+        project_file = self.project_file
+        tasks.run(
+            lambda progress: build(project_file, progress=progress),
+            self._built,
+            self._build_failed,
+            self.build_page.progress,
+        )
+
+    def _built(self, result) -> None:
+        self.building = False
+        self.build_button.setEnabled(True)
+        lines = [t("build.wrote", path=result.video_ts)]
+        if result.iso:
+            lines.append(t("build.wrote", path=result.iso))
+        self.build_page.finished(result.video_ts.parent, lines, result.warnings)
+
+    def _build_failed(self, message: str) -> None:
+        self.building = False
+        self.build_button.setEnabled(True)
+        self.build_page.failed(message)
 
     # ---------------------------------------------------------------- drag and drop
 
