@@ -52,7 +52,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "pro.target": "Hedef",
         "pro.active": "Aktif",
         "pro.crop": "Crop",
-        "pro.crop_auto": "otomatik (Faz 2)",
+        "pro.crop_auto": "otomatik",
+        "pro.crop_found": "otomatik: üst {top}, alt {bottom}, sol {left}, sağ {right}",
         "pro.encoder": "Encoder",
         "pro.bitrate": "Ortalama",
         "pro.peak": "Tepe",
@@ -96,9 +97,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "build.stage.author": "DVD yapısı oluşturuluyor",
         "build.stage.iso": "Disk imajı yazılıyor",
         "build.stage.done": "Disk hazır",
-        "warning.crop": (
-            "Siyah bantlar henüz otomatik kırpılmıyor (Faz 2); görüntüyle birlikte kodlanıyor."
-        ),
+        "warning.crop": "Siyah bantlar bulunamadı; görüntünün tamamı kodlandı.",
         "warning.low_dvd5": "Ortalama görüntü bitrate'i {value} Mbps, düşük. DVD-9 önerilir.",
         "warning.low_dvd9": (
             "Ortalama görüntü bitrate'i {value} Mbps, düşük. "

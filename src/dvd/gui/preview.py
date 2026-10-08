@@ -8,18 +8,24 @@ import vapoursynth as vs
 from PySide6.QtGui import QImage
 
 from dvd.probe import SourceInfo
-from dvd.project.model import Standard, Title
-from dvd.video.pipeline import UnsupportedSource, build_clip, plan_target
+from dvd.project.model import Crop, Standard, Title
+from dvd.video.crop import detect_crop
+from dvd.video.pipeline import UnsupportedSource, build_clip, check_supported, plan_target
 
 core = vs.core
 
 
 def disc_frame(source: Path, info: SourceInfo, title: Title, standard: Standard,
-               position: float = 0.4) -> tuple[QImage, float]:  # fmt: skip
-    """RGB frame at `position` of the film and the aspect ratio it is displayed at."""
+               position: float = 0.4) -> tuple[QImage, float, Crop | None]:  # fmt: skip
+    """RGB frame at `position` as it will be on the disc, its display aspect, and the
+    detected black bars (when the title crops automatically)."""
     v = info.main_video
+    detected = None
     try:
-        target = plan_target(v, standard, title.video)
+        if title.video.crop == "auto":
+            check_supported(v)
+            detected = detect_crop(source, v)
+        target = plan_target(v, standard, title.video, detected)
         clip = build_clip(source, v, target, title.video)
         matrix = "470bg" if standard == "pal" else "170m"
         aspect = float(target.dar)
@@ -36,4 +42,4 @@ def disc_frame(source: Path, info: SourceInfo, title: Title, standard: Standard,
     for i in range(3):
         packed[i::3] = planes[i]
     image = QImage(bytes(packed), w, h, w * 3, QImage.Format.Format_RGB888).copy()
-    return image, aspect
+    return image, aspect, detected

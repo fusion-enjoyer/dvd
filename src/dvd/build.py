@@ -26,8 +26,15 @@ from dvd.subs.extract import extract_text_track
 from dvd.subs.spumux import add_subtitle_stream
 from dvd.subs.srt import Cue, read_srt, retime
 from dvd.video.compliance import check as check_video
+from dvd.video.crop import detect_crop
 from dvd.video.hcenc import EncodeSettings, encode
-from dvd.video.pipeline import Target, UnsupportedSource, build_clip, plan_target
+from dvd.video.pipeline import (
+    Target,
+    UnsupportedSource,
+    build_clip,
+    check_supported,
+    plan_target,
+)
 
 Progress = Callable[[str, float], None]
 
@@ -115,14 +122,20 @@ def estimate(project: Project, infos: list[SourceInfo]) -> Plan:
     )
 
 
-def _prepare(project: Project, project_file: Path) -> list[_Prepared]:
+def _prepare(project: Project, project_file: Path, warnings: list[str]) -> list[_Prepared]:
     prepared = []
-    for title in project.titles:
+    for n, title in enumerate(project.titles, start=1):
         source = source_path(project_file, title)
         info = probe(source)
         if info.main_video is None:
             raise BuildError(f"{source.name} has no video track")
-        target = plan_target(info.main_video, project.disc.standard, title.video)
+        detected = None
+        if title.video.crop == "auto":
+            check_supported(info.main_video)
+            detected = detect_crop(source, info.main_video)
+            if detected is None:
+                warnings.append(f"title {n}: black bars could not be detected; full frame used")
+        target = plan_target(info.main_video, project.disc.standard, title.video, detected)
         # Frame count from the decoder is exact; container duration is not.
         frames = build_clip(source, info.main_video, target, title.video).num_frames
         prepared.append(_Prepared(title, source, info, target, frames))
@@ -148,10 +161,8 @@ def build(
             progress(stage, fraction)
 
     warnings = []
-    if any(t.video.crop == "auto" for t in project.titles):
-        warnings.append("automatic black-bar crop comes in Phase 2; bars are encoded as picture")
 
-    prepared = _prepare(project, project_file)
+    prepared = _prepare(project, project_file, warnings)
     total = sum(p.duration for p in prepared)
     audio_avg = sum(p.duration * sum(a.bitrate for a in p.title.audio) for p in prepared) / total
     budget = plan(

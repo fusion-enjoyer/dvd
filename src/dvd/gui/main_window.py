@@ -229,7 +229,8 @@ class PicturePage(QWidget):
         self.pro.setVisible(mode == "pro")
         self.side.setFixedWidth(300 if mode == "basit" else 290)
 
-    def show_project(self, project: Project, info: SourceInfo, plan: Plan | None) -> None:
+    def show_project(self, project: Project, info: SourceInfo, plan: Plan | None,
+                     detected=None) -> None:  # fmt: skip
         prof = project.disc.profiles
         for field_name, value in (("content", prof.content), ("viewing", prof.viewing),
                                   ("audio", prof.audio)):  # fmt: skip
@@ -241,9 +242,9 @@ class PicturePage(QWidget):
             dots, text = quality(plan)
             self.quality_dots.setText("●" * dots + "○" * (5 - dots))
             self.quality_text.setText(text)
-        self._fill_pro(project, info, plan)
+        self._fill_pro(project, info, plan, detected)
 
-    def _fill_pro(self, project: Project, info: SourceInfo, plan: Plan | None) -> None:
+    def _fill_pro(self, project: Project, info: SourceInfo, plan: Plan | None, detected) -> None:
         while self.pro_grid.count():
             self.pro_grid.takeAt(0).widget().deleteLater()
         v = info.main_video
@@ -254,13 +255,21 @@ class PicturePage(QWidget):
             rows.append((t("pro.source"), f"{v.width}×{v.height} {fps_text(v.fps)}"))
             rows.append(("", f"{(v.color_matrix or '?').upper()} {'HDR' if v.hdr else 'SDR'}"))
             try:
-                tg = plan_target(v, project.disc.standard, project.titles[0].video)
+                tg = plan_target(v, project.disc.standard, project.titles[0].video, detected)
                 fps = f"{float(tg.fps):g}p"
                 rows.append((t("pro.target"), f"{tg.width}×{tg.height} {tg.aspect} {fps}"))
                 rows.append((t("pro.active"), f"{tg.active_width}×{tg.active_height}"))
             except UnsupportedSource as exc:
                 rows.append((t("pro.target"), str(exc)))
-        rows.append((t("pro.crop"), t("pro.crop_auto")))
+        crop = project.titles[0].video.crop
+        if crop == "auto" and detected is not None:
+            crop_text = t("pro.crop_found", top=detected.top, bottom=detected.bottom,
+                          left=detected.left, right=detected.right)  # fmt: skip
+        elif crop == "auto":
+            crop_text = t("pro.crop_auto")
+        else:
+            crop_text = str(crop)
+        rows.append((t("pro.crop"), crop_text))
         rows.append((t("pro.encoder"), "HCEnc · 2 pass"))
         if plan:
             rows.append((t("pro.bitrate"), f"{plan.video_kbps / 1000:.2f} Mbps"))
@@ -283,6 +292,7 @@ class MainWindow(QMainWindow):
         self.project_file: Path | None = None
         self.infos: list[SourceInfo] = []
         self.plan: Plan | None = None
+        self.detected = None  # black bars found in the first title, once the preview ran
         self.setWindowTitle(t("app.title"))
         self.resize(1280, 800)
         self.setAcceptDrops(True)
@@ -475,9 +485,15 @@ class MainWindow(QMainWindow):
         well = self.picture_page.well
         well.set_image(None, well.aspect, t("picture.preview_loading"))
         source = proj.source_path(file, p.titles[0])
+
+        def shown(result) -> None:
+            image, aspect, self.detected = result
+            well.set_image(image, aspect)
+            self._refresh()
+
         tasks.run(
             lambda: disc_frame(source, info, p.titles[0], p.disc.standard),
-            lambda r: well.set_image(r[0], r[1]),
+            shown,
             lambda msg: well.set_image(None, well.aspect, msg),
         )
 
@@ -521,7 +537,7 @@ class MainWindow(QMainWindow):
         self.budget_label.style().unpolish(self.budget_label)
         self.budget_label.style().polish(self.budget_label)
         self.budget_numbers.setText(numbers)
-        self.picture_page.show_project(p, self.infos[0], self.plan)
+        self.picture_page.show_project(p, self.infos[0], self.plan, self.detected)
         for page in (self.audio_page, self.subs_page):
             page.show_project(p, self.infos[0], self.project_file.parent, self.mode)
         self.build_page.set_summary(t("build.summary", folder=self._output_folder()))

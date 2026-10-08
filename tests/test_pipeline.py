@@ -25,18 +25,57 @@ def test_hd_film_to_pal_16_9_fills_the_frame():
     assert t.speedup == Fraction(25025, 24000)
 
 
-def test_scope_film_gets_letterbox_bars():
+def test_scope_film_gets_letterbox_bars_on_macroblock_rows():
     t = plan_target(track(height=804), "pal", Video())
-    assert (t.active_width, t.active_height) == (720, 428)
+    # 2.39:1 ideally needs 428.9 lines; 432 is the nearest multiple of 16.
+    assert (t.active_width, t.active_height) == (720, 432)
+    assert t.pad_top == 64  # 144 lines of bars: 64 above, 80 below
+    # The source is narrowed by 14 pixels instead of stretching the picture vertically.
+    assert (t.crop.left, t.crop.right, t.crop.top, t.crop.bottom) == (6, 8, 0, 0)
+
+
+def shown_shape(t, v):
+    return Fraction(t.active_width, t.width) * t.dar / Fraction(t.active_height, t.height)
+
+
+def source_shape(v, t):
+    c = t.crop
+    return Fraction(v.width - c.left - c.right, v.height - c.top - c.bottom) * v.sar
+
+
+@pytest.mark.parametrize(
+    ("width", "height", "aspect"),
+    [(1920, 804, "auto"), (1920, 1038, "auto"), (1440, 1080, "16:9"), (1920, 800, "auto"),
+     (1998, 1080, "auto"), (720, 576, "auto"), (1080, 1920, "auto")],
+)  # fmt: skip
+def test_alignment_keeps_the_shape_and_macroblock_grid(width, height, aspect):
+    v = track(width=width, height=height, fps=Fraction(25))
+    t = plan_target(v, "pal", Video(aspect=aspect))
+    assert t.active_width % 16 == 0 and t.active_height % 16 == 0
+    assert t.pad_left % 16 == 0 and t.pad_top % 16 == 0
+    assert all(x % 2 == 0 for x in (t.crop.left, t.crop.right, t.crop.top, t.crop.bottom))
+    assert abs(shown_shape(t, v) / source_shape(v, t) - 1) < Fraction(1, 200)
+
+
+def test_without_alignment_bars_are_centred():
+    t = plan_target(track(height=804), "pal", Video(), align=False)
+    assert (t.active_height, t.pad_top) == (428, 74)
+    assert t.crop == Crop()
 
 
 def test_crop_is_applied_before_framing():
     t = plan_target(track(), "pal", Video(crop=Crop(top=138, bottom=138)))
-    assert t.active_height == 428
+    assert t.active_height == 432 and t.crop.top == 138
+
+
+def test_detected_crop_is_used_only_for_auto():
+    detected = Crop(top=138, bottom=138)
+    assert plan_target(track(), "pal", Video(), detected).active_height == 432
+    assert plan_target(track(), "pal", Video(crop="none"), detected).active_height == 576
 
 
 def test_flat_1_85_film():
-    assert plan_target(track(height=1038), "pal", Video()).active_height == 554
+    assert plan_target(track(height=1038), "pal", Video()).active_height == 560
 
 
 def test_4_3_source_gets_4_3_frame():
@@ -47,7 +86,8 @@ def test_4_3_source_gets_4_3_frame():
 
 def test_4_3_source_forced_into_16_9_frame_is_pillarboxed():
     t = plan_target(track(width=1440), "pal", Video(aspect="16:9"))
-    assert (t.active_width, t.active_height) == (540, 576)
+    assert (t.active_width, t.active_height) == (544, 576)
+    assert t.pad_left == 80
 
 
 def test_portrait_phone_video_is_pillarboxed_in_4_3():

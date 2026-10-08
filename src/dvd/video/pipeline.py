@@ -7,7 +7,7 @@ for PAL. Pre-processing for quality (deband, dither, grain, crop detection) come
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from fractions import Fraction
 from pathlib import Path
 
@@ -41,6 +41,9 @@ class Target:
     speedup: Fraction  # PAL film: playback speed factor (audio must match)
     active_width: int
     active_height: int
+    crop: Crop = field(default_factory=Crop)  # applied to the source before scaling
+    pad_left: int = 0
+    pad_top: int = 0
 
     @property
     def dar(self) -> Fraction:
@@ -64,16 +67,40 @@ def check_supported(v: VideoTrack) -> None:
         raise UnsupportedSource("variable frame rate sources are planned for Phase 2")
 
 
-def crop_values(video: Video) -> Crop:
-    # "auto" becomes real black-bar detection in Phase 2; until then the bars are scaled with
-    # the picture, which looks the same but spends a few bits on black.
-    return video.crop if isinstance(video.crop, Crop) else Crop()
+def crop_values(video: Video, detected: Crop | None = None) -> Crop:
+    """The project's crop: explicit values, the detected bars for "auto", or nothing."""
+    if isinstance(video.crop, Crop):
+        return video.crop
+    if video.crop == "auto" and detected is not None:
+        return detected
+    return Crop()
 
 
-def plan_target(v: VideoTrack, standard: Standard, video: Video) -> Target:
+def _round16(x: float, limit: int) -> int:
+    return max(16, min(limit, round(x / 16) * 16))
+
+
+def _split_even(total: int) -> tuple[int, int]:
+    first = total // 2 // 2 * 2
+    return first, total - first
+
+
+def plan_target(
+    v: VideoTrack,
+    standard: Standard,
+    video: Video,
+    detected: Crop | None = None,
+    align: bool = True,
+) -> Target:
+    """Frame, scale and bars for a source.
+
+    With `align`, the picture size and the bars sit on 16-pixel macroblock boundaries, so no
+    macroblock straddles the edge between picture and black. To keep the shape exact, a few
+    more source pixels are cropped instead of stretching; an odd bar goes to the bottom/right.
+    """
     if v.fps is None:
         raise UnsupportedSource("source frame rate is unknown")
-    crop = crop_values(video)
+    crop = crop_values(video, detected)
     width = v.width - crop.left - crop.right
     height = v.height - crop.top - crop.bottom
     if width <= 0 or height <= 0:
@@ -103,13 +130,32 @@ def plan_target(v: VideoTrack, standard: Standard, video: Video) -> Target:
             raise UnsupportedSource(f"{float(v.fps):g} fps to NTSC needs frame rate conversion")
         frame_w, frame_h, speedup = 720, 480, Fraction(1)
 
+    left, right, top, bottom = crop.left, crop.right, crop.top, crop.bottom
     if content_dar >= frame_dar:  # wider: full width, bars top and bottom
-        active_w, active_h = frame_w, _even(frame_h * frame_dar / content_dar)
+        ideal = frame_h * frame_dar / content_dar
+        active_w = frame_w
+        active_h = _round16(ideal, frame_h) if align else min(frame_h, _even(ideal))
     else:  # narrower: full height, bars left and right
-        active_w, active_h = _even(frame_w * content_dar / frame_dar), frame_h
+        ideal = frame_w * content_dar / frame_dar
+        active_h = frame_h
+        active_w = _round16(ideal, frame_w) if align else min(frame_w, _even(ideal))
+    if align:
+        # Shape the picture actually gets; crop the source to match it instead of stretching.
+        shown = frame_dar * Fraction(active_w, frame_w) / Fraction(active_h, frame_h)
+        if shown < content_dar:
+            keep = _even(height * shown / v.sar)
+            a, b = _split_even(width - keep)
+            left, right = left + a, right + b
+        elif shown > content_dar:
+            keep = _even(width * v.sar / shown)
+            a, b = _split_even(height - keep)
+            top, bottom = top + a, bottom + b
+    step = 16 if align else 2
+    pad_left = (frame_w - active_w) // 2 // step * step
+    pad_top = (frame_h - active_h) // 2 // step * step
     return Target(
-        standard, frame_w, frame_h, fps, aspect, pulldown, speedup,
-        min(active_w, frame_w), min(active_h, frame_h),
+        standard, frame_w, frame_h, fps, aspect, pulldown, speedup, active_w, active_h,
+        Crop(left=left, right=right, top=top, bottom=bottom), pad_left, pad_top,
     )  # fmt: skip
 
 
@@ -124,7 +170,7 @@ def _matrix(v: VideoTrack) -> str:
 def build_clip(source: Path, v: VideoTrack, target: Target, video: Video) -> vs.VideoNode:
     check_supported(v)
     clip = core.bs.VideoSource(str(source), track=v.index)
-    crop = crop_values(video)
+    crop = target.crop
     if any((crop.left, crop.right, crop.top, crop.bottom)):
         clip = core.std.Crop(clip, crop.left, crop.right, crop.top, crop.bottom)
     out_matrix = "470bg" if target.standard == "pal" else "170m"
@@ -143,10 +189,10 @@ def build_clip(source: Path, v: VideoTrack, target: Target, video: Video) -> vs.
     if pad_w or pad_h:
         clip = core.std.AddBorders(
             clip,
-            left=pad_w // 2 // 2 * 2,
-            right=pad_w - pad_w // 2 // 2 * 2,
-            top=pad_h // 2 // 2 * 2,
-            bottom=pad_h - pad_h // 2 // 2 * 2,
+            left=target.pad_left,
+            right=pad_w - target.pad_left,
+            top=target.pad_top,
+            bottom=pad_h - target.pad_top,
             color=[16, 128, 128],
         )
     return core.std.AssumeFPS(clip, fpsnum=target.fps.numerator, fpsden=target.fps.denominator)

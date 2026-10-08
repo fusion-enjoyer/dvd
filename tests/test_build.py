@@ -189,3 +189,27 @@ def test_build_with_srt_subtitle_file(tmp_path: Path):
     assert "dvd_subtitle,tur" in out  # IFO stores "tr"; ffprobe shows ISO 639-2
     xml = (tmp_path / "build" / "Deneme Filmi" / "dvdauthor.xml").read_text(encoding="utf-8")
     assert "subtitle=64" in xml
+
+
+@pytest.mark.skipif(not READY, reason="toolchain not installed")
+def test_letterboxed_source_is_cropped_and_bars_sit_on_macroblock_rows(tmp_path: Path):
+    import numpy as np
+
+    src = tmp_path / "kapsam.mkv"
+    subprocess.run(
+        [str(FFMPEG), "-v", "error", "-y", "-f", "lavfi",
+         "-i", "testsrc2=size=1920x804:rate=25:duration=3", "-vf", "pad=1920:1080:0:138:black",
+         "-c:v", "libx264", "-preset", "ultrafast", "-crf", "20", str(src)],
+        check=True,
+    )  # fmt: skip
+    project_file = tmp_path / "kapsam.dvd.yaml"
+    save(new_project(probe(src), tmp_path), project_file)
+    result = build(project_file, make_iso=False)
+    raw = subprocess.run(
+        [str(FFMPEG), "-v", "error", "-i", str(result.video_ts / "VTS_01_1.VOB"), "-frames:v", "1",
+         "-f", "rawvideo", "-pix_fmt", "gray", "-"],
+        capture_output=True, check=True,
+    ).stdout  # fmt: skip
+    rows = np.frombuffer(raw, np.uint8).reshape(576, 720).mean(axis=1)
+    picture = np.flatnonzero(rows > 24)
+    assert (picture[0], picture[-1]) == (64, 64 + 432 - 1)  # 64 lines above, 80 below
