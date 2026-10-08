@@ -2,7 +2,7 @@
 
 **Hedef platform: Windows masaüstü uygulaması.** Tüm dış araçlar uygulamayla birlikte paketlenir; kullanıcı ayrıca bir şey kurmaz.
 
-## Teknoloji yığını (öneri — bkz. [kararlar.md](kararlar.md) K8)
+## Teknoloji yığını
 
 | Katman | Seçim | Gerekçe |
 |---|---|---|

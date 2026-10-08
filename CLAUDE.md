@@ -6,7 +6,7 @@ Kullanıcıyla Türkçe konuşulur; belgeler Türkçe.
 ## Durum
 
 Tasarım/planlama aşaması — henüz kod yok. Kod Windows'ta yazılacak.
-Sıradaki adım: `docs/kararlar.md`'deki açık kararları (özellikle K8 arayüz teknolojisi) kapat, sonra ROADMAP.md **Faz 0**.
+Sıradaki adım: `docs/kararlar.md`'deki açık kararlara bak (arayüz: Python + PySide6 kararlaştırıldı), sonra ROADMAP.md **Faz 0**.
 
 ## Belgeler
 

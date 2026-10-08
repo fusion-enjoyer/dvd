@@ -10,7 +10,8 @@ Hedef: **Windows masaüstü uygulaması.** Her faz kendi başına kullanılabili
 
 ## Faz 0 — Temel ve keşif
 
-- [ ] Açık kararları kapat (özellikle K8: arayüz teknolojisi)
+- [x] Arayüz teknolojisi: Python + PySide6
+- [ ] Kalan açık kararları kapat (lisans, yakma yöntemi, ISO üretimi)
 - [ ] Windows geliştirme ortamı: Python + `uv`, VapourSynth + eklentiler, FFmpeg, HCEnc, dvdauthor/spumux Windows derlemeleri
 - [ ] `tools/` sürüm listesi: hangi .exe hangi sürüm, nereden indirilir (repoya .exe girmez)
 - [ ] **HCEnc ↔ VapourSynth köprüsü** prototip denemesi (en büyük teknik belirsizlik)
