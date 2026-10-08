@@ -14,6 +14,8 @@
 | 2026-10-08 | — | Orijinal DVD'ler yalnızca geliştirmede kalibrasyon için; uygulama kullanıcıdan referans rip istemez | Kişisel videolar dahil her kaynakta profillerle çalışır |
 | 2026-10-08 | K12 | **TMDB entegrasyonu** (başlık, Türkçe meta veri, menü görselleri, dizi bölüm bilgileri) | Kullanıcı isteği; API anahtarını kullanıcı girer, TMDB atfı gösterilir |
 | 2026-10-08 | K13 | Altyazıda **serbest font seçimi** + anamorfik düzeltme | Subpicture resim olduğu için font kısıtı yok |
+| 2026-10-08 | K14 | Arayüz **koyu tema** öncelikli (açık tema sonra) | Video önizlemede renk algısını bozmaz; video araçlarında yaygın |
+| 2026-10-08 | K15 | **İki kullanım modu**: Basit mod (preset'lerle, az karar) ve Profesyonel mod (tüm ayarlar) | Kurcalamak istemeyen de isteyen de aynı uygulamayı kullanır; ayrıntılar [arayuz.md](arayuz.md) |
 | 2026-10-08 | — | Ön işleme VapourSynth ile | Kalite ekosistemi |
 | 2026-10-08 | — | Önce menüsüz uçtan uca MVP, sonra kalite motoru | Erken gerçek cihaz testi |
 

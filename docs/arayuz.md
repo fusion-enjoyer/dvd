@@ -1,6 +1,28 @@
 # Arayüz Tasarımı (taslak)
 
-Kaba yerleşim taslakları; görsel tasarım (renk, tipografi) ayrıca yapılacak.
+Kaba yerleşim taslakları ve görsel dil.
+
+## Görsel dil: "Sıcak stüdyo" (2026-10-08, ilk öneri)
+
+Hedef izlenim: **kolay ve güven veren.** Tasarım sistemi sayfası: [tasarim-sistemi.html](tasarim-sistemi.html)
+(çevrimiçi kopya: https://claude.ai/artifact/6GzvzGGwpvf6ef7EzhP8xU)
+
+- **Renk:** sıcak koyu griler (zemin `#161513`, panel `#1E1C1A`, girdi `#282623`, çizgi `#3A3632`, metin `#EDE8E0` / `#A29B90`) ve tek vurgu rengi olarak amber `#F0B449`. Durum renkleri: başarı `#5FBF7F`, uyarı `#F07F4A` (her zaman ikonla), hata `#E5534B`, bilgi `#7AA8D8`. Video önizleme alanı her zaman nötr siyah.
+- **Font:** Bricolage Grotesque (başlıklarda, az kullanılır), Source Sans 3 (arayüz), JetBrains Mono (timecode, Mbps, GB, yollar). Hepsi OFL lisanslı, uygulamaya gömülür, Türkçe harfleri içerir.
+- **Derinlik:** gölge yok, yüzey tonları ve 1px çizgi var (QSS ile uygulanabilir). Köşe yarıçapları 3, 6 ve 10px.
+
+## Kullanım modları (K15)
+
+İki mod **aynı ekran iskeletini** kullanır, aralarında geçiş yapınca kaldığınız yer kaybolmaz. Fark üç şeyde:
+
+| | Basit mod | Profesyonel mod |
+|---|---|---|
+| Gezinme | 5 adım: Video → Görüntü ve kalite → Ses ve altyazı → Menü → Diski oluştur | 8 bölüm: Kaynaklar → Başlıklar → Ses → Altyazı → Bölümler → Menüler → Disk → Çıktı |
+| Dil | Sonuç dili: "Ticari DVD seviyesi", "Film diske rahat sığıyor", "Greni korur" | Teknik değer: 7.4 Mbps, Spline36, VBV, değerin hangi profilden geldiği |
+| Yoğunluk | 36px kontroller, 16px aralık | 26px kontroller, 10px aralık |
+
+- Basit modda preset'ler önceden seçilir, her biri "Değiştir" ile tek satırda değiştirilir.
+- Basit modda yapılan seçimler Profesyonel moda geçince korunur. Profesyonel modda elle değiştirilen ayar, Basit moda dönünce "özel ayar" olarak işaretlenir.
 
 ## Genel yapı
 
