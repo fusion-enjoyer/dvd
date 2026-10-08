@@ -33,9 +33,9 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 - [x] Proje modeli ve proje dosyası (`*.dvd.yaml`, `dvd new`, `dvd check`)
 - [x] Kaynak analizi (ffprobe): `dvd probe`; HDR, interlaced, değişken kare hızı ve dikey video tespiti
 - [x] Basit video encode (2 geçiş VBR, anamorfik 16:9 / 4:3, PAL / NTSC): BestSource → VapourSynth → HCEnc
-- [ ] AC-3 ses, 48 kHz; SRT → subpicture (basit render)
+- [x] AC-3 ses, 48 kHz; SRT → subpicture (basit render)
   - [x] AC-3 ses (PAL hızlanmasında perde korunur)
-  - [ ] SRT → subpicture
+  - [x] SRT → subpicture: dosya ya da gömülü metin izi, Türkçe kodlama tespiti, Qt ile 4 renkli render, anamorfik düzeltme, spumux
 - [x] Bölümleri içe aktar, I-frame zorla (bölüm, en yakın VOBU başına düşüyor; sapma < 0.4 sn)
 - [x] dvdauthor ile menüsüz VIDEO_TS → ISO
   - [x] VIDEO_TS (`dvd build`)
