@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import typer
 
-from dvd import __version__, toolchain
+from dvd import __version__, project, toolchain
 from dvd.probe import ProbeError, probe, report
+from dvd.project.check import check_sources
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 
@@ -22,6 +24,10 @@ def main(
     version: bool = typer.Option(False, "--version", callback=_version, is_eager=True),
 ) -> None:
     """DVD-Video authoring tool."""
+    # Redirected output would otherwise use the ANSI code page and mangle Turkish names.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
 
 
 @app.command()
@@ -56,3 +62,45 @@ def probe_cmd(
         typer.echo(json.dumps(report.to_json(info), ensure_ascii=False, indent=2))
     else:
         typer.echo(report.summary(info))
+
+
+@app.command()
+def new(
+    source: Path = typer.Argument(..., help="Video file to put on the disc"),
+    out: Path | None = typer.Option(None, "--out", "-o", help="Project file to write"),
+    force: bool = typer.Option(False, "--force", help="Overwrite an existing project file"),
+) -> None:
+    """Create a project for a source file with defaults chosen from its contents."""
+    out = out or Path.cwd() / f"{source.stem}{project.PROJECT_SUFFIX}"
+    if out.exists() and not force:
+        typer.echo(f"{out} already exists; use --force to overwrite", err=True)
+        raise typer.Exit(1)
+    try:
+        info = probe(source)
+    except ProbeError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from None
+    proj = project.new_project(info, out.parent)
+    project.save(proj, out)
+    _, reason = project.suggest_standard(info.main_video.fps if info.main_video else None)
+    typer.echo(f"wrote {out}")
+    typer.echo(f"standard {proj.disc.standard.upper()} ({reason}), media {proj.disc.media.upper()}")
+
+
+@app.command()
+def check(path: Path = typer.Argument(..., help="Project file")) -> None:
+    """Validate a project file and the sources it refers to."""
+    try:
+        proj = project.load(path)
+    except project.ProjectError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from None
+    problems = check_sources(proj, path)
+    for line in problems:
+        typer.echo(line, err=True)
+    if problems:
+        raise typer.Exit(1)
+    d = proj.disc
+    typer.echo(
+        f"ok: {d.name} | {d.standard.upper()} {d.media.upper()} | {len(proj.titles)} title(s)"
+    )

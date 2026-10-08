@@ -71,7 +71,17 @@ tools/          (git dışı) paketlenecek .exe'ler — repoda yalnızca indirme
 - **GPU**: NVDEC/QSV/AMF ile decode, VapourSynth placebo (Vulkan) ile tonemapping — opsiyonel.
 - **Kaynak DVD'ler**: analizör, kullanıcının kendi ripleme aracıyla çıkardığı VIDEO_TS/ISO üzerinde çalışır.
 
-## Proje dosyası (taslak örnek)
+## Proje dosyası
+
+Uzantı `*.dvd.yaml`; model `src/dvd/project/model.py`. Bilinmeyen anahtarlar reddedilir (yazım hatası sessizce
+yok sayılmasın), DVD sınırları yüklerken denetlenir: en çok 99 başlık, başlık başına 8 ses, 32 altyazı ve 99 bölüm;
+AC-3 bitrate'i 192k–448k; dil kodları iki harfli (`tur` gibi üç harfli kodlar `tr`'ye çevrilir). Kayıt atomik yapılır.
+`menus` ve `first_play` Faz 4'e kadar olduğu gibi saklanır.
+
+- `dvd new kaynak.mkv`: kaynağı analiz edip varsayılanlarla proje oluşturur.
+- `dvd check film.dvd.yaml`: dosyayı ve kaynakları denetler (dosyalar var mı, gösterilen izler kaynakta var mı).
+
+Örnek:
 
 ```yaml
 disc:

@@ -19,6 +19,8 @@
 | 2026-10-08 | — | Ön işleme VapourSynth ile | Kalite ekosistemi |
 | 2026-10-08 | — | Önce menüsüz uçtan uca MVP, sonra kalite motoru | Erken gerçek cihaz testi |
 | 2026-10-09 | K7 | Repo **public**, lisans **GPL-3.0-or-later** | dvdauthor ve FFmpeg GPL derlemesiyle birlikte dağıtılıyor |
+| 2026-10-09 | — | Film kaynaklarında (23.976/24 fps) önerilen standart **PAL** | Test zinciri SCART'lı bir PAL TV; PAL 576 satır verir. Bedeli %4 hızlanma. NTSC her zaman seçilebilir; cihaz testinden sonra yeniden bakılacak |
+| 2026-10-09 | — | Proje dosyası YAML, uzantı `*.dvd.yaml`, `version` alanıyla | Elle okunup düzenlenebilir; sürüm alanı ileride geçiş için |
 | 2026-10-09 | — | HCEnc'e kareler kendi köprümüzle (named pipe + `DvdSource.dll`) verilir | Ara dosya yok, iki geçiş çalışıyor; bkz. riskler |
 
 ## Açık kararlar

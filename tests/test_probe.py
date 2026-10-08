@@ -213,3 +213,20 @@ def test_json_view_is_serialisable():
 
     data = report.to_json(info_of(video_stream()))
     assert json.loads(json.dumps(data))["video"][0]["fps"] == "24000/1001"
+
+
+@needs_ffmpeg
+def test_cli_new_then_check(sample_mkv: Path, tmp_path: Path):
+    from typer.testing import CliRunner
+
+    from dvd.cli import app
+
+    out = tmp_path / "proje.dvd.yaml"
+    runner = CliRunner()
+    result = runner.invoke(app, ["new", str(sample_mkv), "-o", str(out)])
+    assert result.exit_code == 0, result.output
+    assert "standard PAL" in result.output
+    result = runner.invoke(app, ["check", str(out)])
+    assert result.exit_code == 0, result.output
+    assert "ok: Deneme Filmi | PAL DVD5 | 1 title(s)" in result.output
+    assert runner.invoke(app, ["new", str(sample_mkv), "-o", str(out)]).exit_code == 1

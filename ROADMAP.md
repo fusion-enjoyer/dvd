@@ -30,7 +30,7 @@ Hedef: **Windows masaüstü uygulaması.** Her faz kendi başına kullanılabili
 Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca çalışsın.
 
 **Motor + CLI**
-- [ ] Proje modeli ve proje dosyası
+- [x] Proje modeli ve proje dosyası (`*.dvd.yaml`, `dvd new`, `dvd check`)
 - [x] Kaynak analizi (ffprobe): `dvd probe`; HDR, interlaced, değişken kare hızı ve dikey video tespiti
 - [ ] Basit video encode (2 geçiş VBR, anamorfik 16:9 / 4:3, PAL / NTSC)
 - [ ] AC-3 ses, 48 kHz; SRT → subpicture (basit render)
