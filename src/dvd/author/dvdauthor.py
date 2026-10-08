@@ -24,6 +24,8 @@ class AuthorTitle:
     aspect: str  # "16:9" | "4:3"
     audio_langs: list[str] = field(default_factory=list)
     chapters: list[str] = field(default_factory=list)  # "h:mm:ss.mmm", first is 0
+    subtitle_langs: list[str] = field(default_factory=list)
+    subtitles_on: bool = False  # show subtitle stream 1 when the title starts
 
 
 def timecode(seconds: float) -> str:
@@ -57,7 +59,7 @@ def dvdauthor_xml(titles: list[AuthorTitle], standard: str, dest: str = "disc") 
     aspect = titles[0].aspect
     video = f'<video format="{standard}" aspect="{aspect}"'
     video += ' widescreen="nopanscan"/>' if aspect == "16:9" else "/>"
-    langs = titles[0].audio_langs
+    langs, sub_langs = titles[0].audio_langs, titles[0].subtitle_langs
     lines = [
         f"<dvdauthor dest={quoteattr(dest)}>",
         "  <vmgm><fpc>jump title 1;</fpc></vmgm>",
@@ -65,15 +67,16 @@ def dvdauthor_xml(titles: list[AuthorTitle], standard: str, dest: str = "disc") 
         "    <titles>",
         f"      {video}",
         *(f"      <audio lang={quoteattr(lang)}/>" for lang in langs),
+        *(f"      <subpicture lang={quoteattr(lang)}/>" for lang in sub_langs),
     ]
     for n, t in enumerate(titles, start=1):
-        if t.audio_langs != langs:
-            raise AuthorError("all titles must have the same audio languages for now")
+        if t.audio_langs != langs or t.subtitle_langs != sub_langs:
+            raise AuthorError("all titles must have the same audio and subtitle languages for now")
         chapters = ",".join(t.chapters or ["0:00:00.000"])
-        lines += [
-            "      <pgc>",
-            f"        <vob file={quoteattr(t.vob)} chapters={quoteattr(chapters)}/>",
-        ]
+        lines.append("      <pgc>")
+        if t.subtitles_on and t.subtitle_langs:
+            lines.append("        <pre>subtitle=64;</pre>")  # 64 = display on, stream 0
+        lines.append(f"        <vob file={quoteattr(t.vob)} chapters={quoteattr(chapters)}/>")
         if n < len(titles):
             lines.append(f"        <post>jump title {n + 1};</post>")
         lines.append("      </pgc>")

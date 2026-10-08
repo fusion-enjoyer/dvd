@@ -14,7 +14,17 @@ from dvd.budget.planner import Plan, plan
 from dvd.output.iso import write_iso
 from dvd.probe import SourceInfo, probe
 from dvd.project import load, source_path
-from dvd.project.model import MAX_CHAPTERS, ChapterEvery, Project, Title, parse_timecode
+from dvd.project.model import (
+    MAX_CHAPTERS,
+    ChapterEvery,
+    Project,
+    Subtitle,
+    Title,
+    parse_timecode,
+)
+from dvd.subs.extract import extract_text_track
+from dvd.subs.spumux import add_subtitle_stream
+from dvd.subs.srt import Cue, read_srt, retime
 from dvd.video.hcenc import EncodeSettings, encode
 from dvd.video.pipeline import Target, build_clip, plan_target
 
@@ -67,6 +77,20 @@ def chapter_frames(title: Title, info: SourceInfo, target: Target, frames: int) 
     return sorted({0, *(f for f in starts if 0 <= f < frames)})[:MAX_CHAPTERS]
 
 
+def _subtitle_cues(sub: Subtitle, p: _Prepared, project_file: Path, srt_out: Path) -> list[Cue]:
+    if sub.file is not None:
+        path = Path(sub.file)
+        return read_srt(path if path.is_absolute() else project_file.parent / path)
+    track = next((s for s in p.info.subtitles if s.index == sub.track), None)
+    if track is None:
+        raise BuildError(f"{p.source.name} has no subtitle stream {sub.track}")
+    if track.kind != "text":
+        raise BuildError(
+            f"subtitle stream {sub.track} is {track.codec}; bitmap subtitles come in Phase 3"
+        )
+    return read_srt(extract_text_track(p.source, sub.track, srt_out))
+
+
 def _prepare(project: Project, project_file: Path) -> list[_Prepared]:
     prepared = []
     for title in project.titles:
@@ -100,8 +124,6 @@ def build(
             progress(stage, fraction)
 
     warnings = []
-    if any(t.subtitles for t in project.titles):
-        warnings.append("subtitles are not burned to the disc yet; they will be in a later step")
     if any(t.video.crop == "auto" for t in project.titles):
         warnings.append("automatic black-bar crop comes in Phase 2; bars are encoded as picture")
 
@@ -112,6 +134,7 @@ def build(
         project.disc.media,
         total,
         [round(audio_avg)],
+        subtitle_tracks=max(len(t.subtitles) for t in project.titles),
         viewing=project.disc.profiles.viewing,
     )
     warnings += budget.warnings
@@ -155,13 +178,30 @@ def build(
             progress=lambda f, n=n: report(f"title {n} video", f),
         )
         report(f"title {n} mux", 0.0)
-        mux(m2v, audio_files, work_dir / f"{tag}.mpg")
+        mpg = mux(m2v, audio_files, work_dir / f"{tag}.mpg")
+        subs = sorted(p.title.subtitles, key=lambda s: not s.default)
+        for i, sub in enumerate(subs):
+            cues = retime(_subtitle_cues(sub, p, project_file, work_dir / f"{tag}_s{i}.srt"),
+                          float(p.target.speedup))  # fmt: skip
+            mpg = add_subtitle_stream(
+                mpg,
+                work_dir / f"{tag}_s{i}.mpg",
+                cues,
+                i,
+                (p.target.width, p.target.height, p.target.dar),
+                project.disc.standard,
+                work_dir / f"{tag}_subs",
+                forced=sub.forced,
+                progress=lambda f, n=n, i=i: report(f"title {n} subtitles {i + 1}", f),
+            )
         author_titles.append(
             AuthorTitle(
-                vob=f"{tag}.mpg",
+                vob=mpg.name,
                 aspect=p.target.aspect,
                 audio_langs=[a.lang for a in tracks],
                 chapters=[timecode(f / Fraction(p.target.fps)) for f in chapters],
+                subtitle_langs=[s.lang for s in subs],
+                subtitles_on=bool(subs) and subs[0].default,
             )
         )
     report("authoring", 0.0)

@@ -154,3 +154,38 @@ def test_mux_starts_a_vobu_about_every_half_second(tmp_path: Path):
     )  # fmt: skip
     navs = count_nav_packs(mux(m2v, [ac3], tmp_path / "out.mpg"))
     assert 5 <= navs <= 13  # 5 s of video, VOBUs of 0.4-1.0 s
+
+
+def test_xml_with_subtitles_turns_the_first_one_on():
+    t = AuthorTitle("t01.mpg", "16:9", ["en"], subtitle_langs=["tr", "en"], subtitles_on=True)
+    xml = dvdauthor_xml([t], "pal")
+    assert '<subpicture lang="tr"/>' in xml and '<subpicture lang="en"/>' in xml
+    assert "<pre>subtitle=64;</pre>" in xml
+
+
+@pytest.mark.skipif(not READY, reason="toolchain not installed")
+def test_build_with_srt_subtitle_file(tmp_path: Path):
+    src = _sample(tmp_path, seconds=6)
+    (tmp_path / "film.tr.srt").write_bytes(
+        "1\n00:00:01,000 --> 00:00:03,000\nTürkçe altyazı: ğüşıöç İ\n".encode("cp1254")
+    )
+    project = new_project(probe(src), tmp_path)
+    from dvd.project.model import Subtitle
+
+    project.titles[0].subtitles = [Subtitle(file="film.tr.srt", lang="tr", default=True)]
+    project_file = tmp_path / "film.dvd.yaml"
+    save(project, project_file)
+
+    result = build(project_file, make_iso=False)
+
+    vob = probe(result.video_ts / "VTS_01_1.VOB")
+    assert [s.codec for s in vob.subtitles] == ["dvd_subtitle"]
+    ffprobe = toolchain.find_executable(["ffprobe.exe"], DIRS)
+    out = subprocess.run(
+        [str(ffprobe), "-v", "quiet", "-f", "dvdvideo", "-i", str(result.video_ts),
+         "-show_entries", "stream=codec_name:stream_tags=language", "-of", "csv=p=0"],
+        capture_output=True, text=True, check=True,
+    ).stdout  # fmt: skip
+    assert "dvd_subtitle,tur" in out  # IFO stores "tr"; ffprobe shows ISO 639-2
+    xml = (tmp_path / "build" / "Deneme Filmi" / "dvdauthor.xml").read_text(encoding="utf-8")
+    assert "subtitle=64" in xml

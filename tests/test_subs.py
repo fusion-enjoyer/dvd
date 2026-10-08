@@ -99,3 +99,35 @@ def test_png_round_trip(tmp_path: Path):
     save_png(b, tmp_path / "a.png")
     img = QImage(str(tmp_path / "a.png"))
     assert (img.width(), img.height()) == (b.width, b.height)
+
+
+def test_spumux_xml():
+    from dvd.subs.spumux import spumux_xml
+
+    xml = spumux_xml([(Cue(3661.5, 3662.25, ("a",)), "s00000.png", 100, 480)], "pal", True)
+    assert 'start="1:01:01.50" end="1:01:02.25"' in xml
+    assert 'xoffset="100" yoffset="480" force="yes"' in xml
+    assert xml.startswith('<subpictures format="PAL">')
+
+
+def test_extract_embedded_text_track(tmp_path: Path):
+    import subprocess
+
+    from dvd import toolchain
+    from dvd.subs.extract import extract_text_track
+
+    ffmpeg = toolchain.find_executable(["ffmpeg.exe", "ffmpeg"], toolchain.tool_dirs())
+    if ffmpeg is None:
+        pytest.skip("ffmpeg not installed")
+    (tmp_path / "a.srt").write_text(
+        "1\n00:00:00,500 --> 00:00:01,500\nGömülü ğüş\n", encoding="utf-8"
+    )
+    mkv = tmp_path / "gömülü.mkv"
+    subprocess.run(
+        [str(ffmpeg), "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc2=duration=2",
+         "-i", str(tmp_path / "a.srt"), "-map", "0", "-map", "1", "-c:v", "libx264",
+         "-preset", "ultrafast", "-c:s", "srt", str(mkv)],
+        check=True,
+    )  # fmt: skip
+    cues = read_srt(extract_text_track(mkv, 1, tmp_path / "out.srt"))
+    assert cues[0].lines == ("Gömülü ğüş",)
