@@ -60,7 +60,7 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 ## Faz 2 — Kalite motoru ⭐
 
 **Ön işleme (VapourSynth)**
-- [ ] Siyah bant tespiti + crop, bantları 16 piksel macroblock sınırına hizalı pad
+- [x] Siyah bant tespiti + crop, bantları 16 piksel macroblock sınırına hizalı pad (24 kare örneklenir, karanlık kareler atlanır; şekil korunur, gerekirse kaynaktan birkaç piksel fazla kırpılır)
 - [ ] Küçültme kernel'ları karşılaştırması (Spline36 / Lanczos / SSIM downsampler / linear-light)
 - [ ] BT.709 → BT.601 renk dönüşümü + doğru bayraklar
 - [ ] Yüksek bit derinliğinde işlem, deband, kontrollü dithering
