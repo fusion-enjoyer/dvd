@@ -1,20 +1,34 @@
 # Kararlar
 
+## Verilen kararlar
+
+| Tarih | # | Karar | Gerekçe / not |
+|---|---|---|---|
+| 2026-10-08 | K1 | **PAL ve NTSC ikisi de** desteklenecek, proje bazında seçilir | Kaynağın kare hızına göre uygulama öneri yapar |
+| 2026-10-08 | K2 | İzleme ortamı sabit değil → **izleme ortamı profilleri** (Modern TV, Projeksiyon, CRT, Bilgisayar, Konsol, Taşınabilir, Evrensel) | Bkz. [profiller.md](profiller.md) |
+| 2026-10-08 | K3 | Hedef platform **Windows masaüstü uygulaması**; geliştirme de Windows'ta | Docker gereksiz: araçlar uygulamayla paketlenir |
+| 2026-10-08 | K4 | Motor GUI'den bağımsız kütüphane + CLI; arayüz her fazda motorun üstüne eklenir | Test edilebilirlik, otomasyon |
+| 2026-10-08 | K5 | HCEnc kullanılacak (Windows'ta native çalışıyor); FFmpeg alternatif backend | Kalite farkı Faz 2'de ölçülecek |
+| 2026-10-08 | K6 | DVD-5 ve DVD-9 ikisi de; uzun filmlerde DVD-9 önerilir | Kullanıcının yazıcısı DL destekliyor |
+| 2026-10-08 | — | Referans analiz için kullanıcının elindeki orijinal DVD'ler kullanılacak | Faz 0 |
+| 2026-10-08 | — | Ön işleme VapourSynth ile | Kalite ekosistemi |
+| 2026-10-08 | — | Önce menüsüz uçtan uca MVP, sonra kalite motoru | Erken gerçek cihaz testi |
+
 ## Açık kararlar
 
 | # | Soru | Seçenekler | Öneri |
 |---|---|---|---|
-| K1 | Varsayılan TV standardı | PAL (576 satır, %4 hızlanma) / NTSC (480 satır, orijinal hız, soft pulldown) | Proje bazında seçilebilir olsun. Türkiye'deki oynatıcılar genelde ikisini de oynatır; cihaz matrisinde test edip varsayılanı öyle seçelim. |
-| K2 | İzleme ortamı | Modern TV + DVD oynatıcı / konsol / CRT / bilgisayar | Ön işleme ayarlarını (keskinlik, dikey filtre) etkiler — kullanıcıdan öğrenilecek. |
-| K3 | Diğer PC'nin işletim sistemi | Linux / Windows / macOS | Docker her durumda; Windows'ta HCEnc native çalışır (artı). |
-| K4 | Arayüz önceliği | CLI önce, GUI sonra / baştan GUI | CLI önce: kalite motoru ve menü modeli oturmadan GUI boşa emek. |
-| K5 | Kapalı kaynak encoder (HCEnc) kullanımı | Evet (opsiyonel backend) / Hayır | Opsiyonel backend olarak evet; kalite farkını ölçüp karar verelim. |
-| K6 | Hedef medya | DVD-5 / DVD-9 / ikisi | İkisi; uzun filmler için DVD-9 önerilsin. Yazıcının DL desteği kontrol edilmeli. |
-| K7 | Repo görünürlüğü ve lisans | Private / Public + MIT/GPL | dvdauthor kodundan yararlanırsak GPL uyumu gerekir. |
+| K7 | Repo görünürlüğü ve lisans | Private / Public; MIT / GPL | dvdauthor kodundan yararlanırsak veya onu paketlersek GPL uyumu gerekir |
+| K8 | Arayüz teknolojisi | **Python + PySide6** / C# (WPF/WinUI) + Python motor / Tauri veya Electron (web arayüz) + Python motor | PySide6: tek dil, VapourSynth ile doğal uyum, `QGraphicsView` menü editörüne çok uygun. C# daha "Windows'lu" ama iki dil + süreçler arası iletişim demek. |
+| K9 | Yakma yöntemi | Windows IMAPI2 / ImgBurn entegrasyonu / sadece ISO üret, kullanıcı yaksın | MVP'de sadece ISO; sonra IMAPI2, DL katman geçişi kontrolü yetersizse ImgBurn |
+| K10 | ISO üretimi | Kendi UDF/ISO yazıcımız / mkisofs-xorriso Windows derlemesi / IMAPI2 dosya sistemi oluşturucu (IMAPI2FS) | Araştırılacak |
+| K11 | Arayüz dili | Türkçe / İngilizce / ikisi | İkisi (çeviri altyapısı baştan) |
 
-## Verilen kararlar
+## Doğrulanacak riskler
 
-| Tarih | Karar | Gerekçe |
+| Risk | Neden önemli | Ne zaman |
 |---|---|---|
-| 2026-10-08 | Çekirdek dil Python, ön işleme VapourSynth | Kalite ekosistemi Python etrafında |
-| 2026-10-08 | Proje önce menüsüz uçtan uca MVP, sonra kalite motoru | Erken gerçek cihaz testi |
+| HCEnc girdisi | HCEnc AviSynth betiği bekliyor olabilir; VapourSynth çıktısını nasıl besleyeceğimiz (köprü, sanal dosya, ara dosya) netleşmeli | Faz 0 |
+| HCEnc'in uygulamayla dağıtılması | Freeware ama yeniden dağıtım izni kontrol edilmeli; değilse ilk açılışta kullanıcıdan yolu istenir | Faz 0 |
+| dvdauthor/spumux Windows derlemeleri | Eski ve az bakımlı; Türkçe yollarla sorun çıkarabilir | Faz 0–1 |
+| IMAPI2 ile DVD-9 katman geçişi | Katman geçiş noktasını kontrol edemezsek ImgBurn gerekir | Faz 8 |

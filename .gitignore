@@ -19,6 +19,11 @@ cache/
 # Python
 __pycache__/
 *.py[cod]
+
+# Paketlenen dış araçlar (repoya girmez)
+tools/*.exe
+tools/*/
+
 .venv/
 .pytest_cache/
 .ruff_cache/

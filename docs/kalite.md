@@ -78,7 +78,7 @@ Faz 2'de korpusla test edilecek (aktif alanı biraz kırpmak vs. bandın içine 
 | Encoder | Artı | Eksi |
 |---|---|---|
 | FFmpeg `mpeg2video` | Açık kaynak, her yerde var, kontrol edilebilir | Varsayılanları zayıf; ayarlanması gerekiyor; soft pulldown üretmiyor |
-| HCEnc | Ücretsiz MPEG-2 encoder'lar arasında kalite açısından genelde en iyi kabul ediliyor, pulldown ve DVD uyumluluğu yerleşik | Windows, kapalı kaynak → Linux'ta Wine |
+| HCEnc | Ücretsiz MPEG-2 encoder'lar arasında kalite açısından genelde en iyi kabul ediliyor, pulldown ve DVD uyumluluğu yerleşik, Windows'ta native | Kapalı kaynak; girdi olarak AviSynth betiği bekliyor olabilir → VapourSynth köprüsü doğrulanacak |
 | x262 | x264 tabanlı psikovizüel optimizasyonlar | Deneysel/bakımsız, uyumluluğu doğrulanmalı |
 
 FFmpeg için başlangıç noktası (Faz 2'de tek tek ölçülecek): 2-pass VBR, `-trellis`, `-mbd rd`, `-cmp/-subcmp` RD tabanlı,
