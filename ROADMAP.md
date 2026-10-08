@@ -32,11 +32,16 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 **Motor + CLI**
 - [x] Proje modeli ve proje dosyası (`*.dvd.yaml`, `dvd new`, `dvd check`)
 - [x] Kaynak analizi (ffprobe): `dvd probe`; HDR, interlaced, değişken kare hızı ve dikey video tespiti
-- [ ] Basit video encode (2 geçiş VBR, anamorfik 16:9 / 4:3, PAL / NTSC)
+- [x] Basit video encode (2 geçiş VBR, anamorfik 16:9 / 4:3, PAL / NTSC): BestSource → VapourSynth → HCEnc
 - [ ] AC-3 ses, 48 kHz; SRT → subpicture (basit render)
-- [ ] Bölümleri içe aktar, I-frame zorla
+  - [x] AC-3 ses (PAL hızlanmasında perde korunur)
+  - [ ] SRT → subpicture
+- [x] Bölümleri içe aktar, I-frame zorla (bölüm, en yakın VOBU başına düşüyor; sapma < 0.4 sn)
 - [ ] dvdauthor ile menüsüz VIDEO_TS → ISO
-- [ ] Bitrate planlayıcı v0
+  - [x] VIDEO_TS (`dvd build`)
+  - [ ] ISO (kendi UDF yazıcımız, K10)
+- [x] Bitrate planlayıcı v0
+- [ ] Sony DVP-NS38'de ilk gerçek disk testi
 
 **Arayüz**
 - [ ] Uygulama iskeleti: ana pencere, sol gezinme, alttaki disk bütçe çubuğu
