@@ -1,0 +1,23 @@
+diff --git a/configure.ac b/configure.ac
+index b843cf4..8bbbcfb 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -28,16 +28,9 @@ AC_CHECK_LIB(dvdread, DVDOpenFile, have_dvdread=true)
+ AC_CHECK_LIB(gnugetopt, getopt_long)
+ 
+ dnl AC_CHECK_HEADERS initializes CPP, so must appear outside of any conditionals
+-AC_CHECK_HEADERS( \
+-    getopt.h \
+-    io.h \
+-)
++AC_CHECK_HEADERS([getopt.h io.h])
+ 
+-AC_CHECK_FUNCS( \
+-    strndup \
+-    getopt_long \
+-    setmode \
+-)
++AC_CHECK_FUNCS([strndup getopt_long setmode])
+ 
+ PKG_CHECK_MODULES(LIBPNG, [libpng])
+ AC_SUBST(LIBPNG_CFLAGS)
