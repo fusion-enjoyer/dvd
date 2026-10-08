@@ -177,6 +177,35 @@ def iso_cmd(
 
 
 @app.command()
+def verify(
+    m2v: Path = typer.Argument(..., help="MPEG-2 video stream (.m2v)"),
+    standard: str = typer.Option("pal", "--standard", help="pal or ntsc"),
+) -> None:
+    """Check an MPEG-2 video stream against DVD-Video limits."""
+    from dvd.video.compliance import check as check_video
+
+    try:
+        r = check_video(m2v, standard)
+    except (OSError, ValueError) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from None
+    i = r.info
+    typer.echo(
+        f"{i.width}x{i.height} {float(i.frame_rate):.3f} fps | {len(i.pictures)} pictures, "
+        f"{len(i.gops)} GOPs (longest {max(i.gops, default=0)}) | average "
+        f"{r.average_bps / 1e6:.2f} Mbps, 1 s peak {r.peak_bps / 1e6:.2f} Mbps | "
+        f"VBV low {r.vbv_lowest:.0%}"
+    )
+    for w in r.warnings:
+        typer.echo(f"warning: {w}")
+    for e in r.errors:
+        typer.echo(f"error: {e}", err=True)
+    if r.errors:
+        raise typer.Exit(1)
+    typer.echo("ok: DVD compliant")
+
+
+@app.command()
 def gui(path: Path | None = typer.Argument(None, help="Video or project file to open")) -> None:
     """Open the desktop application."""
     from dvd.gui.app import main as gui_main

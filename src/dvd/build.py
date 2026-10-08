@@ -25,6 +25,7 @@ from dvd.project.model import (
 from dvd.subs.extract import extract_text_track
 from dvd.subs.spumux import add_subtitle_stream
 from dvd.subs.srt import Cue, read_srt, retime
+from dvd.video.compliance import check as check_video
 from dvd.video.hcenc import EncodeSettings, encode
 from dvd.video.pipeline import Target, UnsupportedSource, build_clip, plan_target
 
@@ -200,6 +201,13 @@ def build(
             work_dir / f"{tag}_hcenc",
             progress=lambda f, n=n: report(f"title {n} video", f),
         )
+        report(f"title {n} check", 0.0)
+        compliance = check_video(m2v, project.disc.standard)
+        if not compliance.ok:
+            raise BuildError(
+                f"title {n} video is not DVD compliant: " + "; ".join(compliance.errors)
+            )
+        warnings += [f"title {n}: {w}" for w in compliance.warnings]
         report(f"title {n} mux", 0.0)
         mpg = mux(m2v, audio_files, work_dir / f"{tag}.mpg")
         subs = sorted(p.title.subtitles, key=lambda s: not s.default)

@@ -47,7 +47,7 @@ class ExeTool:
 
 
 def tools_base() -> Path | None:
-    """`DVD_TOOLS_DIR`, else `tools/` of the installed app (next to its python/), else the repo's."""
+    """`DVD_TOOLS_DIR`, else `tools/` of the installed app (beside its python/), else the repo's."""
     env = os.environ.get("DVD_TOOLS_DIR")
     if env:
         return Path(env)

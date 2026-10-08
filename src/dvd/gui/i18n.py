@@ -90,6 +90,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "build.wrote": "Yazıldı: {path}",
         "build.stage.audio": "Ses izleri hazırlanıyor",
         "build.stage.video": "Görüntü hazırlanıyor",
+        "build.stage.check": "DVD uyumluluğu denetleniyor",
         "build.stage.mux": "Ses ve görüntü birleştiriliyor",
         "build.stage.subs": "Altyazılar ekleniyor",
         "build.stage.author": "DVD yapısı oluşturuluyor",
