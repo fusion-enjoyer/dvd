@@ -35,6 +35,7 @@ from dvd.video.pipeline import (
     check_supported,
     plan_target,
 )
+from dvd.video.preprocess import resolve as resolve_preprocess
 
 Progress = Callable[[str, float], None]
 
@@ -204,7 +205,8 @@ def build(
             pulldown=p.target.pulldown,
             chapters=chapters,
         )
-        clip = build_clip(p.source, p.info.main_video, p.target, p.title.video)
+        pre = resolve_preprocess(project.disc.profiles, p.title.video.overrides)
+        clip = build_clip(p.source, p.info.main_video, p.target, p.title.video, pre)
         m2v = encode(
             clip,
             work_dir / f"{tag}.m2v",

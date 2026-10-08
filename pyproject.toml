@@ -14,6 +14,7 @@ dependencies = [
     "typer>=0.16",
     "vapoursynth>=80",
     "vapoursynth-bestsource>=22",
+    "vapoursynth-vszip>=22.1.0",
 ]
 
 [project.scripts]

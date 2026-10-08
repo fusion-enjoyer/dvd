@@ -31,7 +31,7 @@ from dvd.gui.theme import DENSITY, stylesheet
 from dvd.gui.widgets import BudgetBar, ModeSwitch, VideoWell
 from dvd.probe import SourceInfo, probe
 from dvd.probe.report import fps_text, size_text, timecode
-from dvd.project.model import AudioProfile, ContentProfile, Project, ViewingProfile
+from dvd.project.model import AudioProfile, ContentProfile, Crop, Project, ViewingProfile
 
 VIDEO_SUFFIXES = {".mkv", ".m2ts", ".mts", ".mp4", ".m4v", ".ts", ".mov", ".avi", ".mpg"}
 
@@ -244,9 +244,19 @@ class PicturePage(QWidget):
             self.quality_text.setText(text)
         self._fill_pro(project, info, plan, detected)
 
+    @staticmethod
+    def _origin_text(origin: str) -> str:
+        if origin == "override":
+            return t("pro.from_override")
+        layer, _, value = origin.partition(":")
+        return t("pro.from_profile", profile=t(f"{layer}.{value}"))
+
     def _fill_pro(self, project: Project, info: SourceInfo, plan: Plan | None, detected) -> None:
         while self.pro_grid.count():
-            self.pro_grid.takeAt(0).widget().deleteLater()
+            w = self.pro_grid.takeAt(0).widget()
+            w.hide()
+            w.setParent(None)
+            w.deleteLater()
         v = info.main_video
         rows = [(label(t("pro.video"), "sectionLabel"), None)]
         if v:
@@ -262,7 +272,9 @@ class PicturePage(QWidget):
             except UnsupportedSource as exc:
                 rows.append((t("pro.target"), str(exc)))
         crop = project.titles[0].video.crop
-        if crop == "auto" and detected is not None:
+        if crop == "auto" and detected == Crop():
+            crop_text = t("pro.crop_none")
+        elif crop == "auto" and detected is not None:
             crop_text = t("pro.crop_found", top=detected.top, bottom=detected.bottom,
                           left=detected.left, right=detected.right)  # fmt: skip
         elif crop == "auto":
@@ -270,6 +282,20 @@ class PicturePage(QWidget):
         else:
             crop_text = str(crop)
         rows.append((t("pro.crop"), crop_text))
+        from dvd.video.preprocess import resolve
+
+        try:
+            pre = resolve(project.disc.profiles, project.titles[0].video.overrides)
+        except ValueError as exc:
+            rows.append((t("pro.preprocess"), str(exc)))
+        else:
+            rows.append((label(t("pro.preprocess_section"), "sectionLabel"), None))
+            for key, value in (("kernel", pre.kernel), ("deband", str(pre.deband)),
+                               ("dither", t(f"pro.dither.{pre.dither}"))):  # fmt: skip
+                rows.append((t(f"pro.{key}"), value))
+                origin = (pre.source or {}).get(key, "default")
+                if origin != "default":
+                    rows.append(("", self._origin_text(origin)))
         rows.append((t("pro.encoder"), "HCEnc · 2 pass"))
         if plan:
             rows.append((t("pro.bitrate"), f"{plan.video_kbps / 1000:.2f} Mbps"))
@@ -492,7 +518,7 @@ class MainWindow(QMainWindow):
             self._refresh()
 
         tasks.run(
-            lambda: disc_frame(source, info, p.titles[0], p.disc.standard),
+            lambda: disc_frame(source, info, p.titles[0], p.disc.standard, p.disc.profiles),
             shown,
             lambda msg: well.set_image(None, well.aspect, msg),
         )

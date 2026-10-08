@@ -15,6 +15,9 @@ import vapoursynth as vs
 
 from dvd.probe import VideoTrack
 from dvd.project.model import Crop, Standard, Video
+from dvd.video.preprocess import Preprocess
+
+DEFAULT_PREPROCESS = Preprocess()
 
 core = vs.core
 
@@ -167,23 +170,38 @@ def _matrix(v: VideoTrack) -> str:
     return "709" if v.height > 576 else "170m"
 
 
-def build_clip(source: Path, v: VideoTrack, target: Target, video: Video) -> vs.VideoNode:
+_KERNEL = {"spline36": "Spline36", "lanczos": "Lanczos", "bicubic": "Bicubic"}
+
+
+def build_clip(
+    source: Path,
+    v: VideoTrack,
+    target: Target,
+    video: Video,
+    pre: Preprocess = DEFAULT_PREPROCESS,
+) -> vs.VideoNode:
+    """Source -> DVD frame. Scaling, matrix conversion, deband and bars run at 16 bits; the
+    single step down to 8 bits is the final dither, so no stage adds its own rounding bands."""
     check_supported(v)
     clip = core.bs.VideoSource(str(source), track=v.index)
     crop = target.crop
     if any((crop.left, crop.right, crop.top, crop.bottom)):
         clip = core.std.Crop(clip, crop.left, crop.right, crop.top, crop.bottom)
     out_matrix = "470bg" if target.standard == "pal" else "170m"
-    clip = core.resize.Spline36(
+    scale = getattr(core.resize, _KERNEL[pre.kernel])
+    clip = scale(
         clip,
         width=target.active_width,
         height=target.active_height,
-        format=vs.YUV420P8,
+        format=vs.YUV420P16,
         matrix_in_s=_matrix(v),
         matrix_s=out_matrix,
         range_in_s="full" if v.color_range == "pc" else "limited",
         range_s="limited",
     )
+    if pre.deband_args:
+        radius, threshold = pre.deband_args
+        clip = core.vszip.Deband(clip, range=radius, thr=[threshold], keep_tv_range=True)
     pad_w = target.width - target.active_width
     pad_h = target.height - target.active_height
     if pad_w or pad_h:
@@ -193,6 +211,7 @@ def build_clip(source: Path, v: VideoTrack, target: Target, video: Video) -> vs.
             right=pad_w - target.pad_left,
             top=target.pad_top,
             bottom=pad_h - target.pad_top,
-            color=[16, 128, 128],
+            color=[16 << 8, 128 << 8, 128 << 8],
         )
+    clip = core.resize.Point(clip, format=vs.YUV420P8, dither_type=pre.dither)
     return core.std.AssumeFPS(clip, fpsnum=target.fps.numerator, fpsden=target.fps.denominator)

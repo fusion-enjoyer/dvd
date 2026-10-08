@@ -41,6 +41,7 @@ dependencies = [
     { name = "typer" },
     { name = "vapoursynth" },
     { name = "vapoursynth-bestsource" },
+    { name = "vapoursynth-vszip" },
 ]
 
 [package.dev-dependencies]
@@ -59,6 +60,7 @@ requires-dist = [
     { name = "typer", specifier = ">=0.16" },
     { name = "vapoursynth", specifier = ">=80" },
     { name = "vapoursynth-bestsource", specifier = ">=22" },
+    { name = "vapoursynth-vszip", specifier = ">=22.1.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -538,4 +540,22 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/fc/90/fc68ba76de0a3a4617b47f1d71f43504a22241465d3f45bf43eac46c3807/vapoursynth_bestsource-22-py3-none-musllinux_1_2_aarch64.whl", hash = "sha256:f98dc0fbeb462b9b3ac1bf833067da232236a2ada04951153f475e406cb49099", size = 13391143, upload-time = "2026-09-16T10:16:16.487Z" },
     { url = "https://files.pythonhosted.org/packages/aa/8a/a582686e62ba1fb515cff72d0a362982d749f088bc1f86fb1863616a784d/vapoursynth_bestsource-22-py3-none-musllinux_1_2_x86_64.whl", hash = "sha256:126829965f9c30de4fe56c1e0d49b3f85f51cb291f76feb52276b7da49f2d016", size = 14828203, upload-time = "2026-09-16T10:16:18.75Z" },
     { url = "https://files.pythonhosted.org/packages/e1/01/8b65d43d73d6d3a5dab3aa79a65e98cf8fac33cfe24e94bdcad46ded390e/vapoursynth_bestsource-22-py3-none-win_amd64.whl", hash = "sha256:4dc2275d145128a2a86fa32efaab9fbab8e22582bfdf173b460f2ff33858c230", size = 15890493, upload-time = "2026-09-16T10:16:21.105Z" },
+]
+
+[[package]]
+name = "vapoursynth-vszip"
+version = "22.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "vapoursynth" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/3e/5e/3823f1c3ce492c3f0acca288501e67cbd1de4be317c436c71d5fdfdd81c9/vapoursynth_vszip-22.1.0.tar.gz", hash = "sha256:93c1aaf5867ad43e1f21b77418fa89b0b1ed2191d0c4bfb03a65c958826ed8c9", size = 218865, upload-time = "2026-07-16T23:44:48.928Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/23/03/8bd2797876079ed3021deec2ea0975ce484e5ba97856d753c83f52e6525f/vapoursynth_vszip-22.1.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:847c23126a4ce0a9afc580ff901aa360d574f9dd817336970b7e6e5252ad1c19", size = 939096, upload-time = "2026-07-16T23:44:37.812Z" },
+    { url = "https://files.pythonhosted.org/packages/b9/73/c5d75d6c82a86bbf8761fa3b6a32e51363f9b40517241a9e9ff037d7fcc1/vapoursynth_vszip-22.1.0-py3-none-macosx_11_0_x86_64.whl", hash = "sha256:853bd3cba0a2f8d8702bf874b08e85c194f22f186a02706644b25abae24325e6", size = 1163802, upload-time = "2026-07-16T23:44:39.329Z" },
+    { url = "https://files.pythonhosted.org/packages/ab/02/7738682e7292915e89a406f6cba8463d19c8e36d6ecc9cc6b7aad378a8bb/vapoursynth_vszip-22.1.0-py3-none-manylinux_2_17_aarch64.whl", hash = "sha256:dd13b3234d993bafc4ec1333b576cf7e4ee66d8f83b7af0252d6040fd8d908f9", size = 1022277, upload-time = "2026-07-16T23:44:40.981Z" },
+    { url = "https://files.pythonhosted.org/packages/de/01/c5673a765087128fc890be0202aa3f26e8f4ced1e85712328cc53af74e91/vapoursynth_vszip-22.1.0-py3-none-manylinux_2_17_x86_64.whl", hash = "sha256:08650c2b83391301f602dade914c1e698142f8f17b3e0e92bdb3f73c4a805040", size = 3704916, upload-time = "2026-07-16T23:44:42.352Z" },
+    { url = "https://files.pythonhosted.org/packages/1c/c8/5d91cdd2472b9ee2b6485eff04a8a7d9b9bffbdee36ce6088156ef90f939/vapoursynth_vszip-22.1.0-py3-none-musllinux_1_2_aarch64.whl", hash = "sha256:d79b783e511d649b289513888ccc221bcfd5c60d3c9874e432a3d44112c30f64", size = 1020112, upload-time = "2026-07-16T23:44:44.011Z" },
+    { url = "https://files.pythonhosted.org/packages/f1/27/715b1c02f7a401b62d65a9e97f52e92cd150fa24800ae5d23791973ee92d/vapoursynth_vszip-22.1.0-py3-none-musllinux_1_2_x86_64.whl", hash = "sha256:77f8470bc6340181c1f5abc588459bb94fccc0d9f67514a8d93c0e1aa0e8023f", size = 3699807, upload-time = "2026-07-16T23:44:45.413Z" },
+    { url = "https://files.pythonhosted.org/packages/ed/6a/2657a08533f279db5e225fc0d4de81bd9d8d0504d670135001dbe8c78196/vapoursynth_vszip-22.1.0-py3-none-win_amd64.whl", hash = "sha256:1f5e6aa39ea72e610c1146c2d27f157bea507895555398c60347a65ee1745273", size = 3849505, upload-time = "2026-07-16T23:44:47.227Z" },
 ]
