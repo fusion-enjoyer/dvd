@@ -72,6 +72,8 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 - [ ] NTSC soft pulldown bayrak enjektörü (kendimiz yazacağız)
 - [ ] PAL speedup (ses pitch seçenekli)
 - [ ] Encode sonrası uyumluluk denetimi (VBV, tepe bitrate, GOP)
+  - [x] Video akışı: MP@ML, boyut, kare hızı, progressive_sequence, GOP uzunluğu, ardışık B, 1 sn tepe, VBV simülasyonu (`dvd verify`, her build'de)
+  - [ ] VOB düzeyinde mux bitrate'i (10.08 Mbps, ses dahil)
 
 **Profiller**
 - [ ] Katmanlı profil sistemi: standart → medya → içerik tipi → izleme ortamı → ses düzeni → kullanıcı
