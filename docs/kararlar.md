@@ -11,7 +11,9 @@
 | 2026-10-08 | K5 | HCEnc kullanılacak (Windows'ta native çalışıyor); FFmpeg alternatif backend | Kalite farkı Faz 2'de ölçülecek |
 | 2026-10-08 | K6 | DVD-5 ve DVD-9 ikisi de; uzun filmlerde DVD-9 önerilir | Kullanıcının yazıcısı DL destekliyor |
 | 2026-10-08 | K8 | Arayüz teknolojisi: **Python + PySide6 (Qt 6)** | Kullanıcı öneriyle ilerlemeyi seçti; tek dil, VapourSynth uyumu, menü editörü için QGraphicsView |
-| 2026-10-08 | — | Referans analiz için kullanıcının elindeki orijinal DVD'ler kullanılacak | Faz 0 |
+| 2026-10-08 | — | Orijinal DVD'ler yalnızca geliştirmede kalibrasyon için; uygulama kullanıcıdan referans rip istemez | Kişisel videolar dahil her kaynakta profillerle çalışır |
+| 2026-10-08 | K12 | **TMDB entegrasyonu** (başlık, Türkçe meta veri, menü görselleri, dizi bölüm bilgileri) | Kullanıcı isteği; API anahtarını kullanıcı girer, TMDB atfı gösterilir |
+| 2026-10-08 | K13 | Altyazıda **serbest font seçimi** + anamorfik düzeltme | Subpicture resim olduğu için font kısıtı yok |
 | 2026-10-08 | — | Ön işleme VapourSynth ile | Kalite ekosistemi |
 | 2026-10-08 | — | Önce menüsüz uçtan uca MVP, sonra kalite motoru | Erken gerçek cihaz testi |
 

@@ -5,7 +5,7 @@
 ## A. Proje ve iş akışı
 
 - [MVP] Proje dosyası (tek dosya, elle de okunabilir), otomatik kaydetme
-- [MVP] Sürükle-bırak kaynak ekleme: MKV, M2TS, MP4, TS
+- [MVP] Sürükle-bırak kaynak ekleme: MKV, M2TS, MP4, TS, MOV — Blu-ray ripleri kadar **kendi videoların** (telefon, kamera, montaj çıktısı) da
 - [MVP] Kaynak bilgi paneli: çözünürlük, fps, renk uzayı, HDR, ses/altyazı/bölüm izleri
 - [MVP] **Canlı disk bütçe çubuğu**: her değişiklikte doluluk ve tahmini video bitrate'i güncellenir
 - [v1] Yeni proje sihirbazı: Film / Dizi / Karışık → standart → medya → profiller
@@ -30,6 +30,8 @@
 - [v1] **Test encode**: seçili 10–30 sn'lik aralığı tam ayarlarla encode edip hemen karşılaştır
 - [v1] Interlaced kaynaklar: deinterlace (QTGMC) veya interlaced encode
 - [v1] HDR/UHD kaynak → SDR tonemapping
+- [v1] **Kişisel videolar**: değişken kare hızı (telefon) düzeltme, 50/60 fps kaynaklardan akıcı hareketi koruyan interlaced encode, eski kamera (DV, 4:3, interlaced) kayıtları, telefon HDR'ı (HLG/Dolby Vision) → SDR
+- [v1] **Dikey video**: bulanık arka planlı ya da siyah kenarlı yerleşim
 - [v2] **Sahne bazlı bitrate müdahalesi** (zone): zor sahneye ekstra bit, jeneriğe daha az
 - [v2] GPU hızlandırma: decode (NVDEC/QSV/AMF) ve tonemapping
 - [İleri] Otomatik sorunlu sahne tespiti → sadece o segmenti yeniden encode etme
@@ -54,9 +56,14 @@
 - [v1] ASS/SSA girişi (italik, kalın, konumlandırma; desteklenmeyen efektler için uyarı)
 - [v1] PGS (Blu-ray SUP) → yeniden ölçekleme + 4 renge kuantizasyon
 - [v1] VobSub (IDX/SUB) olduğu gibi kullanma
+- [v1] **İstediğin fontu kullanma**: bilgisayardaki herhangi bir TTF/OTF font (altyazılar diske resim olarak yazıldığı için font kısıtı yok)
+- [v1] **Anamorfik düzeltme**: 16:9 disklerde oynatıcı altyazıyı yatayda gerer; render sırasında bunu telafi et, harfler şişman/geniş görünmesin
+- [v1] Akıllı kenar yumuşatma: 4 renk sınırındaki 2 ara rengi kontur ve geçiş için en iyi şekilde kullan
 - [v1] Stil editörü: font, boyut, dolgu/kontur/gölge rengi, kalınlık, konum, güvenli alan — **gerçek DVD renk sınırıyla önizleme**
 - [v1] Forced altyazı, varsayılan altyazı, zamanlama kaydırma
 - [v1] Satır kırma / satır uzunluğu kontrolü
+- [v1] Altyazı stil şablonları ("Sinema", "Netflix tarzı", "Klasik DVD", "Büyük — uzaktan izleme")
+- [v2] Aynı dilde iki farklı stil izi (örn. "Türkçe" ve "Türkçe — büyük")
 - [v2] Letterbox'lı filmlerde altyazıyı alttaki siyah banda yerleştirme seçeneği
 - [v2] PGS → OCR → metin → bizim stilimizle yeniden render
 - [İleri] Altyazı zamanlama düzeltme aracı (ses dalgasına göre)
@@ -100,10 +107,28 @@
 - [v2] Kumanda kısıtlamaları (UOP): örn. intro sırasında menü tuşu, varsayılan hepsi serbest
 - [İleri] **Disk haritası düzenleyicisi**: diskin tüm mantığını düğüm grafiği olarak görsel düzenleme
 
+## L. TMDB entegrasyonu
+
+Film/dizi adını ya da dosya adını verince bilgileri ve görselleri [TMDB](https://www.themoviedb.org/)'den otomatik çeker.
+
+- [v1] Dosya adından otomatik eşleştirme (`Interstellar.2014.1080p...` → Interstellar, 2014), elle arama ve doğru sonucu seçme
+- [v1] **Türkçe meta veri**: Türkçe başlık ve özet (yoksa İngilizce'ye düşer)
+- [v1] Disk adı / proje adı / disk etiketi (volume label) otomatik doldurma
+- [v1] **Menü görselleri**: arka plan (backdrop), afiş, **saydam logo** (filmin kendi yazı logosu — menüde başlık olarak çok iyi durur)
+- [v1] Görsel seçici: TMDB'deki tüm afiş/arka plan/logolar arasından seçme, dile göre filtreleme (Türkçe afiş)
+- [v1] Diziler: sezon ve **bölüm isimleri**, bölüm özetleri, bölüm görselleri (bölüm seçim menüsünde thumbnail olarak), sezon afişi
+- [v2] Menü şablonlarında TMDB alanları: `{başlık}`, `{yıl}`, `{tür}`, `{süre}`, `{özet}`, `{oyuncular}` gibi yer tutucular
+- [v2] Kapak tasarımında afiş, özet, oyuncular, yönetmen, süre otomatik
+- [v2] Önbellek: çekilen bilgiler ve görseller projeye kaydedilir, internet olmadan da yeniden üretilebilir
+- [İleri] fanart.tv gibi ek kaynaklar (disk baskı görselleri, clearart)
+
+Not: TMDB API anahtarı ücretsiz; kullanıcı kendi anahtarını ayarlara girer. TMDB kullanım şartları gereği uygulamada
+TMDB'ye atıf (logo + "bu ürün TMDB API'sini kullanır ancak TMDB tarafından onaylanmamıştır") gösterilir.
+
 ## H. Diziler
 
 - [v1] Sezon klasörü içe aktarma, dosya adından sezon/bölüm no (S01E01) çıkarma
-- [v1] Bölüm isimleri (elle veya dosya adından)
+- [v1] Bölüm isimleri (elle, dosya adından veya TMDB'den)
 - [v1] **Disk seti planlayıcı**: bölüm sayısı + medya + kalite hedefi → disk sayısı ve dağılım, elle değiştirilebilir
 - [v1] Set boyunca ortak menü tasarımı, "Disk 2 / 4" bilgisi
 - [v2] Hepsini oynat + bölüm seçimi + bölüm içi bölümler

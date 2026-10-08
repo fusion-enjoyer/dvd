@@ -28,6 +28,7 @@ Ticari DVD'lerle hazır araçlar arasındaki fark bu sınırlardan değil, **sı
 - **DVD-9**: uzun filmler neredeyse her zaman çift katmanlıdır; ortalama video bitrate'i 6–8 Mbps civarında.
 - **Ses bütçesi ölçülü**: 5.1 AC-3 genelde 384 veya 448 kbps, ek diller 192–448 kbps.
 
+> Orijinal DVD'ler **sadece geliştirme sırasında kalibrasyon için** kullanılır; uygulama kullanıcıdan referans istemez.
 > Faz 0'da elimizdeki orijinal DVD'leri bu maddeler açısından **ölçeceğiz** (bitrate eğrisi, GOP, matris, bayraklar).
 > Hedefimiz tahmin değil, referansa göre kalibrasyon.
 

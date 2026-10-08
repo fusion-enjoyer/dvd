@@ -56,6 +56,7 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 - [ ] BT.709 → BT.601 renk dönüşümü + doğru bayraklar
 - [ ] Yüksek bit derinliğinde işlem, deband, kontrollü dithering
 - [ ] Denoise / gren yönetimi, deinterlace (QTGMC), HDR → SDR tonemapping
+- [ ] Kişisel videolar: değişken kare hızı, 50/60 fps → interlaced encode, dikey video yerleşimi, telefon HDR'ı
 
 **Encode**
 - [ ] Encoder sürücüleri: HCEnc, FFmpeg (ayarlı parametre seti), x262 (deneysel)
@@ -80,7 +81,7 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 ## Faz 3 — Ses, altyazı, bölümler
 
 - [ ] Çoklu ses izi, AC-3 passthrough, HD ses → 5.1 AC-3, stereo downmix, DRC/gece modu, delay
-- [ ] Altyazı render motoru: anti-alias'lı 4 renk, Türkçe kodlama tespiti, stil editörü
+- [ ] Altyazı render motoru: istenen font, anamorfik düzeltme, akıllı kenar yumuşatma (4 renk), Türkçe kodlama tespiti, stil editörü ve stil şablonları
 - [ ] ASS, PGS, VobSub girişi; forced altyazılar; letterbox bandına altyazı
 - [ ] Bölüm zaman çizelgesi: elle düzenleme, otomatik öneri, thumbnail karesi seçimi
 - [ ] İlgili arayüz ekranları (Ses, Altyazı, Bölümler)
@@ -97,6 +98,7 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 - [ ] Standart menü seti: Ana, Bölümler (sayfalı), Ses, Altyazı, Ayarlar
 - [ ] Şablon sistemi + ilk hazır şablonlar (Minimal, Sinematik, 2000'ler DVD'si)
 - [ ] First Play zinciri (intro → menü), başlık bitince davranışı
+- [ ] **TMDB entegrasyonu**: otomatik eşleştirme, Türkçe başlık/özet, arka plan/afiş/saydam logo seçici, menü şablonlarına bağlama
 - [ ] **Menü editörü v1**: tuval, katmanlar, özellikler paneli, güvenli alan kılavuzları, navigasyon okları görünümü
 - [ ] **DVD VM simülatörü v1**: menüleri yakmadan klavyeyle gezme
 
@@ -106,7 +108,7 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 
 ## Faz 5 — Diziler
 
-- [ ] Sezon klasörü içe aktarma, S01E01 ayrıştırma, bölüm isimleri
+- [ ] Sezon klasörü içe aktarma, S01E01 ayrıştırma, TMDB'den bölüm isimleri ve görselleri
 - [ ] **Disk seti planlayıcı** (bölüm sayısı + medya + kalite hedefi → dağılım)
 - [ ] Hepsini oynat, bölüm seçim menüsü, set boyunca ortak tasarım ("Disk 2 / 4")
 - [ ] Dizi kutusu menü şablonu

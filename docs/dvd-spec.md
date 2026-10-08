@@ -34,6 +34,8 @@
 - Bu 4 renk, PGC'deki **16 renklik palet (CLUT)** içinden seçilir; her rengin 16 kademeli saydamlığı (contrast) var.
 - Anti-alias için tipik kullanım: arka plan saydam, dolgu beyaz, emphasis1 kontur (siyah), emphasis2 dolgu-kontur arası geçiş.
 - Başlık başına en fazla 32 subpicture akışı. 16:9 başlıklarda bir akış için wide / letterbox / pan-scan varyantları olabilir.
+- Altyazılar **metin değil resimdir**: font, authoring sırasında seçilip resme dönüştürülür. Bu yüzden istenen her font kullanılabilir; sınır font değil, 4 renk ve 720 piksel genişliktir.
+- 16:9 başlıklarda subpicture 720 piksel genişliğinde saklanır ama ekranda yatayda gerilerek gösterilir → render ederken yatayda sıkıştırarak telafi edilmeli (ticari DVD altyazılarının "tuhaf" görünmesinin bir sebebi).
 - "Forced" bayrağı: altyazı kapalıyken bile gösterilen satırlar (yabancı dil diyaloğu).
 
 ## Disk yapısı

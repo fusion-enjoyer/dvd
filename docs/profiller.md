@@ -9,6 +9,14 @@ Nihai ayarlar = Standart  →  Medya  →  İçerik tipi  →  İzleme ortamı  
 
 > Aşağıdaki sayısal değerler **başlangıç tahminidir**; Faz 2'de korpus, referans DVD'ler ve gerçek cihaz testleriyle kalibre edilecek.
 
+## Profiller nereden geliyor?
+
+Profiller **bir kez** hazırlanır: geliştirme sırasında elimizdeki orijinal DVD ripleri incelenir, kalite ayarları bunlara göre
+kalibre edilir ve profil olarak uygulamaya gömülür. Kullanıcı bir video eklediğinde **referans DVD istenmez** — film,
+dizi, kendi çektiğin video fark etmez, uygun profil seçilir ve çalışır.
+
+İsteğe bağlı: kullanıcı ileride elindeki bir orijinal DVD'yi analiz ettirip "bu diskin tarzında" yeni bir profil de oluşturabilir.
+
 ## 1. Standart
 
 | | PAL | NTSC |
@@ -41,6 +49,10 @@ Uygulama kaynağın kare hızına bakıp **önerilen standardı** gösterir, kar
 | **Dizi (progresif)** | WEB-DL / BD diziler | Modern film ile aynı, bölüm başına bütçe |
 | **Yayın kaynağı (interlaced)** | 1080i TV kaydı, konser | Deinterlace (QTGMC) ya da interlaced encode |
 | **4:3 içerik** | Eski diziler | 4:3 disk/başlık bayrağı, pillarbox yok |
+| **Telefon videosu** | Değişken kare hızı, 30/60 fps, bazen HDR ve dikey | Sabit kare hızına çevirme, gürültü azaltma (düşük ışık), HDR → SDR, dikey için yerleşim seçimi |
+| **Kamera / aksiyon kamerası** | 50/60 fps, yüksek hareket | Akıcılığı korumak için interlaced (50i/60i) encode, hafif denoise |
+| **Eski kamera kaydı (DV/VHS dijitalleştirme)** | 4:3, interlaced, gürültülü | Interlaced olarak koru veya kaliteli deinterlace, gürültü azaltma, büyütme yok |
+| **Ekran kaydı / sunum** | Keskin yazılar, düz renkler | Yazıları koruyan küçültme, deband, gren yok |
 
 ## 4. İzleme ortamı
 
