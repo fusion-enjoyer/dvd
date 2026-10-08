@@ -13,7 +13,8 @@ Sıradaki adım: `docs/kararlar.md`'deki açık kararlara bak (arayüz: Python +
 - `ROADMAP.md` — fazlar ve bitti kriterleri (ilerledikçe kutucukları işaretle)
 - `docs/ozellikler.md` — öncelik etiketli özellik listesi
 - `docs/profiller.md` — katmanlı profil/preset sistemi
-- `docs/arayuz.md` — ekran taslakları
+- `docs/arayuz.md` — ekran taslakları, kullanım modları, görsel dil özeti
+- `docs/tasarim-sistemi.html` — tasarım sistemi (renk, font, bileşen, QSS); arayüz işinden önce buna uy
 - `docs/kalite.md` — kalite pipeline'ı ve bitrate bütçesi
 - `docs/dvd-spec.md` — DVD-Video teknik notları
 - `docs/mimari.md` — teknoloji yığını, modüller, proje dosyası modeli
@@ -23,3 +24,4 @@ Sıradaki adım: `docs/kararlar.md`'deki açık kararlara bak (arayüz: Python +
 
 - Medya dosyaları (MKV, VOB, ISO, test klipleri) repoya girmez; `.gitignore`'a bak.
 - Kaliteyle ilgili her seçim ölçülerek (korpus + metrik + A/B görsel) yapılır.
+- Commit mesajları İngilizce yazılır (belgeler Türkçe kalır).

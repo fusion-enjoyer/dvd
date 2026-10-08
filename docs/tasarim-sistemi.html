@@ -1,0 +1,709 @@
+<meta charset="utf-8">
+<title>Sıcak Stüdyo Tasarım Sistemi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=JetBrains+Mono:wght@400;500&family=Source+Sans+3:wght@400;500;600;700&display=swap">
+<style>
+/* Yerleşim: üstte tez, ortada iki modlu uygulama penceresi, altında renk / tip / bileşen / Qt aktarımı.
+   Uygulama yalnızca koyu temada tasarlandı (K14), bu sayfa da bilinçli olarak tek, koyu görünüm. */
+:root {
+  color-scheme: dark;
+  --zemin: #161513;
+  --panel: #1E1C1A;
+  --girdi: #282623;
+  --cizgi: #3A3632;
+  --cizgi-zayif: #2B2926;
+  --metin: #EDE8E0;
+  --metin-2: #A29B90;
+  --metin-3: #756F66;
+  --amber: #F0B449;
+  --amber-hover: #F5C46A;
+  --amber-bas: #D99A2E;
+  --amber-zemin: rgba(240, 180, 73, 0.12);
+  --on-amber: #1A1408;
+  --basari: #5FBF7F;
+  --uyari: #F07F4A;
+  --hata: #E5534B;
+  --bilgi: #7AA8D8;
+  --menu-seg: #C9A98A;
+  --video: #000000;
+
+  --f-baslik: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-ui: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-sayi: "JetBrains Mono", Consolas, "Cascadia Mono", monospace;
+
+  --r-sm: 3px;
+  --r-md: 6px;
+  --r-lg: 10px;
+}
+
+* { box-sizing: border-box; }
+html, body { background: var(--zemin); color: var(--metin); }
+body {
+  font-family: var(--f-ui);
+  font-size: 15px;
+  line-height: 1.5;
+  padding-inline: 20px;
+  padding-block: 0 64px;
+}
+.sayfa { max-width: 1180px; margin: 0 auto; display: grid; gap: 72px; }
+:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.mono { font-family: var(--f-sayi); font-variant-numeric: tabular-nums; }
+
+/* ---------- Giriş ---------- */
+.giris { padding-top: 56px; display: grid; gap: 20px; max-width: 760px; }
+.giris h1 {
+  font-family: var(--f-baslik);
+  font-weight: 700;
+  font-size: clamp(2.2rem, 5vw, 3.4rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin: 0;
+  text-wrap: balance;
+}
+.giris h1 span { color: var(--amber); }
+.giris p { margin: 0; color: var(--metin-2); font-size: 1.08rem; max-width: 62ch; }
+.giris .kunye { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 0.85rem; color: var(--metin-3); }
+.giris .kunye b { color: var(--metin-2); font-weight: 600; }
+
+/* ---------- Bölüm başlıkları ---------- */
+.bolum { display: grid; gap: 24px; }
+.bolum > header { display: grid; gap: 6px; max-width: 70ch; }
+.bolum h2 {
+  font-family: var(--f-baslik);
+  font-weight: 600;
+  font-size: 1.6rem;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+.bolum > header p { margin: 0; color: var(--metin-2); }
+
+/* ---------- Mod anahtarı ---------- */
+.mod-secici {
+  display: inline-flex;
+  background: var(--girdi);
+  border: 1px solid var(--cizgi);
+  border-radius: var(--r-md);
+  padding: 3px;
+  gap: 2px;
+}
+.mod-secici button {
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--metin-2);
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-sm);
+  padding: 6px 14px;
+  cursor: pointer;
+}
+.mod-secici button[aria-pressed="true"] { background: var(--amber); color: var(--on-amber); }
+.mod-secici button:not([aria-pressed="true"]):hover { color: var(--metin); }
+.ekran-ust { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; }
+.ekran-ust .aciklama { color: var(--metin-2); font-size: 0.92rem; max-width: 62ch; margin: 0; }
+
+/* ---------- Uygulama penceresi ---------- */
+.kaydir { overflow-x: auto; border-radius: var(--r-lg); }
+.app {
+  --kontrol: 36px;
+  --ara: 16px;
+  --yazi: 14px;
+  min-width: 1040px;
+  background: var(--zemin);
+  border: 1px solid var(--cizgi);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  font-size: var(--yazi);
+}
+.app[data-mod="pro"] { --kontrol: 26px; --ara: 10px; --yazi: 13px; }
+.app[data-mod="basit"] .yalniz-pro { display: none !important; }
+.app[data-mod="pro"] .yalniz-basit { display: none !important; }
+
+.ust-cubuk {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--cizgi);
+}
+.ust-cubuk .proje { display: flex; align-items: center; gap: 10px; }
+.ust-cubuk .proje svg { flex: none; }
+.ust-cubuk .proje strong { font-family: var(--f-baslik); font-weight: 600; font-size: 1.15rem; letter-spacing: -0.01em; }
+.profil-ozet { color: var(--metin-2); font-size: 0.92em; display: flex; gap: 6px; flex-wrap: wrap; }
+.profil-ozet .ayrac { color: var(--metin-3); }
+.ust-cubuk .bosluk { flex: 1; }
+.dugme {
+  font: inherit;
+  font-weight: 600;
+  height: var(--kontrol);
+  padding: 0 calc(var(--ara) + 2px);
+  border-radius: var(--r-md);
+  border: 1px solid var(--cizgi);
+  background: var(--girdi);
+  color: var(--metin);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.dugme:hover { border-color: var(--metin-3); }
+.dugme.birincil { background: var(--amber); border-color: var(--amber); color: var(--on-amber); }
+.dugme.birincil:hover { background: var(--amber-hover); border-color: var(--amber-hover); }
+.dugme.hayalet { background: transparent; border-color: transparent; color: var(--metin-2); }
+.dugme.hayalet:hover { color: var(--metin); background: var(--girdi); }
+.app .mod-secici button { padding: 4px 10px; font-size: 0.88em; }
+
+.govde { display: grid; grid-template-columns: 196px 1fr 300px; min-height: 520px; }
+.app[data-mod="pro"] .govde { grid-template-columns: 168px 1fr 290px; }
+
+/* Sol gezinme */
+.gezinme { background: var(--panel); border-right: 1px solid var(--cizgi); padding: var(--ara) 8px; display: grid; align-content: start; gap: 2px; }
+.gezinme a {
+  display: flex; align-items: center; gap: 10px;
+  color: var(--metin-2); text-decoration: none;
+  padding: 0 10px; height: calc(var(--kontrol) + 4px);
+  border-radius: var(--r-md);
+}
+.gezinme a:hover { color: var(--metin); background: var(--girdi); }
+.gezinme a[aria-current="page"] { color: var(--metin); background: var(--amber-zemin); }
+.gezinme a[aria-current="page"] .durum { border-color: var(--amber); background: var(--amber); }
+.gezinme .durum { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--metin-3); flex: none; }
+.gezinme .durum.tamam { border-color: var(--basari); background: var(--basari); }
+.gezinme .adim-no { font-family: var(--f-sayi); font-size: 0.8em; color: var(--metin-3); margin-left: auto; }
+
+/* Orta: önizleme */
+.orta { padding: var(--ara); display: grid; align-content: start; gap: var(--ara); min-width: 0; }
+.video-kuyu { position: relative; background: var(--video); border-radius: var(--r-sm); aspect-ratio: 16 / 9; overflow: hidden; }
+.video-kuyu canvas { width: 100%; height: 100%; display: block; }
+.kirp { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--amber); opacity: 0.85; }
+.kirp.ust { top: 12.8%; }
+.kirp.alt { bottom: 12.8%; }
+.kirp-etiket {
+  position: absolute; right: 8px; top: calc(12.8% + 6px);
+  font-family: var(--f-sayi); font-size: 11px; color: var(--amber);
+  background: rgba(0,0,0,.7); padding: 2px 6px; border-radius: var(--r-sm);
+}
+.oynatma { display: flex; align-items: center; gap: 12px; color: var(--metin-2); }
+.oynatma .tc { font-family: var(--f-sayi); color: var(--metin); font-size: 0.95em; }
+.cizelge { flex: 1; height: 4px; background: var(--girdi); border-radius: 2px; position: relative; }
+.cizelge::before { content: ""; position: absolute; inset: 0 70% 0 0; background: var(--metin-2); border-radius: 2px; }
+.cizelge .tutamak { position: absolute; left: 30%; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: var(--metin); }
+.cizelge .bolum-izi { position: absolute; top: -3px; width: 1px; height: 10px; background: var(--metin-3); }
+.ikon-dugme { width: var(--kontrol); height: var(--kontrol); display: inline-grid; place-items: center; border-radius: var(--r-md); color: var(--metin-2); }
+.ikon-dugme:hover { background: var(--girdi); color: var(--metin); }
+
+.gorunum-satiri { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; color: var(--metin-2); }
+.bolutlu { display: inline-flex; border: 1px solid var(--cizgi); border-radius: var(--r-md); overflow: hidden; }
+.bolutlu span { padding: 0 10px; height: calc(var(--kontrol) - 2px); display: inline-flex; align-items: center; color: var(--metin-2); }
+.bolutlu span + span { border-left: 1px solid var(--cizgi); }
+.bolutlu span.secili { background: var(--girdi); color: var(--metin); }
+
+.ozet-kart { display: flex; gap: 18px; align-items: center; padding: 16px 18px; background: var(--panel); border: 1px solid var(--cizgi-zayif); border-radius: var(--r-lg); }
+.ozet-kart .afis { width: 54px; aspect-ratio: 2 / 3; border-radius: var(--r-sm); flex: none; background: linear-gradient(180deg, #2b3440, #0f1216 60%, #3a2a17); }
+.ozet-kart h3 { margin: 0 0 2px; font-family: var(--f-baslik); font-weight: 600; font-size: 1.15rem; }
+.ozet-kart p { margin: 0; color: var(--metin-2); font-size: 0.95em; }
+.ozet-kart .tmdb { font-size: 0.8em; color: var(--metin-3); margin-top: 4px; }
+
+/* Sağ panel */
+.sag { background: var(--panel); border-left: 1px solid var(--cizgi); padding: var(--ara); display: grid; align-content: start; gap: calc(var(--ara) + 4px); min-width: 0; }
+.sag h3 { margin: 0; font-size: 0.78em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--metin-3); }
+.app[data-mod="basit"] .sag h3.buyuk { font-family: var(--f-baslik); font-size: 1.2rem; font-weight: 600; text-transform: none; letter-spacing: -0.01em; color: var(--metin); }
+.grup { display: grid; gap: 8px; }
+
+.secim { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 12px 0; border-top: 1px solid var(--cizgi-zayif); }
+.secim:first-of-type { border-top: 0; padding-top: 0; }
+.secim .ad { color: var(--metin-2); font-size: 0.92em; }
+.secim .deger { font-weight: 600; font-size: 1.02em; grid-column: 1; }
+.secim .not { color: var(--metin-3); font-size: 0.88em; grid-column: 1; }
+.secim .degistir { grid-column: 2; grid-row: 1 / span 3; align-self: center; color: var(--amber); font-weight: 600; font-size: 0.92em; text-decoration: none; }
+.secim .degistir:hover { text-decoration: underline; }
+
+.kalite { display: grid; gap: 6px; padding: 14px; background: var(--girdi); border-radius: var(--r-md); }
+.kalite .noktalar { display: flex; gap: 5px; }
+.kalite .noktalar i { width: 22px; height: 6px; border-radius: 3px; background: var(--cizgi); }
+.kalite .noktalar i.dolu { background: var(--amber); }
+.kalite strong { font-size: 1.02em; }
+.kalite span { color: var(--metin-2); font-size: 0.9em; }
+.pro-baglanti { color: var(--metin-2); font-size: 0.9em; }
+.pro-baglanti a { color: var(--metin); }
+
+.kv { display: grid; grid-template-columns: 74px 1fr; gap: 5px 10px; align-items: center; }
+.kv dt { color: var(--metin-2); }
+.kv dd { margin: 0; font-family: var(--f-sayi); font-size: 0.92em; font-variant-numeric: tabular-nums; }
+.secmeli {
+  height: var(--kontrol); display: flex; align-items: center; justify-content: space-between;
+  padding: 0 8px; background: var(--girdi); border: 1px solid var(--cizgi); border-radius: var(--r-sm);
+  font-family: var(--f-ui); font-size: 1em;
+}
+.secmeli::after { content: ""; width: 6px; height: 6px; border-right: 1.5px solid var(--metin-2); border-bottom: 1.5px solid var(--metin-2); transform: rotate(45deg) translateY(-2px); }
+.kaynak-izi { font-family: var(--f-ui); font-size: 0.82em; color: var(--metin-3); grid-column: 2; margin-top: -3px; }
+.kaydirici { display: flex; align-items: center; gap: 8px; }
+.kaydirici .ray { flex: 1; height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--amber) 0 55%, var(--girdi) 55%); position: relative; }
+.kaydirici .ray::after { content: ""; position: absolute; left: 55%; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: var(--metin); }
+.kaydirici .mono { width: 2.4em; text-align: right; color: var(--metin-2); font-size: 0.92em; }
+.kucuk-dugme { font: inherit; font-size: 0.9em; color: var(--metin); background: transparent; border: 1px solid var(--cizgi); border-radius: var(--r-sm); padding: 1px 8px; cursor: pointer; }
+
+/* Alt: disk bütçesi */
+.butce { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 16px; padding: 12px 16px; background: var(--panel); border-top: 1px solid var(--cizgi); }
+.butce .etiket { font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.butce .etiket svg { color: var(--basari); }
+.cubuk { height: 10px; border-radius: 5px; background: repeating-linear-gradient(135deg, var(--girdi) 0 6px, var(--cizgi-zayif) 6px 12px); display: flex; overflow: hidden; }
+.app[data-mod="pro"] .cubuk { height: 8px; border-radius: 2px; }
+.cubuk i { display: block; height: 100%; }
+.cubuk .v { background: var(--amber); }
+.cubuk .s { background: var(--bilgi); }
+.cubuk .m { background: var(--menu-seg); }
+.cubuk .tek { background: var(--basari); }
+.butce .sayi { font-family: var(--f-sayi); font-variant-numeric: tabular-nums; color: var(--metin-2); white-space: nowrap; }
+.butce .sayi b { color: var(--metin); font-weight: 500; }
+.lejant { display: flex; gap: 14px; font-size: 0.88em; color: var(--metin-2); grid-column: 2; margin-top: -8px; }
+.lejant i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; }
+
+/* ---------- Renkler ---------- */
+.renkler { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+.renk { display: grid; grid-template-rows: 72px auto; border: 1px solid var(--cizgi-zayif); border-radius: var(--r-md); overflow: hidden; background: var(--panel); }
+.renk .ornek { border-bottom: 1px solid var(--cizgi-zayif); }
+.renk div:last-child { padding: 10px 12px; display: grid; gap: 1px; }
+.renk b { font-weight: 600; }
+.renk code { font-family: var(--f-sayi); font-size: 0.85rem; color: var(--metin-2); }
+.renk small { color: var(--metin-3); font-size: 0.85rem; }
+.renk-grubu { display: grid; gap: 10px; }
+.renk-grubu h3 { margin: 0; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--metin-3); font-weight: 700; }
+
+/* ---------- Tipografi ---------- */
+.tip { display: grid; gap: 0; border-top: 1px solid var(--cizgi-zayif); }
+.tip-satir { display: grid; grid-template-columns: 220px 1fr; gap: 24px; padding: 22px 0; border-bottom: 1px solid var(--cizgi-zayif); align-items: baseline; }
+.tip-satir .rol { display: grid; gap: 2px; }
+.tip-satir .rol b { font-weight: 600; }
+.tip-satir .rol span { color: var(--metin-3); font-size: 0.88rem; }
+.tip-satir .ornek-metin { min-width: 0; overflow-wrap: anywhere; }
+.t-baslik { font-family: var(--f-baslik); font-weight: 700; font-size: 2.6rem; line-height: 1.05; letter-spacing: -0.02em; }
+.t-baslik2 { font-family: var(--f-baslik); font-weight: 600; font-size: 1.35rem; letter-spacing: -0.01em; }
+.t-ui { font-size: 14px; }
+.t-ui p { margin: 0 0 4px; max-width: 60ch; }
+.t-etiket { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--metin-2); }
+.t-sayi { font-family: var(--f-sayi); font-size: 14px; font-variant-numeric: tabular-nums; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, max-content)); gap: 4px 28px; }
+.t-sayi span { color: var(--metin-2); }
+
+/* ---------- Bileşenler ---------- */
+.yogunluklar { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 16px; }
+.yogunluk { --kontrol: 36px; --ara: 16px; background: var(--panel); border: 1px solid var(--cizgi-zayif); border-radius: var(--r-lg); padding: 20px; display: grid; gap: 18px; align-content: start; font-size: 14px; min-width: 0; }
+.yogunluk.sik { --kontrol: 26px; --ara: 10px; font-size: 13px; gap: 12px; }
+.yogunluk h3 { margin: 0; font-family: var(--f-baslik); font-weight: 600; font-size: 1.1rem; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.yogunluk h3 span { font-family: var(--f-sayi); font-weight: 400; font-size: 0.8rem; color: var(--metin-3); }
+.sira { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.alan { display: grid; gap: 4px; }
+.alan label { color: var(--metin-2); font-size: 0.92em; }
+.girdi { height: var(--kontrol); background: var(--girdi); border: 1px solid var(--cizgi); border-radius: var(--r-sm); color: var(--metin); font: inherit; padding: 0 10px; width: 100%; }
+.girdi:focus { outline: none; border-color: var(--amber); }
+.etiketcik { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 999px; font-size: 0.86em; font-weight: 600; background: var(--girdi); color: var(--metin-2); }
+.etiketcik i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.etiketcik.ok { color: var(--basari); }
+.etiketcik.uy { color: var(--uyari); }
+.etiketcik.ak { color: var(--amber); }
+.ilerleme { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: center; }
+.ilerleme .ray { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--girdi); overflow: hidden; }
+.ilerleme .ray i { display: block; height: 100%; width: 54%; background: var(--amber); }
+.ilerleme .mono { color: var(--metin-2); font-size: 0.92em; }
+
+.uyarilar { display: grid; gap: 10px; }
+.mesaj { display: grid; grid-template-columns: 20px 1fr auto; gap: 4px 12px; align-items: start; padding: 12px 14px; border-radius: var(--r-md); background: var(--panel); border: 1px solid var(--cizgi-zayif); }
+.mesaj svg { margin-top: 2px; }
+.mesaj p { margin: 0; }
+.mesaj p b { font-weight: 600; }
+.mesaj .eylem { align-self: center; }
+.mesaj.ok { background: color-mix(in srgb, var(--basari) 9%, var(--panel)); }
+.mesaj.ok svg { color: var(--basari); }
+.mesaj.uy { background: color-mix(in srgb, var(--uyari) 10%, var(--panel)); }
+.mesaj.uy svg { color: var(--uyari); }
+.mesaj.ha { background: color-mix(in srgb, var(--hata) 11%, var(--panel)); }
+.mesaj.ha svg { color: var(--hata); }
+.mesaj.bi { background: color-mix(in srgb, var(--bilgi) 9%, var(--panel)); }
+.mesaj.bi svg { color: var(--bilgi); }
+
+/* ---------- Qt ---------- */
+.iki-kolon { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 24px; align-items: start; }
+pre { margin: 0; overflow-x: auto; background: var(--panel); border: 1px solid var(--cizgi-zayif); border-radius: var(--r-md); padding: 16px 18px; font-family: var(--f-sayi); font-size: 12.5px; line-height: 1.6; color: var(--metin-2); }
+pre .k { color: var(--amber); }
+pre .c { color: var(--metin-3); }
+.kurallar { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.kurallar li { display: grid; grid-template-columns: 22px 1fr; gap: 8px; }
+.kurallar li::before { content: "✓"; color: var(--basari); font-weight: 700; }
+.kurallar.yapma li::before { content: "✕"; color: var(--hata); }
+.kurallar-baslik { margin: 0 0 10px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--metin-3); font-weight: 700; }
+
+@media (max-width: 640px) {
+  .tip-satir { grid-template-columns: 1fr; gap: 8px; }
+  .t-baslik { font-size: 2rem; }
+  .giris { padding-top: 32px; }
+  .sayfa { gap: 56px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mod-secici button, .dugme, .gezinme a { transition: background-color 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out; }
+}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-tamam" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6.2 10.2l2.6 2.6 5-5.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-uyari" viewBox="0 0 20 20"><path d="M10 2.6l8 14H2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M10 8v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="14.4" r="1" fill="currentColor"/></symbol>
+  <symbol id="i-hata" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 7l6 6M13 7l-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-bilgi" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 9v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="6.2" r="1" fill="currentColor"/></symbol>
+  <symbol id="i-disk" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 4.5a7.5 7.5 0 0 1 7.5 7.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity=".55"/></symbol>
+  <symbol id="i-oynat" viewBox="0 0 20 20"><path d="M6 4l10 6-10 6z" fill="currentColor"/></symbol>
+  <symbol id="i-geri" viewBox="0 0 20 20"><path d="M10 4L3 10l7 6zM17 4l-7 6 7 6z" fill="currentColor"/></symbol>
+  <symbol id="i-ileri" viewBox="0 0 20 20"><path d="M10 4l7 6-7 6zM3 4l7 6-7 6z" fill="currentColor"/></symbol>
+</svg>
+
+<main class="sayfa">
+
+  <section class="giris">
+    <h1>Sıcak Stüdyo <span>tasarım sistemi</span></h1>
+    <p>DVD authoring uygulamasının renk, font ve bileşen kuralları. Koyu tema, iki kullanım modu.</p>
+    <div class="kunye">
+      <span><b>Platform</b> Windows · PySide6 / Qt 6 · QSS</span>
+      <span><b>Tema</b> Koyu (K14)</span>
+      <span><b>Modlar</b> Basit · Profesyonel (K15)</span>
+      <span><b>Tarih</b> 8 Ekim 2026</span>
+    </div>
+  </section>
+
+  <section class="bolum" id="ekran">
+    <header>
+      <h2>Ana ekran</h2>
+    </header>
+    <div class="ekran-ust">
+      <div class="mod-secici" role="group" aria-label="Kullanım modu">
+        <button type="button" id="sayfa-basit" data-mod-sec="basit" aria-pressed="true">Basit mod</button>
+        <button type="button" id="sayfa-pro" data-mod-sec="pro" aria-pressed="false">Profesyonel mod</button>
+      </div>
+      <p class="aciklama" id="mod-aciklama">Preset'ler seçili gelir. Her ayar teknik değeriyle değil sonucuyla anlatılır. Kontroller büyük.</p>
+    </div>
+
+    <div class="kaydir">
+      <div class="app" id="app" data-mod="basit">
+        <div class="ust-cubuk">
+          <div class="proje">
+            <svg width="22" height="22" style="color:var(--amber)"><use href="#i-disk"/></svg>
+            <strong>Interstellar</strong>
+          </div>
+          <div class="profil-ozet yalniz-basit"><span>DVD-9</span><span class="ayrac">·</span><span>Salon TV'si</span><span class="ayrac">·</span><span>5.1 ses</span></div>
+          <div class="profil-ozet yalniz-pro mono" style="font-size:0.88em"><span>PAL</span><span class="ayrac">·</span><span>DVD-9</span><span class="ayrac">·</span><span>Grenli film</span><span class="ayrac">·</span><span>Modern TV</span><span class="ayrac">·</span><span>5.1</span></div>
+          <div class="bosluk"></div>
+          <div class="mod-secici" role="group" aria-label="Uygulama modu">
+            <button type="button" id="app-basit" data-mod-sec="basit" aria-pressed="true">Basit</button>
+            <button type="button" id="app-pro" data-mod-sec="pro" aria-pressed="false">Profesyonel</button>
+          </div>
+          <button type="button" class="dugme yalniz-pro" id="test-encode">Test</button>
+          <button type="button" class="dugme birincil" id="olustur"><svg width="14" height="14"><use href="#i-oynat"/></svg><span class="yalniz-basit">Diski oluştur</span><span class="yalniz-pro">Build</span></button>
+        </div>
+
+        <div class="govde">
+          <nav class="gezinme yalniz-basit" aria-label="Adımlar">
+            <a href="#ekran"><span class="durum tamam"></span>Video<span class="adim-no">1</span></a>
+            <a href="#ekran" aria-current="page"><span class="durum"></span>Görüntü ve kalite<span class="adim-no">2</span></a>
+            <a href="#ekran"><span class="durum"></span>Ses ve altyazı<span class="adim-no">3</span></a>
+            <a href="#ekran"><span class="durum"></span>Menü<span class="adim-no">4</span></a>
+            <a href="#ekran"><span class="durum"></span>Diski oluştur<span class="adim-no">5</span></a>
+          </nav>
+          <nav class="gezinme yalniz-pro" aria-label="Bölümler">
+            <a href="#ekran"><span class="durum tamam"></span>Kaynaklar</a>
+            <a href="#ekran" aria-current="page"><span class="durum"></span>Başlıklar</a>
+            <a href="#ekran"><span class="durum tamam"></span>Ses</a>
+            <a href="#ekran"><span class="durum"></span>Altyazı</a>
+            <a href="#ekran"><span class="durum tamam"></span>Bölümler</a>
+            <a href="#ekran"><span class="durum"></span>Menüler</a>
+            <a href="#ekran"><span class="durum"></span>Disk</a>
+            <a href="#ekran"><span class="durum"></span>Çıktı</a>
+          </nav>
+
+          <div class="orta">
+            <div class="video-kuyu">
+              <canvas id="kare" width="960" height="540" aria-label="Önizleme karesi: 2.39:1 sinemaskop görüntü, üst ve altta siyah bantlar"></canvas>
+              <div class="yalniz-pro"><div class="kirp ust"></div><div class="kirp alt"></div><div class="kirp-etiket">crop 720×432 · 2.39:1</div></div>
+            </div>
+            <div class="oynatma">
+              <span class="ikon-dugme"><svg width="14" height="14"><use href="#i-geri"/></svg></span>
+              <span class="ikon-dugme"><svg width="14" height="14"><use href="#i-oynat"/></svg></span>
+              <span class="ikon-dugme"><svg width="14" height="14"><use href="#i-ileri"/></svg></span>
+              <span class="tc">00:42:17<span class="yalniz-pro">.083</span></span>
+              <div class="cizelge"><span class="tutamak"></span><span class="bolum-izi yalniz-pro" style="left:12%"></span><span class="bolum-izi yalniz-pro" style="left:27%"></span><span class="bolum-izi yalniz-pro" style="left:46%"></span><span class="bolum-izi yalniz-pro" style="left:63%"></span><span class="bolum-izi yalniz-pro" style="left:81%"></span></div>
+              <span class="tc" style="color:var(--metin-2)">2:42:07</span>
+            </div>
+
+            <div class="ozet-kart yalniz-basit">
+              <div class="afis" aria-hidden="true"></div>
+              <div>
+                <h3>Interstellar <span style="color:var(--metin-3);font-weight:500">(2014)</span></h3>
+                <p>Sinemaskop film, 35 mm gren. Siyah bantlar otomatik bulundu ve kırpıldı.</p>
+                <div class="tmdb">Bilgiler ve afiş TMDB'den</div>
+              </div>
+            </div>
+
+            <div class="gorunum-satiri yalniz-pro">
+              <span>Görünüm</span>
+              <span class="bolutlu"><span>Kaynak</span><span class="secili">Sonuç</span><span>Kaydırmalı</span></span>
+              <span style="flex:1"></span>
+              <button type="button" class="dugme" id="aralik-test">Bu aralığı test encode et <span class="mono" style="color:var(--metin-2)">20 sn</span></button>
+            </div>
+          </div>
+
+          <aside class="sag">
+            <div class="yalniz-basit grup">
+              <h3 class="buyuk">Bu film için seçtiklerimiz</h3>
+              <div>
+                <div class="secim"><span class="ad">Film türü</span><span class="deger">Grenli film</span><span class="not">Gren korunur, bitrate'e göre hafifçe azaltılır</span><a class="degistir" href="#ekran">Değiştir</a></div>
+                <div class="secim"><span class="ad">İzleneceği yer</span><span class="deger">Salon TV'si</span><span class="not">Modern düz ekran TV</span><a class="degistir" href="#ekran">Değiştir</a></div>
+                <div class="secim"><span class="ad">Ses</span><span class="deger">5.1 ev sineması</span><span class="not">Türkçe ve İngilizce iz</span><a class="degistir" href="#ekran">Değiştir</a></div>
+              </div>
+            </div>
+            <div class="kalite yalniz-basit">
+              <div class="noktalar" aria-hidden="true"><i class="dolu"></i><i class="dolu"></i><i class="dolu"></i><i class="dolu"></i><i></i></div>
+              <strong>Ticari DVD seviyesi</strong>
+            </div>
+            <p class="pro-baglanti yalniz-basit">Tüm ayarlar için <a href="#ekran" data-mod-sec="pro">Profesyonel mod</a></p>
+
+            <div class="yalniz-pro grup">
+              <h3>Video</h3>
+              <dl class="kv">
+                <dt>Kaynak</dt><dd>1920×1080 23.976</dd>
+                <dt></dt><dd style="color:var(--metin-2)">BT.709 SDR</dd>
+                <dt>Hedef</dt><dd>720×576 16:9 25p</dd>
+                <dt>Aktif</dt><dd>720×432 (2.39:1)</dd>
+                <dt>Crop</dt><dd style="display:flex;gap:8px;align-items:center">otomatik <button type="button" class="kucuk-dugme" id="crop-duzelt">düzelt</button></dd>
+              </dl>
+            </div>
+            <div class="yalniz-pro grup">
+              <h3>Ön işleme</h3>
+              <dl class="kv">
+                <dt>Küçültme</dt><dd><div class="secmeli">Spline36</div></dd>
+                <dt>Deband</dt><dd><div class="kaydirici"><div class="ray"></div><span class="mono">0.55</span></div></dd>
+                <dd class="kaynak-izi">Grenli film profilinden</dd>
+                <dt>Gren</dt><dd><div class="secmeli">Azalt (hafif)</div></dd>
+                <dt>Encoder</dt><dd style="display:flex;gap:8px;align-items:center"><div class="secmeli" style="flex:1">HCEnc</div><span style="color:var(--metin-2)">2 geçiş</span></dd>
+                <dt>Tepe</dt><dd>9.0 Mbps</dd>
+                <dd class="kaynak-izi">Modern TV profilinden</dd>
+              </dl>
+            </div>
+          </aside>
+        </div>
+
+        <div class="butce">
+          <span class="etiket yalniz-basit"><svg width="18" height="18"><use href="#i-tamam"/></svg>Film diske rahat sığıyor</span>
+          <span class="etiket yalniz-pro" style="font-weight:600">Disk</span>
+          <div class="cubuk yalniz-basit"><i class="tek" style="width:92.7%"></i></div>
+          <div class="cubuk yalniz-pro"><i class="v" style="width:78.6%"></i><i class="s" style="width:11.5%"></i><i class="m" style="width:0.7%"></i></div>
+          <span class="sayi"><b>7.92</b> / 8.54 GB<span class="yalniz-pro"> &nbsp;·&nbsp; video ort. <b>7.4</b> Mbps</span></span>
+          <div class="lejant yalniz-pro"><span><i style="background:var(--amber)"></i>Video 6.71 GB</span><span><i style="background:var(--bilgi)"></i>Ses 0.98 GB</span><span><i style="background:var(--menu-seg)"></i>Menü 0.06 GB</span><span><i style="background:var(--cizgi)"></i>Boş 0.62 GB</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bolum" id="renkler">
+    <header>
+      <h2>Renkler</h2>
+      <p>Sıcak gri yüzeyler ve tek vurgu rengi. Amber yalnızca birincil düğmede, seçili adımda ve ilerleme çubuğunda kullanılır. Video önizleme alanı nötr siyahtır, arayüzün rengi önizlemeyi etkilemez.</p>
+    </header>
+    <div class="renk-grubu">
+      <h3>Yüzeyler ve metin</h3>
+      <div class="renkler">
+        <div class="renk"><div class="ornek" style="background:var(--zemin)"></div><div><b>Zemin</b><code>#161513</code><small>Pencere arka planı</small></div></div>
+        <div class="renk"><div class="ornek" style="background:var(--panel)"></div><div><b>Panel</b><code>#1E1C1A</code><small>Gezinme, sağ panel, çubuklar</small></div></div>
+        <div class="renk"><div class="ornek" style="background:var(--girdi)"></div><div><b>Girdi</b><code>#282623</code><small>Alanlar, seçili satır</small></div></div>
+        <div class="renk"><div class="ornek" style="background:var(--cizgi)"></div><div><b>Çizgi</b><code>#3A3632</code><small>1px ayraçlar, kenarlar</small></div></div>
+        <div class="renk"><div class="ornek" style="background:var(--metin)"></div><div><b>Metin</b><code>#EDE8E0</code><small>Ana metin</small></div></div>
+        <div class="renk"><div class="ornek" style="background:var(--metin-2)"></div><div><b>İkincil metin</b><code>#A29B90</code><small>Etiketler, açıklamalar</small></div></div>
+      </div>
+    </div>
+    <div class="renk-grubu">
+      <h3>Vurgu ve durum</h3>
+      <div class="renkler">
+        <div class="renk"><div class="ornek" style="background:var(--amber)"></div><div><b>Amber</b><code>#F0B449</code><small>Tek vurgu rengi</small></div></div>
+        <div class="renk"><div class="ornek" style="background:var(--basari)"></div><div><b>Başarı</b><code>#5FBF7F</code><small>Sığıyor, hazır, doğrulandı</small></div></div>
+        <div class="renk"><div class="ornek" style="background:var(--uyari)"></div><div><b>Uyarı</b><code>#F07F4A</code><small>Her zaman ikon ve metinle</small></div></div>
+        <div class="renk"><div class="ornek" style="background:var(--hata)"></div><div><b>Hata</b><code>#E5534B</code><small>Sığmıyor, başarısız</small></div></div>
+        <div class="renk"><div class="ornek" style="background:var(--bilgi)"></div><div><b>Bilgi</b><code>#7AA8D8</code><small>Notlar; bütçede ses payı</small></div></div>
+        <div class="renk"><div class="ornek" style="background:var(--video);"></div><div><b>Video kuyusu</b><code>#000000</code><small>Yalnızca önizleme alanı</small></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bolum" id="tipografi">
+    <header>
+      <h2>Tipografi</h2>
+      <p>Üç font da OFL lisanslı, uygulamaya gömülür ve Türkçe harfleri (ğ ş ı İ) içerir. Bricolage Grotesque yalnızca başlıklarda kullanılır.</p>
+    </header>
+    <div class="tip">
+      <div class="tip-satir">
+        <div class="rol"><b>Bricolage Grotesque</b><span>Başlık · 600–700 · proje adı, sihirbaz, Basit mod başlıkları</span></div>
+        <div class="ornek-metin">
+          <div class="t-baslik">Yüzüklerin Efendisi: Kralın Dönüşü</div>
+          <div class="t-baslik2" style="margin-top:10px">Bu film için seçtiklerimiz</div>
+        </div>
+      </div>
+      <div class="tip-satir">
+        <div class="rol"><b>Source Sans 3</b><span>Arayüz · 400–600 · 14px Basit, 13px Pro</span></div>
+        <div class="ornek-metin t-ui">
+          <p>Kaynak 23.976 fps. PAL'de film %4 hızlanır ve 2 sa 49 dk'lık süre 2 sa 42 dk olur. Ses perdesi düzeltilerek korunur.</p>
+          <div class="t-etiket" style="margin-top:10px">Ön işleme · Gren yönetimi</div>
+        </div>
+      </div>
+      <div class="tip-satir">
+        <div class="rol"><b>JetBrains Mono</b><span>Sayılar · 400–500 · tabular rakamlar</span></div>
+        <div class="ornek-metin t-sayi">
+          <div><span>Katman geçişi</span><br>01:12:44.120</div>
+          <div><span>Video ortalama</span><br>7.4 Mbps</div>
+          <div><span>Disk</span><br>7.92 / 8.54 GB</div>
+          <div><span>Kaynak</span><br>D:\Filmler\Interstellar.mkv</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bolum" id="bilesenler">
+    <header>
+      <h2>Bileşenler ve iki yoğunluk</h2>
+      <p>İki modda aynı bileşenler kullanılır, yalnızca boyutlar ve etiketler değişir. Basit modda 36px kontrol ve 16px aralık, Profesyonel modda 26px kontrol ve 10px aralık.</p>
+    </header>
+    <div class="yogunluklar">
+      <div class="yogunluk">
+        <h3>Basit <span>36px · 16px</span></h3>
+        <div class="sira">
+          <button type="button" class="dugme birincil" id="b-olustur">Diski oluştur</button>
+          <button type="button" class="dugme" id="b-onizle">Önizle</button>
+          <button type="button" class="dugme hayalet" id="b-vazgec">Vazgeç</button>
+        </div>
+        <div class="alan"><label for="b-ad">Disk adı</label><input class="girdi" id="b-ad" value="Interstellar"></div>
+        <div class="sira"><span class="etiketcik ok"><i></i>Sığıyor</span><span class="etiketcik ak"><i></i>Hazırlanıyor</span><span class="etiketcik uy"><i></i>Sıkışık</span></div>
+        <div class="ilerleme"><span>Görüntü hazırlanıyor</span><span class="mono">%54 · 1 sa 10 dk kaldı</span><div class="ray"><i></i></div></div>
+      </div>
+      <div class="yogunluk sik">
+        <h3>Profesyonel <span>26px · 10px</span></h3>
+        <div class="sira">
+          <button type="button" class="dugme birincil" id="p-build">Build</button>
+          <button type="button" class="dugme" id="p-test">Test encode</button>
+          <button type="button" class="dugme hayalet" id="p-log">Log</button>
+        </div>
+        <div class="alan"><label for="p-bitrate">Hedef ortalama (Mbps)</label><input class="girdi mono" id="p-bitrate" value="7.40"></div>
+        <div class="sira"><span class="etiketcik ok"><i></i>VBV uygun</span><span class="etiketcik ak"><i></i>2. geçiş</span><span class="etiketcik uy"><i></i>Tepe 9.6 Mbps</span></div>
+        <div class="ilerleme"><span>Video · 2. geçiş</span><span class="mono">54% · 38 fps</span><div class="ray"><i></i></div></div>
+      </div>
+    </div>
+
+    <div class="uyarilar">
+      <div class="mesaj ok"><svg width="18" height="18"><use href="#i-tamam"/></svg><p><b>ISO hazır.</b> Interstellar.iso (8.41 GB) uyumluluk denetiminden geçti.</p><button type="button" class="dugme" id="m-klasor">Klasörü aç</button></div>
+      <div class="mesaj uy"><svg width="18" height="18"><use href="#i-uyari"/></svg><p><b>DVD-5'e sığdırmak kaliteyi düşürür.</b> Video ortalaması 3.9 Mbps'e iner; karanlık sahnelerde bloklanma görülür.</p><button type="button" class="dugme" id="m-dvd9">DVD-9'da kal</button></div>
+      <div class="mesaj ha"><svg width="18" height="18"><use href="#i-hata"/></svg><p><b>HCEnc bulunamadı.</b> Ayarlar › Araçlar'dan HCEnc'in yolunu gösterin ya da FFmpeg ile devam edin.</p><button type="button" class="dugme" id="m-ayarlar">Ayarları aç</button></div>
+      <div class="mesaj bi"><svg width="18" height="18"><use href="#i-bilgi"/></svg><p><b>Film PAL'de %4 hızlanacak.</b> Kaynak 23.976 fps; süre 2 sa 49 dk'dan 2 sa 42 dk'ya iner, altyazı zamanları otomatik ayarlanır.</p><span></span></div>
+    </div>
+  </section>
+
+  <section class="bolum" id="qt">
+    <header>
+      <h2>Qt'ye aktarım</h2>
+      <p>Tüm stiller QSS ile uygulanabilir. Gölge ve bulanıklık kullanılmaz, paneller yüzey tonu ve 1px çizgiyle ayrılır. Mod, pencereye verilen <span class="mono">mode</span> özelliğiyle değişir.</p>
+    </header>
+    <div class="iki-kolon">
+<pre><span class="c">/* tema.qss — token'lar Python tarafında yerine konur */</span>
+<span class="k">QMainWindow</span>, <span class="k">QWidget</span> {
+  background: #161513; color: #EDE8E0;
+  font-family: "Source Sans 3"; font-size: 14px;
+}
+<span class="k">QPushButton#birincil</span> {
+  background: #F0B449; color: #1A1408;
+  border: 1px solid #F0B449; border-radius: 6px;
+  min-height: 36px; padding: 0 18px; font-weight: 600;
+}
+<span class="k">QPushButton#birincil:hover</span> { background: #F5C46A; }
+<span class="k">QLineEdit</span>, <span class="k">QComboBox</span> {
+  background: #282623; border: 1px solid #3A3632;
+  border-radius: 3px; min-height: 36px;
+}
+<span class="k">QLineEdit:focus</span> { border-color: #F0B449; }
+
+<span class="c">/* Profesyonel mod: setProperty("mode", "pro") */</span>
+<span class="k">[mode="pro"] QPushButton</span>, <span class="k">[mode="pro"] QLineEdit</span> {
+  min-height: 26px; font-size: 13px;
+}</pre>
+      <div style="display:grid;gap:24px">
+        <div>
+          <p class="kurallar-baslik">Yap</p>
+          <ul class="kurallar">
+            <li>Bir ekranda yalnızca bir amber düğme olsun.</li>
+            <li>Her ayarın iki etiketi olsun: Basit modda sonucu, Profesyonel modda teknik değeri.</li>
+            <li>Sayıları JetBrains Mono ile, alt alta hizalı yaz.</li>
+            <li>Profesyonel modda değerin hangi profilden geldiğini altına küçük yazıyla göster.</li>
+            <li>Uyarıları ikon ve cümleyle ver, yalnızca renkle değil.</li>
+          </ul>
+        </div>
+        <div>
+          <p class="kurallar-baslik">Yapma</p>
+          <ul class="kurallar yapma">
+            <li>Video önizleme alanını griye boyama, nötr siyah kalsın.</li>
+            <li>Bricolage'ı tablo, liste ya da ayar etiketinde kullanma.</li>
+            <li>QGraphicsDropShadowEffect ile gölge ekleme.</li>
+            <li>Basit modda Mbps, VBV, GOP gibi terimleri gösterme.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+(function () {
+  var app = document.getElementById('app');
+  var aciklama = document.getElementById('mod-aciklama');
+  var metinler = {
+    basit: 'Preset\'ler seçili gelir. Her ayar teknik değeriyle değil sonucuyla anlatılır. Kontroller büyük.',
+    pro: 'Tüm ayarlar ve teknik değerler görünür. Crop çizgileri, bölüm işaretleri ve her değerin hangi profilden geldiği gösterilir. Kontroller küçük.'
+  };
+  function modAyarla(mod) {
+    app.setAttribute('data-mod', mod);
+    document.querySelectorAll('[data-mod-sec]').forEach(function (b) {
+      if (b.tagName === 'BUTTON') b.setAttribute('aria-pressed', String(b.getAttribute('data-mod-sec') === mod));
+    });
+    aciklama.textContent = metinler[mod];
+    try { localStorage.setItem('sicak-studyo-mod', mod); } catch (e) {}
+  }
+  document.querySelectorAll('[data-mod-sec]').forEach(function (b) {
+    b.addEventListener('click', function (e) {
+      if (b.tagName === 'A') e.preventDefault();
+      modAyarla(b.getAttribute('data-mod-sec'));
+    });
+  });
+  try { var kayitli = localStorage.getItem('sicak-studyo-mod'); if (kayitli === 'pro' || kayitli === 'basit') modAyarla(kayitli); } catch (e) {}
+
+  // Önizleme karesi: 2.39:1 aktif alan, üst ve altta siyah bantlar.
+  var c = document.getElementById('kare');
+  var x = c.getContext('2d');
+  var W = c.width, H = c.height;
+  var bant = Math.round(H * 0.128);
+  x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
+  x.save();
+  x.beginPath(); x.rect(0, bant, W, H - 2 * bant); x.clip();
+  var gok = x.createLinearGradient(0, bant, 0, H - bant);
+  gok.addColorStop(0, '#05070b'); gok.addColorStop(0.55, '#0b1018'); gok.addColorStop(1, '#1a130b');
+  x.fillStyle = gok; x.fillRect(0, bant, W, H - 2 * bant);
+  var tohum = 7;
+  function rast() { tohum = (tohum * 16807) % 2147483647; return tohum / 2147483647; }
+  for (var i = 0; i < 260; i++) {
+    var sx = rast() * W, sy = bant + rast() * (H - 2 * bant) * 0.8, r = rast() * 1.1 + 0.2;
+    x.fillStyle = 'rgba(235,230,220,' + (0.25 + rast() * 0.6).toFixed(2) + ')';
+    x.beginPath(); x.arc(sx, sy, r, 0, Math.PI * 2); x.fill();
+  }
+  var px = W * 0.62, py = H * 1.55, pr = H * 1.05;
+  var gezegen = x.createRadialGradient(px - pr * 0.3, py - pr * 0.6, pr * 0.1, px, py, pr);
+  gezegen.addColorStop(0, '#6b5434'); gezegen.addColorStop(0.55, '#2c2217'); gezegen.addColorStop(1, '#0d0a07');
+  x.fillStyle = gezegen; x.beginPath(); x.arc(px, py, pr, 0, Math.PI * 2); x.fill();
+  x.strokeStyle = 'rgba(240,200,140,0.55)'; x.lineWidth = 1.5;
+  x.beginPath(); x.arc(px, py, pr, Math.PI * 1.08, Math.PI * 1.92); x.stroke();
+  x.restore();
+})();
+</script>
