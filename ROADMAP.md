@@ -51,7 +51,7 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
   - [x] Build ve ilerleme ekranı (arka planda çalışır, aşama aşama ilerleme, uyarılar Türkçe)
 
 **Paketleme**
-- [ ] İlk Windows kurulum paketi (araçlar dahil)
+- [x] İlk Windows kurulum paketi (araçlar dahil): `scripts/package.py` → `dist/DVDStudyo-Setup-x.y.z.exe` (146 MB, kullanıcı başına kurulum, yönetici izni gerekmez)
 
 **Bitti kriteri:** Uygulamaya MKV sürükleyip ISO alıyoruz, gerçek bir DVD oynatıcıda izliyoruz.
 
