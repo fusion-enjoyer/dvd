@@ -12,12 +12,10 @@ Hedef: **Windows masaüstü uygulaması.** Her faz kendi başına kullanılabili
 
 - [x] Arayüz teknolojisi: Python + PySide6
 - [ ] Kalan açık kararları kapat (lisans, yakma yöntemi, ISO üretimi)
-- [ ] Windows geliştirme ortamı: Python + `uv`, VapourSynth + eklentiler, FFmpeg, HCEnc, dvdauthor/spumux Windows derlemeleri
-  - [x] Python 3.13 (`uv`), proje iskeleti, `dvd doctor` araç denetimi
-  - [x] FFmpeg 9.0.1, VapourSynth R81
-  - [ ] HCEnc + AviSynth+, dvdauthor/spumux (MSYS2 derlemesi)
+- [x] Windows geliştirme ortamı: Python + `uv`, VapourSynth, FFmpeg, HCEnc, dvdauthor/spumux Windows derlemeleri (VapourSynth eklentileri Faz 2'de)
 - [x] `tools/` sürüm listesi: hangi .exe hangi sürüm, nereden indirilir (repoya .exe girmez)
-- [ ] **HCEnc ↔ VapourSynth köprüsü** prototip denemesi (en büyük teknik belirsizlik)
+- [x] **HCEnc ↔ VapourSynth köprüsü** prototip denemesi: named pipe + `DvdSource.dll`, 2 geçiş çalışıyor
+- [x] Araç zinciri elle denendi: VapourSynth → HCEnc → FFmpeg (AC-3, mux) → dvdauthor → VIDEO_TS (Türkçe yolda)
 - [ ] **Test korpusu**: zor kısa klipler (karanlık sahne/banding, film greni, hızlı hareket, ince detay, 2.39:1, 2D animasyon, interlaced yayın), 30–60 sn
 - [ ] **Referans DVD seti**: elimizdeki orijinal DVD'lerden farklı türlerde 5–10 tane seç, ripleyip sakla
 - [ ] **Referans analizi (elle)**: bitrate eğrisi, GOP, matrisler, pulldown, ses formatları, menü yapısı — bulguları `docs/referans/` altına yaz

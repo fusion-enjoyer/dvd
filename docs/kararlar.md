@@ -23,7 +23,7 @@
 
 | # | Soru | Seçenekler | Öneri |
 |---|---|---|---|
-| K7 | Repo görünürlüğü ve lisans | Private / Public; MIT / GPL | dvdauthor kodundan yararlanırsak veya onu paketlersek GPL uyumu gerekir |
+| K7 | Lisans | MIT / GPL-3.0 | Repo zaten public (2026-10-09), ama LICENSE dosyası yok; yani şu an herkes kodu görebiliyor ama kullanma hakkı yok. dvdauthor ve FFmpeg GPL derlemesini paketlediğimiz için **GPL-3.0-or-later** öneriliyor |
 | K9 | Yakma yöntemi | Windows IMAPI2 / ImgBurn entegrasyonu / sadece ISO üret, kullanıcı yaksın | MVP'de sadece ISO; sonra IMAPI2, DL katman geçişi kontrolü yetersizse ImgBurn |
 | K10 | ISO üretimi | Kendi UDF/ISO yazıcımız / mkisofs Windows derlemesi / IMAPI2 dosya sistemi oluşturucu (IMAPI2FS) | Kendi UDF 1.02 + ISO 9660 köprü yazıcımız. xorriso DVD-Video UDF'si üretmiyor; mkisofs yalnızca Cygwin derlemesi olarak var; IMAPI2FS'te dosya sırası ve hizalama kontrolü belirsiz. Kendi yazıcımız Faz 7'deki katman geçişi için de gerekli. mkisofs çıktısı doğrulamada referans olarak kullanılır (2026-10-09 araştırması) |
 | K11 | Arayüz dili | Türkçe / İngilizce / ikisi | İkisi (çeviri altyapısı baştan) |
@@ -32,8 +32,9 @@
 
 | Risk | Neden önemli | Ne zaman |
 |---|---|---|
-| HCEnc girdisi | **Doğrulandı (2026-10-09):** HCEnc 0.28 yalnızca `.avs` ve `.d2v` okuyor; pipe ve y4m yok. Denenecek köprüler: (1) VapourSynth AVFS ile `.vpy`'den sanal AVI, AviSynth+ `AVISource` ile okuma; (2) AviSynth+ içinde VapourSynth betiği açan bir eklenti; (3) kayıpsız ara dosya (FFV1, film başına ~30–50 GB). Hiçbiri olmazsa FFmpeg `mpeg2video` / x262 varsayılan olur | Faz 0 |
-| HCEnc'in geleceği | 2015'ten beri geliştirilmiyor (son sürüm 0.28). Kalite avantajı Faz 2'de ölçülmeli; köprü pahalıysa FFmpeg/x262'ye ağırlık verilir | Faz 0–2 |
+| HCEnc girdisi | **Çözüldü (2026-10-09):** HCEnc 0.28 32-bit ve yalnızca `.avs`/`.d2v` okuyor. Kendi köprümüzü yazdık: motor VapourSynth karelerini named pipe ile sunuyor, 32-bit `DvdSource.dll` AviSynth eklentisi kareleri numarayla istiyor. İki geçişli encode ve rastgele erişim çalışıyor, ara dosya yok. Test: 120 kare, 241 istek (2 geçiş + yoklama), PSNR-Y 50.7 dB. Gerçek film üzerinde hız ölçümü Faz 1'de | Faz 0 |
+| HCEnc'in geleceği | 2015'ten beri geliştirilmiyor (son sürüm 0.28). Kalite avantajı Faz 2'de FFmpeg/x262 ile karşılaştırılarak ölçülmeli | Faz 2 |
 | HCEnc'in uygulamayla dağıtılması | Freeware ama yeniden dağıtım izni kontrol edilmeli; değilse ilk açılışta kullanıcıdan yolu istenir | Faz 0 |
-| dvdauthor/spumux Windows derlemeleri | **Doğrulandı (2026-10-09):** resmî Windows derlemesi yok, MSYS2'de de paket bulunamadı. MSYS2 MinGW-w64 ile kaynaktan derlenecek (libxml2, libpng, freetype, fribidi, libdvdread). Türkçe yollarla test edilmeli | Faz 0–1 |
+| dvdauthor/spumux Windows derlemeleri | **Çözüldü (2026-10-09):** resmî derleme yok; ldo/dvdauthor'ı MSYS2 UCRT64 ile küçük bir uyum katmanıyla derliyoruz (`native/dvdauthor/build.sh`). Türkçe karakterli çıktı klasörüne VIDEO_TS yazdı. spumux ile altyazı/menü testi Faz 1'de | Faz 1 |
+| PS mux | Deneme zincirinde m2v + AC-3, FFmpeg'in `-f dvd` muxer'ıyla birleştirildi ve dvdauthor kabul etti. FFmpeg muxer'ının DVD uyumu (tampon, zaman damgaları) gerçek oynatıcıda doğrulanmalı | Faz 1 |
 | IMAPI2 ile DVD-9 katman geçişi | Katman geçiş noktasını kontrol edemezsek ImgBurn gerekir | Faz 8 |
