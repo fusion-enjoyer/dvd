@@ -11,6 +11,7 @@ dependencies = [
     "pyyaml>=6.0",
     "typer>=0.16",
     "vapoursynth>=80",
+    "vapoursynth-bestsource>=22",
 ]
 
 [project.scripts]
