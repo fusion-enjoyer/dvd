@@ -28,6 +28,17 @@ def test_find_executable_in_subfolder(tmp_path: Path, monkeypatch):
     assert found == exe
 
 
+def test_find_executable_ignores_folder_with_same_name(tmp_path: Path, monkeypatch):
+    (tmp_path / "dvdauthor").mkdir()
+    exe = tmp_path / "dvdauthor" / "dvdauthor.exe"
+    exe.write_bytes(b"")
+    monkeypatch.setenv("DVD_TOOLS_DIR", str(tmp_path))
+
+    found = toolchain.find_executable(["dvdauthor.exe", "dvdauthor"], toolchain.tool_dirs())
+
+    assert found == exe
+
+
 def test_hcenc_version_from_file_name(tmp_path: Path, monkeypatch):
     (tmp_path / "HCenc_028.exe").write_bytes(b"")
     monkeypatch.setenv("DVD_TOOLS_DIR", str(tmp_path))

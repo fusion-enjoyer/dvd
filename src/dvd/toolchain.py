@@ -58,7 +58,7 @@ def find_executable(patterns: Iterable[str], dirs: Iterable[Path]) -> Path | Non
     patterns = list(patterns)
     for d in dirs:
         for pattern in patterns:
-            matches = sorted(d.glob(pattern))
+            matches = sorted(p for p in d.glob(pattern) if p.is_file())
             if matches:
                 return matches[-1]
     for pattern in patterns:
@@ -101,7 +101,7 @@ def check_exe(tool: ExeTool, dirs: Iterable[Path]) -> ToolStatus:
     return ToolStatus(tool.name, tool.purpose, tool.required, path, version)
 
 
-def check_vapoursynth() -> ToolStatus:
+def check_vapoursynth(dirs: Iterable[Path]) -> ToolStatus:
     name, purpose = "VapourSynth", "pre-processing"
     try:
         import vapoursynth as vs
@@ -111,13 +111,19 @@ def check_vapoursynth() -> ToolStatus:
     return ToolStatus(name, purpose, True, Path(vs.__file__).parent, version)
 
 
-def check_avisynth() -> ToolStatus:
-    """AviSynth+ is only needed to feed HCEnc, which reads .avs scripts."""
-    name, purpose = "AviSynth+", "HCEnc input bridge"
+def check_avisynth(dirs: Iterable[Path]) -> ToolStatus:
+    """AviSynth+ is only needed to feed HCEnc, which reads .avs scripts.
+
+    The 32-bit DLL is shipped next to HCenc_028.exe; a system install also works.
+    """
+    name, purpose = "AviSynth+", "HCEnc input"
     if sys.platform != "win32":
         return ToolStatus(name, purpose, False, note="Windows only")
-    dll = Path(os.environ.get("SYSTEMROOT", r"C:\Windows")) / "System32" / "AviSynth.dll"
-    return ToolStatus(name, purpose, False, dll if dll.is_file() else None)
+    dll = find_executable(["AviSynth.dll"], dirs)
+    if dll is None:
+        system = Path(os.environ.get("SYSTEMROOT", r"C:\Windows")) / "SysWOW64" / "AviSynth.dll"
+        dll = system if system.is_file() else None
+    return ToolStatus(name, purpose, False, dll)
 
 
 EXE_TOOLS: tuple[ExeTool, ...] = (
@@ -140,6 +146,7 @@ EXE_TOOLS: tuple[ExeTool, ...] = (
     ExeTool(
         "HCEnc", "MPEG-2 encode", False, ("HCenc_*.exe",), version_from_name=r"HCenc_(\d+)\.exe"
     ),
+    ExeTool("DvdSource", "HCEnc frame bridge", False, ("DvdSource.dll",)),
     ExeTool(
         "dvdauthor",
         "VIDEO_TS authoring",
@@ -166,9 +173,9 @@ EXE_TOOLS: tuple[ExeTool, ...] = (
     ),
 )
 
-CHECKS: tuple[Callable[[], ToolStatus], ...] = (check_vapoursynth, check_avisynth)
+CHECKS: tuple[Callable[[list[Path]], ToolStatus], ...] = (check_vapoursynth, check_avisynth)
 
 
 def check_all() -> list[ToolStatus]:
     dirs = tool_dirs()
-    return [*(check_exe(t, dirs) for t in EXE_TOOLS), *(check() for check in CHECKS)]
+    return [*(check_exe(t, dirs) for t in EXE_TOOLS), *(check(dirs) for check in CHECKS)]
