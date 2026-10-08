@@ -66,6 +66,12 @@ def new_project(info: SourceInfo, project_dir: Path) -> Project:
     video = info.main_video
     standard, _ = suggest_standard(video.fps if video else None)
     long_film = (info.duration or 0) / 60 >= DVD9_FROM_MINUTES
+    audio, subtitles = _audio_tracks(info), _subtitle_tracks(info)
+    # A Turkish viewer of a film whose main audio is not Turkish wants Turkish subtitles on.
+    main_lang = next((a.lang for a in audio if a.default), None)
+    turkish = next((s for s in subtitles if s.lang == "tr" and not s.forced), None)
+    if main_lang != "tr" and turkish is not None:
+        turkish.default = True
     return Project(
         disc=Disc(
             name=info.title or info.path.stem,
@@ -75,8 +81,8 @@ def new_project(info: SourceInfo, project_dir: Path) -> Project:
         titles=[
             Title(
                 source=_relative_source(info.path, project_dir),
-                audio=_audio_tracks(info),
-                subtitles=_subtitle_tracks(info),
+                audio=audio,
+                subtitles=subtitles,
                 chapters="from-source" if info.chapters else "none",
             )
         ],

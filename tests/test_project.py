@@ -239,3 +239,14 @@ def test_check_sources_missing_source(tmp_path: Path):
     project_file = write(tmp_path, MINIMAL.format(extra=""))
     problems = check_sources(load(project_file), project_file)
     assert problems == [f"titles[0].source: file not found: {tmp_path / 'film.mkv'}"]
+
+
+def test_turkish_subtitle_is_on_when_main_audio_is_not_turkish(tmp_path: Path):
+    info = bluray_info(tmp_path / "x.mkv")
+    import dataclasses
+
+    english_first = dataclasses.replace(
+        info, audio=[dataclasses.replace(a, default=(a.index == 1)) for a in info.audio]
+    )
+    assert new_project(english_first, tmp_path).titles[0].subtitles[0].default
+    assert not new_project(info, tmp_path).titles[0].subtitles[0].default  # Turkish audio
