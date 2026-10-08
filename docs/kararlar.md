@@ -33,8 +33,7 @@
 
 ## Açık kararlar
 
-| # | Soru | Seçenekler | Öneri |
-|---|---|---|---|
+Şu an açık karar yok. Yeni bir soru çıktığında buraya `| # | Soru | Seçenekler | Öneri |` tablosuyla eklenir.
 
 ## Doğrulanacak riskler
 

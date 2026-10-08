@@ -45,10 +45,10 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 
 **Arayüz**
 - [x] Uygulama iskeleti: ana pencere, sol gezinme, alttaki disk bütçe çubuğu (`dvd gui`, Basit/Profesyonel mod)
-- [ ] Sürükle-bırak kaynak, iz seçimi, profil seçimi, Build, ilerleme
+- [x] Sürükle-bırak kaynak, iz seçimi, profil seçimi, Build, ilerleme
   - [x] Sürükle-bırak / dosya seç, otomatik proje, profil seçimi, disk önizleme karesi
-  - [ ] Ses ve altyazı izi seçimi
-  - [ ] Build ve ilerleme ekranı
+  - [x] Ses ve altyazı izi seçimi (dil, varsayılan iz, SRT ekleme; Pro modda kanal ve bitrate)
+  - [x] Build ve ilerleme ekranı (arka planda çalışır, aşama aşama ilerleme, uyarılar Türkçe)
 
 **Paketleme**
 - [ ] İlk Windows kurulum paketi (araçlar dahil)
