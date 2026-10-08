@@ -7,7 +7,9 @@ license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 requires-python = ">=3.12"
 dependencies = [
+    "numpy>=2.5.3",
     "pydantic>=2.12",
+    "pyside6-essentials>=6.12.0",
     "pyyaml>=6.0",
     "typer>=0.16",
     "vapoursynth>=80",
