@@ -24,6 +24,9 @@
 | 2026-10-09 | — | HCEnc'e kareler kendi köprümüzle (named pipe + `DvdSource.dll`) verilir | Ara dosya yok, iki geçiş çalışıyor; bkz. riskler |
 | 2026-10-09 | K10 | ISO için **kendi UDF 1.02 + ISO 9660 yazıcımız** (`src/dvd/output/iso.py`) | xorriso DVD-Video UDF'si üretmiyor, mkisofs yalnızca Cygwin'de. Dosyalar IFO'ların gösterdiği sektörlere yerleşiyor; pycdlib, 7-Zip ve libdvdread ile doğrulandı. Faz 7'deki katman geçişi için de temel |
 | 2026-10-09 | K9 | Faz 1–7'de **yalnızca ISO** üretilir; kullanıcı Windows'un yerleşik yakıcısıyla ya da ImgBurn ile yakar. Doğrudan yakma Faz 8'de (IMAPI2; DVD-9 katman geçişi kontrolü yetmezse ImgBurn) | Yakma, disk üretiminden bağımsız ve en son eklenebilecek parça |
+| 2026-10-09 | K11 | Arayüz **Türkçe**; tüm metinler baştan `src/dvd/gui/i18n.py` tablosundan geliyor, İngilizce v1'de bu tabloya eklenir | Çeviri altyapısı sonradan eklemek pahalı |
+| 2026-10-09 | — | Kod, CLI çıktısı ve commit'ler İngilizce; arayüz ve belgeler Türkçe | Kod ve araç çıktısı uluslararası, kullanıcıya görünen her şey Türkçe |
+| 2026-10-09 | — | Arayüz fontları uygulamayla gelir: Bricolage Grotesque, Source Sans 3, JetBrains Mono (OFL, `src/dvd/assets/fonts`) | Tasarım sistemi; Windows'ta kurulu font aranmaz |
 | 2026-10-09 | — | Altyazılar Qt ile çizilir, varsayılan font **Source Sans 3 SemiBold** (uygulamayla gelir); 4 renk: saydam, dolgu, kontur, yarı saydam kontur kenarı. Anamorfik düzeltme (K13) baştan var | Editörde görülenle diske yazılan aynı kod; 16:9'da harfler şişmez |
 | 2026-10-09 | — | SRT kodlaması: BOM'a, sonra UTF-8 geçerliliğine bakılır; değilse Windows-1254 | 1254, ISO-8859-9 Türkçe harflerini de doğru okur |
 | 2026-10-09 | — | `dvd new`: ana ses Türkçe değilse ve kaynakta Türkçe altyazı varsa altyazı açık başlar | Türk izleyicinin beklentisi |
@@ -32,7 +35,6 @@
 
 | # | Soru | Seçenekler | Öneri |
 |---|---|---|---|
-| K11 | Arayüz dili | Türkçe / İngilizce / ikisi | İkisi (çeviri altyapısı baştan) |
 
 ## Doğrulanacak riskler
 
