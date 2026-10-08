@@ -109,12 +109,14 @@ def check(path: Path = typer.Argument(..., help="Project file")) -> None:
 @app.command("build")
 def build_cmd(
     path: Path = typer.Argument(..., help="Project file"),
-    out: Path | None = typer.Option(None, "--out", "-o", help="Folder for VIDEO_TS"),
+    out: Path | None = typer.Option(None, "--out", "-o", help="Folder for VIDEO_TS and the ISO"),
+    no_iso: bool = typer.Option(False, "--no-iso", help="Stop after writing VIDEO_TS"),
 ) -> None:
-    """Encode and author the disc into a VIDEO_TS folder."""
+    """Encode and author the disc into a VIDEO_TS folder and a disc image."""
     from dvd.audio.ac3 import AudioError
     from dvd.author.dvdauthor import AuthorError
     from dvd.build import BuildError, build
+    from dvd.output.iso import IsoError
     from dvd.video.hcenc import EncodeError
     from dvd.video.pipeline import UnsupportedSource
 
@@ -135,9 +137,11 @@ def build_cmd(
             last[stage] = step
             typer.echo(f"{stage:<20} {fraction:>4.0%}")
 
-    errors = (BuildError, AudioError, AuthorError, EncodeError, UnsupportedSource, ProbeError)
+    errors = (
+        BuildError, AudioError, AuthorError, EncodeError, UnsupportedSource, ProbeError, IsoError
+    )  # fmt: skip
     try:
-        result = build(path, out_dir=out, progress=show)
+        result = build(path, out_dir=out, progress=show, make_iso=not no_iso)
     except errors as exc:
         typer.echo(f"build failed: {exc}", err=True)
         raise typer.Exit(1) from None
@@ -149,3 +153,24 @@ def build_cmd(
         f"estimated {p.estimated_bytes / 1e9:.2f} of {p.capacity_bytes / 1e9:.2f} GB"
     )
     typer.echo(f"wrote {result.video_ts}")
+    if result.iso:
+        typer.echo(f"wrote {result.iso}")
+
+
+@app.command("iso")
+def iso_cmd(
+    video_ts: Path = typer.Argument(..., help="VIDEO_TS folder"),
+    out: Path | None = typer.Option(None, "--out", "-o", help="Image file to write"),
+    label: str | None = typer.Option(None, "--label", help="Volume label (default: folder name)"),
+) -> None:
+    """Write a DVD-Video disc image (UDF 1.02 + ISO 9660) from a VIDEO_TS folder."""
+    from dvd.output.iso import IsoError, volume_label, write_iso
+
+    name = label or video_ts.resolve().parent.name
+    out = out or video_ts.resolve().parent / f"{name}.iso"
+    try:
+        write_iso(video_ts, out, name)
+    except (IsoError, OSError) as exc:
+        typer.echo(f"iso failed: {exc}", err=True)
+        raise typer.Exit(1) from None
+    typer.echo(f"wrote {out} (label {volume_label(name)})")

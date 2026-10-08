@@ -111,6 +111,14 @@ def test_build_menuless_pal_disc(tmp_path: Path):
     assert [(a.codec, a.channels) for a in vob.audio] == [("ac3", 2), ("ac3", 6)]  # default first
     assert vob.duration == pytest.approx(12 * 24000 / 1001 / 25, abs=0.2)
     assert "title 1 video" in stages and stages[-1] == "done"
+    assert result.iso == project_dir / "Deneme Filmi" / "Deneme Filmi.iso"
+    assert "iso" in stages
+    duration = subprocess.run(
+        [str(toolchain.find_executable(["ffprobe.exe"], DIRS)), "-v", "quiet", "-f", "dvdvideo",
+         "-i", str(result.iso), "-show_entries", "format=duration", "-of", "csv=p=0"],
+        capture_output=True, text=True, check=True,
+    ).stdout  # fmt: skip
+    assert float(duration) == pytest.approx(vob.duration, abs=0.3)
     assert load(project_file).titles[0].audio[1].default
 
 

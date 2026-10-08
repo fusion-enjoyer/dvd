@@ -11,6 +11,7 @@ from pathlib import Path
 from dvd.audio.ac3 import encode_ac3
 from dvd.author.dvdauthor import AuthorTitle, author, mux, timecode
 from dvd.budget.planner import Plan, plan
+from dvd.output.iso import write_iso
 from dvd.probe import SourceInfo, probe
 from dvd.project import load, source_path
 from dvd.project.model import MAX_CHAPTERS, ChapterEvery, Project, Title, parse_timecode
@@ -29,6 +30,7 @@ class BuildResult:
     video_ts: Path
     plan: Plan
     warnings: list[str] = field(default_factory=list)
+    iso: Path | None = None
 
 
 @dataclass
@@ -84,6 +86,7 @@ def build(
     out_dir: Path | None = None,
     work_dir: Path | None = None,
     progress: Progress | None = None,
+    make_iso: bool = True,
 ) -> BuildResult:
     project_file = Path(project_file).resolve()
     project = load(project_file)
@@ -163,5 +166,13 @@ def build(
         )
     report("authoring", 0.0)
     video_ts = author(author_titles, project.disc.standard, work_dir, out_dir)
+    iso = None
+    if make_iso:
+        iso = write_iso(
+            video_ts,
+            out_dir / f"{name}.iso",
+            project.disc.name,
+            progress=lambda f: report("iso", f),
+        )
     report("done", 1.0)
-    return BuildResult(video_ts, budget, warnings)
+    return BuildResult(video_ts, budget, warnings, iso)
