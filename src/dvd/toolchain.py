@@ -1,7 +1,7 @@
 """Discovery of the external tools the engine drives (ffmpeg, HCEnc, dvdauthor, ...).
 
-Tools are looked up first in the tools directory (``DVD_TOOLS_DIR`` or ``<repo>/tools``,
-including one level of subfolders), then on ``PATH``.
+Tools are looked up first in the tools directory (``DVD_TOOLS_DIR``, the installed app's
+``tools/``, or ``<repo>/tools``, including one level of subfolders), then on ``PATH``.
 """
 
 from __future__ import annotations
@@ -46,10 +46,20 @@ class ExeTool:
     version_from_name: str | None = None
 
 
-def tool_dirs() -> list[Path]:
+def tools_base() -> Path | None:
+    """`DVD_TOOLS_DIR`, else `tools/` of the installed app (next to its python/), else the repo's."""
     env = os.environ.get("DVD_TOOLS_DIR")
-    base = Path(env) if env else REPO_TOOLS_DIR
-    if not base.is_dir():
+    if env:
+        return Path(env)
+    for base in (Path(sys.prefix).parent / "tools", REPO_TOOLS_DIR):
+        if base.is_dir():
+            return base
+    return None
+
+
+def tool_dirs() -> list[Path]:
+    base = tools_base()
+    if base is None or not base.is_dir():
         return []
     return [base, *sorted(p for p in base.iterdir() if p.is_dir())]
 
@@ -162,14 +172,6 @@ EXE_TOOLS: tuple[ExeTool, ...] = (
         ("spumux.exe", "spumux"),
         ["-h"],
         r"version (\d+\.\d+\.\d+)",
-    ),
-    ExeTool(
-        "mkisofs",
-        "DVD-Video ISO",
-        False,
-        ("mkisofs.exe", "mkisofs"),
-        ["-version"],
-        r"mkisofs (\S+)",
     ),
 )
 
