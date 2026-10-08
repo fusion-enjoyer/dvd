@@ -3,6 +3,8 @@ name = "dvd"
 version = "0.0.1"
 description = "Blu-ray/WEB kaynaklarından ticari kalitede DVD-Video üreten authoring aracı"
 readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
 dependencies = [
     "typer>=0.16",

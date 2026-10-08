@@ -3,7 +3,7 @@
 Blu-ray / WEB kaynaklı filmleri ve dizileri **ticari (fabrika basımı) DVD'lerin görüntü kalitesinde**
 DVD-Video'ya dönüştüren ve tam kontrollü menüler tasarlamaya izin veren bir **Windows masaüstü** authoring uygulaması.
 
-> Durum: **Tasarım / planlama aşaması.** Henüz kod yok.
+> Durum: **Faz 1 (uçtan uca MVP) başladı.** Araç zinciri Windows'ta çalışıyor; kurulum için [tools/README.md](tools/README.md).
 
 ## Neden?
 
@@ -30,3 +30,7 @@ Bu proje o zinciri mevcut araçlarla — gerektiğinde kendi yazdığımız bile
 | [docs/dvd-spec.md](docs/dvd-spec.md) | DVD-Video teknik notları: sınırlar, disk yapısı, VM, menüler, altyazılar |
 | [docs/mimari.md](docs/mimari.md) | Teknoloji yığını, modüller, proje dosyası modeli |
 | [docs/kararlar.md](docs/kararlar.md) | Açık kararlar ve verilen kararların kaydı |
+
+## Lisans
+
+[GPL-3.0-or-later](LICENSE). Uygulama GPL lisanslı araçlarla (dvdauthor, FFmpeg) birlikte dağıtılır.

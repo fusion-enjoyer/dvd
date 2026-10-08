@@ -18,12 +18,13 @@
 | 2026-10-08 | K15 | **İki kullanım modu**: Basit mod (preset'lerle, az karar) ve Profesyonel mod (tüm ayarlar) | Kurcalamak istemeyen de isteyen de aynı uygulamayı kullanır; ayrıntılar [arayuz.md](arayuz.md) |
 | 2026-10-08 | — | Ön işleme VapourSynth ile | Kalite ekosistemi |
 | 2026-10-08 | — | Önce menüsüz uçtan uca MVP, sonra kalite motoru | Erken gerçek cihaz testi |
+| 2026-10-09 | K7 | Repo **public**, lisans **GPL-3.0-or-later** | dvdauthor ve FFmpeg GPL derlemesiyle birlikte dağıtılıyor |
+| 2026-10-09 | — | HCEnc'e kareler kendi köprümüzle (named pipe + `DvdSource.dll`) verilir | Ara dosya yok, iki geçiş çalışıyor; bkz. riskler |
 
 ## Açık kararlar
 
 | # | Soru | Seçenekler | Öneri |
 |---|---|---|---|
-| K7 | Lisans | MIT / GPL-3.0 | Repo zaten public (2026-10-09), ama LICENSE dosyası yok; yani şu an herkes kodu görebiliyor ama kullanma hakkı yok. dvdauthor ve FFmpeg GPL derlemesini paketlediğimiz için **GPL-3.0-or-later** öneriliyor |
 | K9 | Yakma yöntemi | Windows IMAPI2 / ImgBurn entegrasyonu / sadece ISO üret, kullanıcı yaksın | MVP'de sadece ISO; sonra IMAPI2, DL katman geçişi kontrolü yetersizse ImgBurn |
 | K10 | ISO üretimi | Kendi UDF/ISO yazıcımız / mkisofs Windows derlemesi / IMAPI2 dosya sistemi oluşturucu (IMAPI2FS) | Kendi UDF 1.02 + ISO 9660 köprü yazıcımız. xorriso DVD-Video UDF'si üretmiyor; mkisofs yalnızca Cygwin derlemesi olarak var; IMAPI2FS'te dosya sırası ve hizalama kontrolü belirsiz. Kendi yazıcımız Faz 7'deki katman geçişi için de gerekli. mkisofs çıktısı doğrulamada referans olarak kullanılır (2026-10-09 araştırması) |
 | K11 | Arayüz dili | Türkçe / İngilizce / ikisi | İkisi (çeviri altyapısı baştan) |
