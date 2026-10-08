@@ -22,13 +22,13 @@
 | 2026-10-09 | — | Film kaynaklarında (23.976/24 fps) önerilen standart **PAL** | Test zinciri SCART'lı bir PAL TV; PAL 576 satır verir. Bedeli %4 hızlanma. NTSC her zaman seçilebilir; cihaz testinden sonra yeniden bakılacak |
 | 2026-10-09 | — | Proje dosyası YAML, uzantı `*.dvd.yaml`, `version` alanıyla | Elle okunup düzenlenebilir; sürüm alanı ileride geçiş için |
 | 2026-10-09 | — | HCEnc'e kareler kendi köprümüzle (named pipe + `DvdSource.dll`) verilir | Ara dosya yok, iki geçiş çalışıyor; bkz. riskler |
+| 2026-10-09 | K10 | ISO için **kendi UDF 1.02 + ISO 9660 yazıcımız** (`src/dvd/output/iso.py`) | xorriso DVD-Video UDF'si üretmiyor, mkisofs yalnızca Cygwin'de. Dosyalar IFO'ların gösterdiği sektörlere yerleşiyor; pycdlib, 7-Zip ve libdvdread ile doğrulandı. Faz 7'deki katman geçişi için de temel |
+| 2026-10-09 | K9 | Faz 1–7'de **yalnızca ISO** üretilir; kullanıcı Windows'un yerleşik yakıcısıyla ya da ImgBurn ile yakar. Doğrudan yakma Faz 8'de (IMAPI2; DVD-9 katman geçişi kontrolü yetmezse ImgBurn) | Yakma, disk üretiminden bağımsız ve en son eklenebilecek parça |
 
 ## Açık kararlar
 
 | # | Soru | Seçenekler | Öneri |
 |---|---|---|---|
-| K9 | Yakma yöntemi | Windows IMAPI2 / ImgBurn entegrasyonu / sadece ISO üret, kullanıcı yaksın | MVP'de sadece ISO; sonra IMAPI2, DL katman geçişi kontrolü yetersizse ImgBurn |
-| K10 | ISO üretimi | Kendi UDF/ISO yazıcımız / mkisofs Windows derlemesi / IMAPI2 dosya sistemi oluşturucu (IMAPI2FS) | Kendi UDF 1.02 + ISO 9660 köprü yazıcımız. xorriso DVD-Video UDF'si üretmiyor; mkisofs yalnızca Cygwin derlemesi olarak var; IMAPI2FS'te dosya sırası ve hizalama kontrolü belirsiz. Kendi yazıcımız Faz 7'deki katman geçişi için de gerekli. mkisofs çıktısı doğrulamada referans olarak kullanılır (2026-10-09 araştırması) |
 | K11 | Arayüz dili | Türkçe / İngilizce / ikisi | İkisi (çeviri altyapısı baştan) |
 
 ## Doğrulanacak riskler

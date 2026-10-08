@@ -11,7 +11,7 @@ Hedef: **Windows masaüstü uygulaması.** Her faz kendi başına kullanılabili
 ## Faz 0 — Temel ve keşif
 
 - [x] Arayüz teknolojisi: Python + PySide6
-- [ ] Kalan açık kararları kapat (lisans, yakma yöntemi, ISO üretimi)
+- [x] Kalan açık kararları kapat (lisans, ISO üretimi, yakma yöntemi)
 - [x] Windows geliştirme ortamı: Python + `uv`, VapourSynth, FFmpeg, HCEnc, dvdauthor/spumux Windows derlemeleri (VapourSynth eklentileri Faz 2'de)
 - [x] `tools/` sürüm listesi: hangi .exe hangi sürüm, nereden indirilir (repoya .exe girmez)
 - [x] **HCEnc ↔ VapourSynth köprüsü** prototip denemesi: named pipe + `DvdSource.dll`, 2 geçiş çalışıyor
@@ -37,9 +37,9 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
   - [x] AC-3 ses (PAL hızlanmasında perde korunur)
   - [ ] SRT → subpicture
 - [x] Bölümleri içe aktar, I-frame zorla (bölüm, en yakın VOBU başına düşüyor; sapma < 0.4 sn)
-- [ ] dvdauthor ile menüsüz VIDEO_TS → ISO
+- [x] dvdauthor ile menüsüz VIDEO_TS → ISO
   - [x] VIDEO_TS (`dvd build`)
-  - [ ] ISO (kendi UDF yazıcımız, K10)
+  - [x] ISO (kendi UDF 1.02 + ISO 9660 yazıcımız, K10): `dvd build` ve `dvd iso`
 - [x] Bitrate planlayıcı v0
 - [ ] Sony DVP-NS38'de ilk gerçek disk testi
 
