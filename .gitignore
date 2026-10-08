@@ -1,0 +1,31 @@
+# Medya ve çıktılar
+*.mkv
+*.m2ts
+*.mp4
+*.vob
+*.VOB
+*.iso
+*.m2v
+*.ac3
+*.wav
+*.sup
+VIDEO_TS/
+AUDIO_TS/
+corpus/media/
+build/
+out/
+cache/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+dist/
+*.egg-info/
+
+# Editör / sistem
+.vscode/
+.idea/
+.DS_Store
