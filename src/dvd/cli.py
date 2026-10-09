@@ -3,6 +3,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import typer
@@ -352,6 +353,79 @@ def profile_import(file: Path) -> None:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from None
     typer.echo(f"wrote {save_user_profile(file.stem, settings)}")
+
+
+series_app = typer.Typer(help="Turn a season folder into a set of discs.", no_args_is_help=True)
+app.add_typer(series_app, name="series")
+
+
+def _episodes(folder: Path):
+    from dvd.probe import probe
+    from dvd.series import scan_folder
+
+    try:
+        episodes = scan_folder(folder)
+    except (OSError, ValueError) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from None
+    if not episodes:
+        typer.echo(f"no episode files (S01E02, 1x02, ...) in {folder}", err=True)
+        raise typer.Exit(1)
+    infos = [probe(e.path) for e in episodes]
+    episodes = [replace(e, duration=i.duration or 0) for e, i in zip(episodes, infos, strict=True)]
+    return episodes, infos
+
+
+def _plan(episodes, infos, media: str, quality: str):
+    from dvd.project import new_project
+    from dvd.series import plan_set
+
+    sample = new_project(infos[0], infos[0].path.parent).titles[0]
+    return plan_set(episodes, media, quality, [a.bitrate for a in sample.audio],
+                    len(sample.subtitles))  # fmt: skip
+
+
+@series_app.command("plan")
+def series_plan(
+    folder: Path = typer.Argument(..., help="Season folder"),
+    media: str = typer.Option("dvd9", help="dvd5 or dvd9"),
+    quality: str = typer.Option("iyi", help="standart (4 Mbps), iyi (5) or yuksek (6)"),
+) -> None:
+    """Show how the episodes would be shared out over discs."""
+    episodes, infos = _episodes(folder)
+    s = _plan(episodes, infos, media, quality)
+    for n, (disc, kbps) in enumerate(zip(s.discs, s.video_kbps, strict=True), start=1):
+        minutes = sum(e.duration for e in disc) / 60
+        codes = f"{disc[0].code}-{disc[-1].code}" if len(disc) > 1 else disc[0].code
+        typer.echo(f"disc {n}/{s.count}: {codes}  {len(disc)} episodes, {minutes:.0f} min, "
+                   f"video {kbps / 1000:.1f} Mbps")  # fmt: skip
+
+
+@series_app.command("new")
+def series_new(
+    folder: Path = typer.Argument(..., help="Season folder"),
+    media: str = typer.Option("dvd9", help="dvd5 or dvd9"),
+    quality: str = typer.Option("iyi", help="standart, iyi or yuksek"),
+    name: str = typer.Option("", help="Series name on the discs (default: the folder name)"),
+) -> None:
+    """Write one project file per disc into the season folder."""
+    from dvd.project import new_series_project, save
+
+    episodes, infos = _episodes(folder)
+    s = _plan(episodes, infos, media, quality)
+    by_path = {i.path: i for i in infos}
+    name = name or folder.resolve().name
+    for n, disc in enumerate(s.discs, start=1):
+        label = f"{name} - Disk {n}" if s.count > 1 else name
+        try:
+            project = new_series_project([by_path[e.path] for e in disc], folder, label)
+        except ValueError as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(1) from None
+        project.disc.media = media
+        out = folder / f"{label}.dvd.yaml"
+        save(project, out)
+        typer.echo(f"wrote {out.name}: {disc[0].code}-{disc[-1].code}")
 
 
 @app.command()

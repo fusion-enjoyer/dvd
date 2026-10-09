@@ -101,3 +101,39 @@ def new_project(info: SourceInfo, project_dir: Path) -> Project:
         ],
         menus=default_menus(info),
     )
+
+
+def new_series_project(infos: list[SourceInfo], project_dir: Path, name: str) -> Project:
+    """One disc of a series: a title per episode. Tracks follow the first episode; the others
+    get theirs matched by language, because every title on a DVD titleset shares one track
+    layout. An episode missing a language is an error rather than a silent swap."""
+    if not infos:
+        raise ValueError("no episodes for this disc")
+    first = new_project(infos[0], project_dir)
+    titles = [first.titles[0]]
+    for info in infos[1:]:
+        title = new_project(info, project_dir).titles[0]
+        title.audio = _match(first.titles[0].audio, info.audio, info.path.name, "audio")
+        title.subtitles = _match(first.titles[0].subtitles,
+                                 [s for s in info.subtitles if s.usable], info.path.name,
+                                 "subtitle")  # fmt: skip
+        title.chapters = first.titles[0].chapters if info.chapters else "none"
+        titles.append(title)
+    first.disc.name = name[:64]
+    first.titles = titles
+    return first
+
+
+def _match(wanted: list, tracks: list, file: str, kind: str) -> list:
+    """Copies of `wanted` (audio or subtitle entries) pointing at the same-language streams
+    of another file, in the same order."""
+    out, used = [], set()
+    for w in wanted:
+        hit = next((t for t in tracks if t.index not in used
+                    and (to_dvd_code(t.language) or w.lang) == w.lang), None)  # fmt: skip
+        if hit is None:
+            raise ValueError(f"{file} has no {kind} track in {w.lang!r} like the first episode")
+        used.add(hit.index)
+        if kind == "audio" or w.track is not None:
+            out.append(w.model_copy(update={"track": hit.index}))
+    return out
