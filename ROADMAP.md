@@ -148,7 +148,9 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 ## Faz 5 — Diziler
 
 - [ ] Sezon klasörü içe aktarma, S01E01 ayrıştırma, TMDB'den bölüm isimleri ve görselleri
-- [ ] **Disk seti planlayıcı** (bölüm sayısı + medya + kalite hedefi → dağılım)
+  - [x] Klasör tarama: S01E02, 1x02, "Sezon 3 Bölüm 7", "Bölüm 4"; sample ve numarasız dosyalar atlanır, aynı numara hata; `dvd series plan|new`, disk başına proje (bölüm başına başlık, ses/altyazı izleri dile göre ilk bölümle hizalı)
+  - [ ] TMDB'den bölüm adları ve görselleri; arayüzde sezon içe aktarma
+- [x] **Disk seti planlayıcı** (bölüm sayısı + medya + kalite hedefi → dağılım): hedefe (standart 4 / iyi 5 / yüksek 6 Mbps) ulaşan en az disk, bölümler sırayla ve disk süreleri dengeli (en uzun diski en kısa yapan bölme)
 - [ ] Hepsini oynat, bölüm seçim menüsü, set boyunca ortak tasarım ("Disk 2 / 4")
 - [ ] Dizi kutusu menü şablonu
 
