@@ -35,19 +35,18 @@ from dvd.project.model import ButtonEdit, MenuBackground, MenuPage, Project
 OPTIONAL = ("chapters", "languages")  # pages the user can leave out; main is always there
 
 
-def render_preview(project: Project, info: SourceInfo, source: Path, project_dir: Path,
-                   frame: tuple, display: tuple[int, int]) -> list:  # fmt: skip
+def render_preview(project: Project, infos: list[SourceInfo], sources: list[Path],
+                   project_dir: Path, frame: tuple, display: tuple[int, int]) -> list:  # fmt: skip
     """(page, rendered page) for every disc menu page, drawn as the build draws them."""
     from dvd.menu.layout import expand
-    from dvd.menu.pictures import background_image, frame_images, logo_image
+    from dvd.menu.pictures import background_image, button_pictures, logo_image
     from dvd.menu.render import render_page
     from dvd.menu.templates import template
 
-    pages = expand(project, info)
-    backdrop = background_image(project.menus.background, source, info, project_dir, display)
-    times = sorted({b.thumb for p in pages for b in p.buttons if b.thumb is not None})
-    width = round(0.22 * display[0])
-    thumbs = frame_images(source, info, times, (width, round(width * 9 / 16))) if times else {}
+    pages = expand(project, infos)
+    backdrop = background_image(project.menus.background, sources[0], infos[0], project_dir,
+                                display)  # fmt: skip
+    thumbs = button_pictures(pages, sources, infos, display)
     tpl = template(project.menus.template)
     logo = logo_image(project.menus.logo, project_dir)
     return [(page, render_page(page, frame, backdrop, thumbs, tpl, logo)) for page in pages]
@@ -83,6 +82,8 @@ class MenuEditorPage(QWidget):
         self.frame: tuple | None = None
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)  # arrow keys in "try" mode
         self.previews: list = []  # (page, rendered page)
+        self.infos: list = []
+        self.sources: list = []
         self.sim = None
         self.dirty = False
         self.request = 0
@@ -178,9 +179,10 @@ class MenuEditorPage(QWidget):
 
     # ------------------------------------------------------------------ show
 
-    def show_project(self, project: Project, info: SourceInfo, source: Path, project_dir: Path,
-                     frame: tuple | None) -> None:  # fmt: skip
-        self.project, self.info, self.source = project, info, source
+    def show_project(self, project: Project, infos: list[SourceInfo], sources: list[Path],
+                     project_dir: Path, frame: tuple | None) -> None:  # fmt: skip
+        self.project, self.infos, self.sources = project, infos, sources
+        self.info, self.source = infos[0], sources[0]
         self.project_dir, self.frame = project_dir, frame
         self.dirty = True
         menus = project.menus
@@ -229,7 +231,7 @@ class MenuEditorPage(QWidget):
         self.status.setText(t("menu.rendering"))
         frame = self.frame
         display = (round(frame[1] * frame[2]), frame[1])
-        args = (self.project, self.info, self.source, self.project_dir, frame, display)
+        args = (self.project, self.infos, self.sources, self.project_dir, frame, display)
 
         def done(previews) -> None:
             if request != self.request:

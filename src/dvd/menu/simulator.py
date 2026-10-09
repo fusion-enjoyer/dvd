@@ -17,7 +17,7 @@ from dvd.menu.layout import Page
 
 _STATEMENT = re.compile(
     r"jump title (\d+)(?: chapter (\d+))?|jump menu (\d+)|audio = (\d+)|subtitle = (\d+)"
-    r"|button = (\d+)"
+    r"|button = (\d+)|g(\d+) = (\d+)"
 )
 
 
@@ -32,6 +32,7 @@ class State:
     audio: int = 0
     subtitle: int | None = None  # stream shown, None: off
     playing: tuple[int, int] | None = None  # (title, chapter) once a play button is pressed
+    registers: dict[int, int] = field(default_factory=dict)  # general registers set so far
     log: list[str] = field(default_factory=list)
 
 
@@ -76,7 +77,10 @@ class Simulator:
             m = _STATEMENT.fullmatch(s)
             if m is None:
                 raise SimulatorError(f"the simulator does not know the command {s!r}")
-            title, chapter, menu, audio, subtitle, button = m.groups()
+            title, chapter, menu, audio, subtitle, button, register, value = m.groups()
+            if register:
+                self.state.registers[int(register)] = int(value)
+                continue
             if title:
                 self.state.playing = (int(title), int(chapter or 1))
                 self.state.log.append(f"play title {title} chapter {chapter or 1}")

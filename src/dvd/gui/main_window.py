@@ -706,9 +706,9 @@ class MainWindow(QMainWindow):
         for page in (self.audio_page, self.subs_page):
             page.show_project(p, self.infos[0], self.project_file.parent, self.mode)
         self.disc_page.show_project(p, self.project_file.parent)
-        self.menu_page.show_project(p, self.infos[0],
-                                    proj.source_path(self.project_file, p.titles[0]),
-                                    self.project_file.parent, self._menu_frame())  # fmt: skip
+        sources = [proj.source_path(self.project_file, title) for title in p.titles]
+        self.menu_page.show_project(p, self.infos, sources, self.project_file.parent,
+                                    self._menu_frame())  # fmt: skip
         self.chapters_page.show_project(p, self.infos[0],
                                         proj.source_path(self.project_file, p.titles[0]),
                                         self._speedup())  # fmt: skip

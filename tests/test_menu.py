@@ -207,7 +207,7 @@ def test_simulator_rejects_unknown_commands():
     p, info = project()
     sim = Simulator(expand(p, info), "main")
     with pytest.raises(SimulatorError):
-        sim.run("g3 = 1;")
+        sim.run("g3 += 1;")
     with pytest.raises(SimulatorError):
         sim.run("jump menu 9;")
 
@@ -249,3 +249,49 @@ def test_editor_changes_override_the_generated_buttons():
     with pytest.raises(ValidationError, match="inside the frame"):
         outside = {"play": {"rect": [0.9, 0.5, 0.3, 0.1]}}
         Menus.model_validate({"pages": [{"id": "main", "kind": "main", "edits": outside}]})
+
+
+def series_project(episodes: int = 8):
+    from dvd.project.model import SeriesDisc
+
+    audio = [Audio(track=1, lang="tr", default=True)]
+    titles = [Title(source=f"e{i}.mkv", name=f"{i + 5}. bölüm", audio=audio)
+              for i in range(episodes)]  # fmt: skip
+    menus = Menus.model_validate({"pages": ["main", "chapters", "episodes", "languages"]})
+    p = Project(disc=Disc(name="Dizi S01 - Disk 2", standard="pal"), titles=titles, menus=menus,
+                series=SeriesDisc(name="Dizi S01", disc=2, discs=3))  # fmt: skip
+    infos = [SourceInfo(path=Path(f"e{i}.mkv"), container="matroska", duration=2400.0,
+                        size=None, bitrate=None, title=None) for i in range(episodes)]  # fmt: skip
+    return p, infos
+
+
+def test_series_disc_menus_list_episodes_and_play_all():
+    p, infos = series_project()
+    pages = {pg.id: pg for pg in expand(p, infos)}
+    assert list(pages) == ["main", "episodes", "episodes-2"]  # no chapters, one language
+    main = pages["main"]
+    assert main.title == "Dizi S01" and main.subtitle == "Disk 2 / 3"
+    assert [b.label for b in main.buttons] == ["Hepsini oynat", "Bölümler"]
+    assert main.buttons[0].action.all
+    first = pages["episodes"].buttons[0]
+    assert first.label == "5. bölüm" and first.action.title == 1 and not first.action.all
+    seventh = pages["episodes-2"].buttons[0]
+    assert (seventh.action.title, seventh.thumb_title, seventh.thumb) == (7, 6, 240.0)
+
+
+def test_play_all_and_single_episode_commands():
+    from dvd.author.dvdauthor import AuthorMenu, AuthorTitle, dvdauthor_xml
+    from dvd.menu.author import commands
+    from dvd.menu.simulator import Simulator
+
+    p, infos = series_project(3)
+    pages = expand(p, infos)
+    cmds = commands(pages)
+    assert dict(cmds["main"])["play"] == "g1 = 1; jump title 1;"
+    assert dict(cmds["episodes"])["ep2"] == "g1 = 0; jump title 2;"
+    titles = [AuthorTitle(f"t{i}.mpg", "16:9", ["tr"]) for i in (1, 2, 3)]
+    xml = dvdauthor_xml(titles, "pal", menus=[AuthorMenu("m.mpg", cmds["main"], "root")])
+    assert xml.count("<post>if (g1 == 1) jump title") == 2 and "<post>call menu;</post>" in xml
+    sim = Simulator(pages, "main")
+    sim.press()
+    assert sim.state.registers[1] == 1 and sim.state.playing == (1, 1)

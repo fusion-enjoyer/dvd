@@ -410,6 +410,7 @@ def series_new(
 ) -> None:
     """Write one project file per disc into the season folder."""
     from dvd.project import new_series_project, save
+    from dvd.project.model import MenuPage, SeriesDisc
 
     episodes, infos = _episodes(folder)
     s = _plan(episodes, infos, media, quality)
@@ -423,6 +424,14 @@ def series_new(
             typer.echo(str(exc), err=True)
             raise typer.Exit(1) from None
         project.disc.media = media
+        project.series = SeriesDisc(name=name[:64], disc=n, discs=s.count)
+        for title, episode in zip(project.titles, disc, strict=True):
+            title.name = f"{episode.number}. bölüm"
+        if project.menus is not None:
+            project.menus = project.menus.model_copy(
+                update={"pages": [MenuPage(id="main", kind="main"),
+                                  MenuPage(id="episodes", kind="episodes"),
+                                  MenuPage(id="languages", kind="languages")]})  # fmt: skip
         out = folder / f"{label}.dvd.yaml"
         save(project, out)
         typer.echo(f"wrote {out.name}: {disc[0].code}-{disc[-1].code}")

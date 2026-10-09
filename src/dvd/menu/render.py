@@ -175,6 +175,11 @@ def render_page(
         p.setFont(title_font)
         title_rect = QRectF(0.10 * dw, t.title_y * fh, 0.80 * dw, 0.11 * fh)
         _text(p, title_rect, align | Qt.AlignmentFlag.AlignVCenter, page.title, t.title, t.shadow)
+    if page.subtitle:  # under the title (or the logo)
+        p.setFont(label_font)
+        sub_rect = QRectF(0.10 * dw, (t.title_y + 0.11) * fh, 0.80 * dw, 0.06 * fh)
+        _text(p, sub_rect, align | Qt.AlignmentFlag.AlignVCenter, page.subtitle, t.muted,
+              t.shadow)  # fmt: skip
     p.setFont(label_font)
     for text, rect in page.headings:
         _text(p, _px(rect, dw, fh), Qt.AlignmentFlag.AlignVCenter, _case(text, t), t.muted,
@@ -193,7 +198,7 @@ def render_page(
         r = _px(b.rect, dw, fh)
         if b.thumb is not None:
             pic = QRectF(r.left(), r.top(), r.width(), r.width() * 9 / 16)
-            image = (thumbs or {}).get(b.thumb)
+            image = (thumbs or {}).get((b.thumb_title, b.thumb))
             if image is not None:
                 p.drawImage(pic, image)
             else:

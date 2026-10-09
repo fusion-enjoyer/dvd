@@ -84,3 +84,41 @@ def test_series_new_writes_a_project_per_disc(tmp_path: Path):
     first, second = project.titles[0].audio, project.titles[1].audio
     assert [a.lang for a in first] == [a.lang for a in second] == ["tr", "en"]
     assert [a.track for a in second] == [2, 1]  # English is stream 1 in episode 2
+    assert project.series.name == "Dizi S01" and project.titles[1].name == "2. bölüm"
+    assert [pg.kind for pg in project.menus.pages] == ["main", "episodes", "languages"]
+
+
+@pytest.mark.skipif(FFMPEG is None, reason="ffmpeg not installed")
+def test_series_disc_builds_with_episode_menu(tmp_path: Path):
+    from dvd.build import build
+    from dvd.probe import probe
+    from dvd.project import load, new_series_project, save
+    from dvd.project.model import MenuPage, Menus, SeriesDisc
+
+    infos = []
+    for n in (1, 2):
+        path = tmp_path / f"Dizi.S01E0{n}.mkv"
+        subprocess.run(
+            [str(FFMPEG), "-v", "error", "-y", "-f", "lavfi",
+             "-i", "testsrc2=size=640x360:rate=25:duration=3",
+             "-f", "lavfi", "-i", "sine=duration=3", "-c:v", "libx264", "-preset", "ultrafast",
+             "-c:a", "aac", str(path)],
+            check=True,
+        )  # fmt: skip
+        infos.append(probe(path))
+    project = new_series_project(infos, tmp_path, "Dizi S01")
+    project.series = SeriesDisc(name="Dizi S01", disc=1, discs=2)
+    project.menus = Menus(pages=[MenuPage(id="main", kind="main"),
+                                 MenuPage(id="episodes", kind="episodes")])  # fmt: skip
+    for title in project.titles:
+        title.video.overrides = {"encoder": "ffmpeg"}
+    project_file = tmp_path / "dizi.dvd.yaml"
+    save(project, project_file)
+    assert load(project_file).series.discs == 2
+
+    result = build(project_file, make_iso=False)
+
+    xml = next(tmp_path.rglob("dvdauthor.xml")).read_text(encoding="utf-8")
+    assert "<post>if (g1 == 1) jump title 2; call menu;</post>" in xml
+    assert "g1 = 1; jump title 1;" in xml and "g1 = 0; jump title 2;" in xml
+    assert (result.video_ts / "VTS_01_0.VOB").is_file()

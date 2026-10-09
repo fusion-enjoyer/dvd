@@ -185,18 +185,19 @@ def _prepare(project: Project, project_file: Path, warnings: list[str]) -> list[
     ]
 
 
-def _menus(project: Project, p: _Prepared, project_dir: Path, work_dir: Path,
+def _menus(project: Project, prepared: list[_Prepared], project_dir: Path, work_dir: Path,
            warnings: list[str]) -> list:  # fmt: skip
-    """Render the menu pages from the first title's picture and author them."""
+    """Render the menu pages (the first title sets the picture size) and author them."""
     from dvd.menu.author import author_menus
     from dvd.menu.layout import expand, overlapping
-    from dvd.menu.pictures import background_image, frame_images, logo_image
+    from dvd.menu.pictures import background_image, button_pictures, logo_image
     from dvd.menu.render import render_page
     from dvd.menu.templates import template
 
+    p = prepared[0]
     frame = (p.target.width, p.target.height, p.target.dar)
     display = (round(p.target.height * p.target.dar), p.target.height)
-    pages = expand(project, p.info)
+    pages = expand(project, [q.info for q in prepared])
     for page in pages:
         for a, b in overlapping({btn.id: btn.rect for btn in page.buttons}):
             warnings.append(f"menu page {page.id}: buttons {a} and {b} overlap")
@@ -205,9 +206,8 @@ def _menus(project: Project, p: _Prepared, project_dir: Path, work_dir: Path,
                                     display)  # fmt: skip
     except ValueError as exc:
         raise BuildError(str(exc)) from None
-    times = sorted({b.thumb for page in pages for b in page.buttons if b.thumb is not None})
-    width = round(0.22 * display[0])
-    thumbs = frame_images(p.source, p.info, times, (width, round(width * 9 / 16))) if times else {}
+    thumbs = button_pictures(pages, [q.source for q in prepared], [q.info for q in prepared],
+                             display)  # fmt: skip
     tpl = template(project.menus.template)
     try:
         logo = logo_image(project.menus.logo, project_dir)
@@ -399,7 +399,7 @@ def build(
     menus = None
     if project.menus is not None:
         report("menus", 0.0)
-        menus = _menus(project, prepared[0], project_file.parent, work_dir, warnings)
+        menus = _menus(project, prepared, project_file.parent, work_dir, warnings)
     intros = [
         _intro_vob(project, info, prepared[0], budget, work_dir, k, report)
         for k, info in enumerate(intro_infos, start=1)

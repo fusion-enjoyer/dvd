@@ -62,3 +62,20 @@ def logo_image(path: str | None, project_dir: Path) -> QImage | None:
     if image.isNull():
         raise ValueError(f"cannot read menu logo {path}")
     return image
+
+
+def button_pictures(pages: list, sources: list[Path], infos: list[SourceInfo],
+                    display: tuple[int, int]) -> dict[tuple[int, float], QImage]:  # fmt: skip
+    """The frames the chapter and episode buttons show, keyed by (title index, time)."""
+    wanted: dict[int, set[float]] = {}
+    for page in pages:
+        for b in page.buttons:
+            if b.thumb is not None:
+                wanted.setdefault(b.thumb_title, set()).add(b.thumb)
+    width = round(0.22 * display[0])
+    size = (width, round(width * 9 / 16))
+    out = {}
+    for k, times in wanted.items():
+        images = frame_images(sources[k], infos[k], sorted(times), size)
+        out.update({(k, t): image for t, image in images.items()})
+    return out

@@ -156,6 +156,7 @@ Chapters = Literal["from-source", "none"] | ChapterEvery | list[str]
 
 class Title(Strict):
     source: str = Field(min_length=1)
+    name: str | None = Field(None, max_length=80)  # shown in menus (an episode's title)
     video: Video = Field(default_factory=Video)
     audio: list[Audio] = Field(default_factory=list, max_length=MAX_AUDIO_TRACKS)
     subtitles: list[Subtitle] = Field(default_factory=list, max_length=MAX_SUBTITLE_TRACKS)
@@ -182,7 +183,7 @@ class Title(Strict):
 
 
 MAX_MENU_BUTTONS = 36  # per menu page (DVD-Video)
-PageKind = Literal["main", "chapters", "languages", "audio", "subtitles", "custom"]
+PageKind = Literal["main", "chapters", "episodes", "languages", "audio", "subtitles", "custom"]
 
 
 class MenuAction(Strict):
@@ -195,6 +196,7 @@ class MenuAction(Strict):
     chapter: int = Field(1, ge=1, le=MAX_CHAPTERS)
     page: str | None = None
     stream: int | None = Field(None, ge=0, le=MAX_SUBTITLE_TRACKS - 1)
+    all: bool = False  # play: go on with the following titles (a series' "play all")
 
     @model_validator(mode="after")
     def _needed_fields(self) -> MenuAction:
@@ -261,6 +263,7 @@ class MenuBackground(Strict):
 
 
 PAGE_ALIASES = {"settings": "languages", "ayarlar": "languages", "ana": "main",
+                "bolum-secimi": "episodes",
                 "bolumler": "chapters"}  # fmt: skip
 
 
@@ -331,6 +334,20 @@ def _first_play(value: Any) -> Any:
 FirstPlay = Annotated[list[Annotated[Intro, BeforeValidator(_intro)]], BeforeValidator(_first_play)]
 
 
+class SeriesDisc(Strict):
+    """This disc's place in a series set, shown on the main menu ("Disk 2 / 4")."""
+
+    name: str = Field(min_length=1, max_length=64)  # the series (and season)
+    disc: int = Field(ge=1)
+    discs: int = Field(ge=1)
+
+    @model_validator(mode="after")
+    def _order(self) -> SeriesDisc:
+        if self.disc > self.discs:
+            raise ValueError("disc number is above the number of discs")
+        return self
+
+
 class Project(Strict):
     version: Literal[1] = 1
     disc: Disc
@@ -339,3 +356,4 @@ class Project(Strict):
     first_play: FirstPlay = Field(default_factory=list, max_length=8)
     # After the last title: back to the menu (or stop without menus), stop, or play again.
     at_end: Literal["menu", "stop", "repeat"] = "menu"
+    series: SeriesDisc | None = None

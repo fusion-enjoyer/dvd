@@ -18,8 +18,8 @@ from dvd.menu.render import RenderedPage, save_rgba
 
 _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 SECONDS = 1  # length of the still; the player holds the last frame (pause="inf")
-ENTRIES = {"main": "root", "chapters": "ptt", "languages": "audio", "audio": "audio",
-           "subtitles": "subtitle"}  # fmt: skip
+ENTRIES = {"main": "root", "chapters": "ptt", "episodes": "ptt", "languages": "audio",
+           "audio": "audio", "subtitles": "subtitle"}  # fmt: skip
 
 
 def commands(pages: list[Page]) -> dict[str, list[tuple[str, str]]]:
@@ -32,8 +32,10 @@ def commands(pages: list[Page]) -> dict[str, list[tuple[str, str]]]:
             a = b.action
             stay = f"button = {k * 1024}; jump menu {number[p.id]};"  # keep the cursor here
             if a.do == "play":
-                cmd = f"jump title {a.title};" if a.chapter == 1 else (
+                # g1 tells the end of a title whether to go on to the next one (play all).
+                jump = f"jump title {a.title};" if a.chapter == 1 else (
                     f"jump title {a.title} chapter {a.chapter};")  # fmt: skip
+                cmd = f"g1 = {int(a.all)}; {jump}"
             elif a.do == "page":
                 if a.page not in number:
                     raise AuthorError(f"button {b.id} opens page {a.page}, which has no menu")

@@ -128,7 +128,10 @@ def dvdauthor_xml(
         if t.subtitles_on and t.subtitle_langs and not menus:
             lines.append("        <pre>subtitle=64;</pre>")  # 64 = display on, stream 0
         lines.append(f"        <vob file={quoteattr(t.vob)} chapters={quoteattr(chapters)}/>")
-        if n < len(titles):
+        if n < len(titles) and menus:
+            # Play all (g1 = 1) goes on; a single episode chosen in the menu returns to it.
+            lines.append(f"        <post>if (g1 == 1) jump title {n + 1}; call menu;</post>")
+        elif n < len(titles):
             lines.append(f"        <post>jump title {n + 1};</post>")
         elif at_end == "repeat":
             lines.append("        <post>jump title 1;</post>")
