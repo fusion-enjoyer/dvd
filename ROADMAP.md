@@ -73,7 +73,7 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 - [ ] Encoder sürücüleri: HCEnc, FFmpeg (ayarlı parametre seti), x262 (deneysel)
   - [x] HCEnc ve FFmpeg (DVD bayrakları düzeltilmiş, uyumluluk denetiminden geçiyor); `video.overrides: {encoder: ffmpeg}`, HCEnc yoksa otomatik FFmpeg
   - [ ] x262 (deneysel); HCEnc ↔ FFmpeg kalite karşılaştırması korpusla
-- [ ] NTSC soft pulldown bayrak enjektörü (kendimiz yazacağız)
+- [x] NTSC soft pulldown bayrak enjektörü (kendimiz yazacağız): `video/pulldown.py`, FFmpeg encode'una bağlı; denetim GOP'u alan sayısıyla da ölçüyor
 - [ ] PAL speedup (ses pitch seçenekli)
 - [ ] Encode sonrası uyumluluk denetimi (VBV, tepe bitrate, GOP)
   - [x] Video akışı: MP@ML, boyut, kare hızı, progressive_sequence, GOP uzunluğu, ardışık B, 1 sn tepe, VBV simülasyonu (`dvd verify`, her build'de)

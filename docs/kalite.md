@@ -78,7 +78,7 @@ Faz 2'de korpusla test edilecek (aktif alanı biraz kırpmak vs. bandın içine 
 
 | Encoder | Artı | Eksi |
 |---|---|---|
-| FFmpeg `mpeg2video` | Açık kaynak, her yerde var, kontrol edilebilir | Varsayılanları zayıf; ayarlanması gerekiyor; soft pulldown üretmiyor |
+| FFmpeg `mpeg2video` | Açık kaynak, her yerde var, kontrol edilebilir | Varsayılanları zayıf; ayarlanması gerekiyor; soft pulldown üretmiyor (bayrakları sonradan biz yazıyoruz) |
 | HCEnc | Ücretsiz MPEG-2 encoder'lar arasında kalite açısından genelde en iyi kabul ediliyor, pulldown ve DVD uyumluluğu yerleşik, Windows'ta native | Kapalı kaynak; girdi olarak AviSynth betiği bekliyor olabilir → VapourSynth köprüsü doğrulanacak |
 | x262 | x264 tabanlı psikovizüel optimizasyonlar | Deneysel/bakımsız, uyumluluğu doğrulanmalı |
 
@@ -91,7 +91,9 @@ FFmpeg için başlangıç noktası (Faz 2'de tek tek ölçülecek): 2-pass VBR, 
 FFmpeg'in `mpeg2video` encoder'ı soft pulldown bayrağı yazmıyor. Çözüm: 23.976p progresif encode, ardından
 elementary stream'deki picture coding extension'larda `repeat_first_field` / `top_field_first` bayraklarını
 3:2 desenine göre yazan ve sequence header'daki frame rate'i 29.97 yapan **küçük bir bitstream düzenleyicisi**
-(DGPulldown'ın yaptığı iş). Bunu kendimiz yazacağız.
+(DGPulldown'ın yaptığı iş). Yazıldı: `src/dvd/video/pulldown.py`. Dosyayı yerinde değiştirir (boyut aynı kalır):
+progressive_sequence 0'a çekilir, GOP zaman kodları 29.97'ye göre yeniden yazılır, her karede progressive_frame 1 olur.
+FFmpeg bu yol için alan DCT'siz (progresif) ve 12 film karelik GOP ile çalışır; 12 kare = 30 alan, NTSC sınırı 36 alan.
 
 ### PAL speedup
 
