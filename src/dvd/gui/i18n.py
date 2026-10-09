@@ -125,6 +125,12 @@ TEXTS: dict[str, dict[str, str]] = {
         "menu.view.plain": "Normal",
         "menu.view.lit": "Seçili buton",
         "menu.rendering": "Menü sayfaları çiziliyor…",
+        "menu.view.try": "Klavyeyle dene",
+        "menu.sim.audio": "Ses: {lang}",
+        "menu.sim.subs": "Altyazı: {lang}",
+        "menu.sim.off": "kapalı",
+        "menu.sim.playing": "Film {chapter}. bölümden başlardı",
+        "menu.sim.keys": "(yön tuşları, Enter: seç, Esc: Menü tuşu)",
         "chapters.title": "Bölümler",
         "chapters.hint": "Bölüm başları oynatıcıda ileri/geri atlama noktalarıdır; "
         "bölüm menüsünde bu kareler gösterilir.",

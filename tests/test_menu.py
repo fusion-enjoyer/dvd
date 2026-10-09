@@ -161,3 +161,50 @@ def test_languages_page_only_shows_columns_with_a_choice():
     p, info = project(audio=1, subs=2)
     langs = next(pg for pg in expand(p, info) if pg.id == "languages")
     assert [h for h, _ in langs.headings] == ["Altyazı"]
+
+
+def test_simulator_walks_the_menus_with_the_disc_commands():
+    from dvd.menu.simulator import Simulator
+
+    p, info = project(chapters=8, audio=2, subs=1)
+    sim = Simulator(expand(p, info), "main", subtitles_on=False)
+    assert sim.page.id == "main" and sim.button.id == "play"
+    sim.move("down")
+    sim.press()
+    assert sim.page.id == "chapters" and sim.button.id == "ch1"
+    sim.move("down")  # ch4
+    sim.move("down")  # bottom row: Ana menü
+    sim.move("right")  # Sonraki ›
+    sim.press()
+    assert sim.page.id == "chapters-2"
+    sim.press()  # ch7 is the first button there
+    assert sim.state.playing == (1, 7)
+
+    sim.menu_key()
+    assert sim.page.id == "main" and sim.state.playing is None
+    sim.move("down")
+    sim.move("down")
+    sim.press()
+    assert sim.page.id == "languages"
+    sim.move("down")  # a1: Türkçe
+    sim.press()
+    assert sim.state.audio == 1 and sim.button.id == "a1"  # cursor stays on the choice
+    sim.move("right")  # nearest in the subtitle column
+    while sim.button.id != "s0":
+        sim.move("down")
+    sim.press()
+    assert sim.state.subtitle == 0 and sim.button.id == "s0"
+    sim.move("up")
+    sim.press()
+    assert sim.state.subtitle is None and sim.button.id == "s-off"
+
+
+def test_simulator_rejects_unknown_commands():
+    from dvd.menu.simulator import Simulator, SimulatorError
+
+    p, info = project()
+    sim = Simulator(expand(p, info), "main")
+    with pytest.raises(SimulatorError):
+        sim.run("g3 = 1;")
+    with pytest.raises(SimulatorError):
+        sim.run("jump menu 9;")

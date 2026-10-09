@@ -7,7 +7,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QImage, QPainter
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -32,12 +32,9 @@ from dvd.project.model import MenuBackground, MenuPage, Project
 OPTIONAL = ("chapters", "languages")  # pages the user can leave out; main is always there
 
 
-Preview = tuple[str, QImage, QImage]
-
-
 def render_preview(project: Project, info: SourceInfo, source: Path, project_dir: Path,
-                   frame: tuple, display: tuple[int, int]) -> list[Preview]:  # fmt: skip
-    """(page title, plain picture, picture with the highlight) for every disc menu page."""
+                   frame: tuple, display: tuple[int, int]) -> list:  # fmt: skip
+    """(page, rendered page) for every disc menu page, drawn as the build draws them."""
     from dvd.menu.layout import expand
     from dvd.menu.pictures import background_image, frame_images
     from dvd.menu.render import render_page
@@ -47,23 +44,24 @@ def render_preview(project: Project, info: SourceInfo, source: Path, project_dir
     times = sorted({b.thumb for p in pages for b in p.buttons if b.thumb is not None})
     width = round(0.22 * display[0])
     thumbs = frame_images(source, info, times, (width, round(width * 9 / 16))) if times else {}
-    out = []
-    for page in pages:
-        r = render_page(page, frame, backdrop, thumbs)
-        plain = r.background.convertToFormat(QImage.Format.Format_ARGB32)
-        lit = plain.copy()
-        # The player shows the highlight only inside the button under the cursor: the first
-        # one when a page opens.
-        overlay = np.zeros_like(r.highlight)
-        if r.buttons:
-            x0, y0, x1, y1 = r.buttons[0][1]
-            overlay[y0:y1, x0:x1] = r.highlight[y0:y1, x0:x1]
-        h, w = overlay.shape[:2]
-        painter = QPainter(lit)
-        painter.drawImage(0, 0, QImage(overlay.data, w, h, w * 4, QImage.Format.Format_RGBA8888))
-        painter.end()
-        out.append((page.title, plain, lit))
-    return out
+    return [(page, render_page(page, frame, backdrop, thumbs)) for page in pages]
+
+
+def compose(rendered, button: int | None, layer: str = "highlight") -> QImage:
+    """The page as the player shows it: the overlay only inside the button under the cursor
+    (`layer` "select" for the moment it is pressed); None: no cursor."""
+    image = rendered.background.convertToFormat(QImage.Format.Format_ARGB32)
+    if button is None or not rendered.buttons:
+        return image
+    source = getattr(rendered, layer)
+    overlay = np.zeros_like(source)
+    x0, y0, x1, y1 = rendered.buttons[button][1]
+    overlay[y0:y1, x0:x1] = source[y0:y1, x0:x1]
+    h, w = overlay.shape[:2]
+    painter = QPainter(image)
+    painter.drawImage(0, 0, QImage(overlay.data, w, h, w * 4, QImage.Format.Format_RGBA8888))
+    painter.end()
+    return image
 
 
 class MenuEditorPage(QWidget):
@@ -77,7 +75,9 @@ class MenuEditorPage(QWidget):
         self.info: SourceInfo | None = None
         self.source = self.project_dir = Path()
         self.frame: tuple | None = None
-        self.previews: list[Preview] = []
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)  # arrow keys in "try" mode
+        self.previews: list = []  # (page, rendered page)
+        self.sim = None
         self.dirty = False
         self.request = 0
         box = QVBoxLayout(self)
@@ -114,7 +114,8 @@ class MenuEditorPage(QWidget):
         self.page_list = QComboBox()
         self.page_list.setMinimumWidth(200)
         self.page_list.currentIndexChanged.connect(self._show_preview)
-        self.lit = ModeSwitch({"plain": t("menu.view.plain"), "lit": t("menu.view.lit")}, "lit")
+        self.lit = ModeSwitch({"plain": t("menu.view.plain"), "lit": t("menu.view.lit"),
+                               "try": t("menu.view.try")}, "lit")  # fmt: skip
         self.view = "lit"
         self.lit.changed.connect(self._set_view)
         row.addWidget(self.page_list)
@@ -188,24 +189,80 @@ class MenuEditorPage(QWidget):
             current = self.page_list.currentIndex()
             self.page_list.blockSignals(True)
             self.page_list.clear()
-            for title, _plain, _lit in previews:
-                self.page_list.addItem(title)
+            for page, _rendered in previews:
+                self.page_list.addItem(page.title)
             self.page_list.setCurrentIndex(min(max(0, current), len(previews) - 1))
             self.page_list.blockSignals(False)
             self.status.setText("")
+            self._new_simulator()
             self._show_preview()
 
         tasks.run(lambda: render_preview(*args), done, self.status.setText)
 
     def _set_view(self, view: str) -> None:
         self.view = view
+        self.page_list.setEnabled(view != "try")
+        if view == "try":
+            self._new_simulator()
+            self.setFocus()
         self._show_preview()
 
-    def _show_preview(self) -> None:
+    def _new_simulator(self) -> None:
+        from dvd.menu.simulator import Simulator
+
+        if not self.previews or self.project is None or self.project.menus is None:
+            self.sim = None
+            return
+        subs = edit.disc_subtitles(self.project.titles[0])
+        self.sim = Simulator([p for p, _r in self.previews], self.project.menus.first,
+                             subtitles_on=bool(subs) and subs[0].default)  # fmt: skip
+
+    def _show_preview(self, layer: str = "highlight") -> None:
+        if self.frame is None or not self.previews:
+            return
+        aspect = float(self.frame[2])
+        if self.view == "try" and self.sim is not None:
+            ids = [p.id for p, _r in self.previews]
+            rendered = self.previews[ids.index(self.sim.page.id)][1]
+            self.well.set_image(compose(rendered, self.sim.state.button, layer), aspect)
+            self.status.setText(self._sim_status())
+            return
         i = self.page_list.currentIndex()
-        if 0 <= i < len(self.previews) and self.frame is not None:
-            _title, plain, lit = self.previews[i]
-            self.well.set_image(lit if self.view == "lit" else plain, float(self.frame[2]))
+        if 0 <= i < len(self.previews):
+            rendered = self.previews[i][1]
+            self.well.set_image(compose(rendered, 0 if self.view == "lit" else None), aspect)
+
+    def _sim_status(self) -> str:
+        from dvd.lang import name_tr
+
+        title, s = self.project.titles[0], self.sim.state
+        audio = edit.disc_audio(title)
+        subs = edit.disc_subtitles(title)
+        parts = [t("menu.sim.audio", lang=name_tr(audio[s.audio].lang) if s.audio < len(audio)
+                   else "?"),
+                 t("menu.sim.subs", lang=t("menu.sim.off") if s.subtitle is None or
+                   s.subtitle >= len(subs) else name_tr(subs[s.subtitle].lang))]  # fmt: skip
+        if s.playing:
+            parts.append(t("menu.sim.playing", chapter=s.playing[1]))
+        return "  ·  ".join(parts) + "   " + t("menu.sim.keys")
+
+    def keyPressEvent(self, event) -> None:  # noqa: N802 (Qt API)
+        if self.view != "try" or self.sim is None:
+            super().keyPressEvent(event)
+            return
+        key = event.key()
+        moves = {Qt.Key.Key_Up: "up", Qt.Key.Key_Down: "down",
+                 Qt.Key.Key_Left: "left", Qt.Key.Key_Right: "right"}  # fmt: skip
+        if key in moves:
+            self.sim.move(moves[key])
+        elif key in (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Space):
+            self.sim.press()
+        elif key in (Qt.Key.Key_Escape, Qt.Key.Key_M):
+            self.sim.menu_key()
+        else:
+            super().keyPressEvent(event)
+            return
+        self._show_preview()
 
     # ----------------------------------------------------------------- edits
 

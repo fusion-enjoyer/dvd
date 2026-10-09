@@ -229,3 +229,38 @@ def test_menu_page_toggles_menus_and_previews_pages(app, tmp_path: Path):
     assert load(project_file).menus is None
     QThreadPool.globalInstance().waitForDone(60000)
     w.close()
+
+
+@pytest.mark.skipif(FFMPEG is None, reason="ffmpeg not installed")
+def test_menu_page_try_mode_follows_the_keyboard(app, tmp_path: Path):
+    from PySide6.QtCore import Qt
+    from PySide6.QtTest import QTest
+
+    meta = tmp_path / "meta.txt"
+    chapter = "[CHAPTER]\nTIMEBASE=1/1000\nSTART={}\nEND={}\n"
+    meta.write_text(";FFMETADATA1\n" + "".join(chapter.format(s * 1000, s * 1000 + 2000)
+                                               for s in (0, 2, 4)), encoding="utf-8")  # fmt: skip
+    src = tmp_path / "dene.mkv"
+    subprocess.run(
+        [str(FFMPEG), "-v", "error", "-y", "-f", "lavfi",
+         "-i", "testsrc2=size=1280x720:rate=25:duration=6", "-i", str(meta),
+         "-map", "0", "-map_chapters", "1", "-c:v", "libx264", "-preset", "ultrafast", str(src)],
+        check=True,
+    )  # fmt: skip
+    w = MainWindow(mode="pro")
+    w.show()
+    w._loaded(w._load(src))
+    QThreadPool.globalInstance().waitForDone(60000)
+    w.show_page("menu")
+    app.processEvents()
+    QThreadPool.globalInstance().waitForDone(60000)
+    app.processEvents()
+    page = w.menu_page
+    page.lit.changed.emit("try")
+    for key in (Qt.Key.Key_Down, Qt.Key.Key_Return, Qt.Key.Key_Right, Qt.Key.Key_Return):
+        QTest.keyClick(page, key)
+    assert page.sim.state.playing == (1, 2)
+    assert "2. bölümden" in page.status.text()
+    QTest.keyClick(page, Qt.Key.Key_Escape)
+    assert page.sim.page.id == "main"
+    w.close()
