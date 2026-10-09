@@ -52,14 +52,10 @@ DEFAULT_STYLE = SubStyle()
 
 
 def style_for(size: float, safe_area: float) -> SubStyle:
-    """Default style scaled for the viewing profile: larger text and a wider margin where
-    the screen is small or the TV crops the picture edges (overscan)."""
-    margin = (1 - safe_area) / 2
-    return SubStyle(
-        size=DEFAULT_STYLE.size * size,
-        bottom=max(DEFAULT_STYLE.bottom, margin + 0.02),
-        max_width=min(DEFAULT_STYLE.max_width, safe_area - 0.04),
-    )
+    """The default style scaled for the viewing profile (see `styles.for_viewing`)."""
+    from dvd.subs.styles import for_viewing
+
+    return for_viewing(DEFAULT_STYLE, size, safe_area)
 
 
 @dataclass(frozen=True)

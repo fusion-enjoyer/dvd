@@ -27,6 +27,12 @@ from dvd.gui.i18n import t
 from dvd.probe import SourceInfo
 from dvd.project import edit
 from dvd.project.model import AC3_BITRATES, Project
+from dvd.subs.styles import TEMPLATES, list_styles
+
+
+def style_text(name: str) -> str:
+    return t(f"style.name.{name}") if name in TEMPLATES else name
+
 
 SUB_FILES = "SRT, ASS, SSA, WebVTT (*.srt *.ass *.ssa *.vtt)"
 LANGS = ["tr", "en", "de", "fr", "es", "it", "ru", "ja", "ko", "zh", "ar", "nl", "sv", "pl"]
@@ -214,6 +220,10 @@ class TracksPage(QWidget):
         add = QPushButton(t("tracks.add_srt"))
         add.clicked.connect(self._add_srt)
         grid.addWidget(add, row, 0, alignment=Qt.AlignmentFlag.AlignLeft)
+        if self.mode == "pro":
+            styles = QPushButton(t("style.open"))
+            styles.clicked.connect(self._edit_styles)
+            grid.addWidget(styles, row, 1, 1, 2, alignment=Qt.AlignmentFlag.AlignLeft)
         grid.setColumnStretch(0, 1)
 
     def _sub_controls(self, grid: QGridLayout, row: int, s, key, group: QButtonGroup) -> None:
@@ -228,6 +238,23 @@ class TracksPage(QWidget):
         lang.currentIndexChanged.connect(lambda _n: self._edit(
             lambda: setattr(s, "lang", lang.currentData())))  # fmt: skip
         grid.addWidget(lang, row, 2)
+        if self.mode == "pro":
+            style = QComboBox()
+            for name in list_styles():
+                style.addItem(style_text(name), name)
+            if style.findData(s.style) < 0:  # a user style that is no longer on this PC
+                style.addItem(s.style, s.style)
+            style.setCurrentIndex(style.findData(s.style))
+            style.currentIndexChanged.connect(lambda _n: self._edit(
+                lambda: setattr(s, "style", style.currentData())))  # fmt: skip
+            grid.addWidget(style, row, 4)
+
+    def _edit_styles(self) -> None:
+        from dvd.gui.style_editor import StyleEditor
+
+        dialog = StyleEditor(parent=self)
+        dialog.saved.connect(lambda _name: self._rebuild())
+        dialog.exec()
 
     def _add_srt(self) -> None:
         path, _ = QFileDialog.getOpenFileName(self, t("tracks.add_srt"), str(self.project_dir),

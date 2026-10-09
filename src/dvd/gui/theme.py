@@ -61,7 +61,7 @@ def stylesheet(mode: str) -> str:
     c, d = COLORS, DENSITY[mode]
     return f"""
 * {{ font-family: "{UI_FONT}"; font-size: {d.font}px; color: {c["metin"]}; }}
-QMainWindow, QWidget#root, QStackedWidget, QScrollArea, QScrollArea > QWidget > QWidget {{
+QMainWindow, QDialog, QWidget#root, QStackedWidget, QScrollArea, QScrollArea > QWidget > QWidget {{
     background: {c["zemin"]};
 }}
 QWidget#topbar, QWidget#nav, QWidget#side, QWidget#budget {{ background: {c["panel"]}; }}
@@ -114,14 +114,14 @@ QWidget#nav QPushButton {{
 QWidget#nav QPushButton:hover {{ background: {c["girdi"]}; color: {c["metin"]}; }}
 QWidget#nav QPushButton:checked {{ background: rgba(240, 180, 73, 0.12); color: {c["metin"]}; }}
 
-QComboBox, QLineEdit, QSpinBox {{
+QComboBox, QLineEdit, QAbstractSpinBox {{
     background: {c["girdi"]}; border: 1px solid {c["cizgi"]}; border-radius: 3px;
     min-height: {d.control - 2}px; padding: 0 8px;
 }}
-QComboBox:focus, QLineEdit:focus, QSpinBox:focus {{ border-color: {c["amber"]}; }}
-QSpinBox::up-button, QSpinBox::down-button {{ border: none; width: 20px; }}
-QSpinBox::up-arrow {{ image: url({CHEVRON_UP}); width: 10px; height: 10px; }}
-QSpinBox::down-arrow {{ image: url({CHEVRON}); width: 10px; height: 10px; }}
+QComboBox:focus, QLineEdit:focus, QAbstractSpinBox:focus {{ border-color: {c["amber"]}; }}
+QAbstractSpinBox::up-button, QAbstractSpinBox::down-button {{ border: none; width: 20px; }}
+QAbstractSpinBox::up-arrow {{ image: url({CHEVRON_UP}); width: 10px; height: 10px; }}
+QAbstractSpinBox::down-arrow {{ image: url({CHEVRON}); width: 10px; height: 10px; }}
 QComboBox::drop-down {{ border: none; width: 24px; }}
 QComboBox::down-arrow {{ image: url({CHEVRON}); width: 12px; height: 12px; }}
 QComboBox QAbstractItemView {{ background: {c["panel"]}; border: 1px solid {c["cizgi"]};

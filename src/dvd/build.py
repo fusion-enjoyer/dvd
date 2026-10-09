@@ -28,9 +28,10 @@ from dvd.project.model import (
 )
 from dvd.subs.extract import extract_text_track
 from dvd.subs.pgs import BitmapCue, extract_pgs
-from dvd.subs.render import Placement, style_for
+from dvd.subs.render import Placement
 from dvd.subs.spumux import add_subtitle_stream
 from dvd.subs.srt import Cue, read_srt, retime
+from dvd.subs.styles import StyleError, for_viewing, load_style
 from dvd.video import encoders
 from dvd.video.compliance import check as check_video
 from dvd.video.crop import detect_crop
@@ -217,7 +218,14 @@ def build(
         raise BuildError(f"the titles do not fit on {project.disc.media.upper()}")
 
     disc_settings = resolve_profiles(project.disc.profiles)
-    sub_style = style_for(disc_settings["subtitle_size"], disc_settings["safe_area"])
+
+    def sub_style(name: str):
+        try:
+            base = load_style(name)
+        except StyleError as exc:
+            raise BuildError(str(exc)) from None
+        return for_viewing(base, disc_settings["subtitle_size"], disc_settings["safe_area"])
+
     author_titles = []
     for n, p in enumerate(prepared, start=1):
         tag = f"t{n:02}"
@@ -293,7 +301,7 @@ def build(
                 project.disc.standard,
                 work_dir / f"{tag}_subs",
                 forced=sub.forced,
-                style=sub_style,
+                style=sub_style(sub.style),
                 progress=lambda f, n=n, i=i: report(f"title {n} subtitles {i + 1}", f),
                 placement=placement(p.target),
             )
