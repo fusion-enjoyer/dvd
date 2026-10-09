@@ -62,7 +62,7 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 **Ön işleme (VapourSynth)**
 - [x] Siyah bant tespiti + crop, bantları 16 piksel macroblock sınırına hizalı pad (24 kare örneklenir, karanlık kareler atlanır; şekil korunur, gerekirse kaynaktan birkaç piksel fazla kırpılır)
 - [ ] Küçültme kernel'ları karşılaştırması (Spline36 / Lanczos / SSIM downsampler / linear-light)
-- [ ] BT.709 → BT.601 renk dönüşümü + doğru bayraklar
+- [x] BT.709 → BT.601 renk dönüşümü + doğru bayraklar: 16-bit matris dönüşümü (aralık dahil); akışta PAL 5/5/5, NTSC 6/6/6 renk açıklaması, denetim uyuşmazlığı uyarır
 - [ ] Yüksek bit derinliğinde işlem, deband, kontrollü dithering
   - [x] Altyapı: 16-bit zincir (ölçekleme, matris, deband, bantlar), sonda tek dither adımı; deband vszip ile, kademe profil katmanlarından (`video.overrides` ile elle)
   - [ ] Kademe ve dither türünü test korpusuyla ölç ve ayarla (ripler gelince)
