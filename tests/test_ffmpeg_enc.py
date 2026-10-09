@@ -47,6 +47,7 @@ def test_ffmpeg_output_is_dvd_compliant_with_chapter_keyframe(tmp_path: Path):
     report = check(out, "pal")
     assert report.ok, report.errors
     assert report.info.progressive_sequence == 0
+    assert report.info.colour == (5, 5, 5) and not report.warnings
     assert len(report.info.pictures) == 100
     # Chapter frame 37 opens a GOP: the GOPs before it add up to 37 pictures.
     sizes, total = report.info.gops, 0
@@ -69,6 +70,7 @@ def test_ntsc_film_gets_soft_pulldown(tmp_path: Path):
     assert report.ok, report.errors
     info = report.info
     assert info.frame_rate == Fraction(30000, 1001) and info.progressive_sequence == 0
+    assert info.colour == (6, 6, 6)
     # 96 film frames play as 240 fields = 120 video frames, 2:3 cadence.
     assert len(info.pictures) == 96 and sum(p.fields for p in info.pictures) == 240
     assert max(info.gop_fields) <= 36

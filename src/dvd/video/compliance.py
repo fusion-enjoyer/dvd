@@ -53,6 +53,7 @@ class StreamInfo:
     vbv_bits: int = 0
     profile_level: int = 0
     progressive_sequence: int = 0
+    colour: tuple[int, int, int] | None = None  # primaries, transfer, matrix codes
     pictures: list[Picture] = field(default_factory=list)
     gops: list[int] = field(default_factory=list)  # pictures per GOP
     gop_fields: list[int] = field(default_factory=list)  # display fields per GOP
@@ -109,6 +110,10 @@ def parse(path: Path) -> StreamInfo:
                 if ext == 1:  # sequence extension
                     info.profile_level = b.read(8)
                     info.progressive_sequence = b.read(1)
+                elif ext == 2 and info.colour is None:  # sequence display extension
+                    b.read(3)  # video_format
+                    if b.read(1):
+                        info.colour = (b.read(8), b.read(8), b.read(8))
                 elif ext == 8 and current is not None:  # picture coding extension
                     b.read(16 + 2)  # f_codes, intra_dc_precision
                     structure = b.read(2)
@@ -202,6 +207,12 @@ def check(path: Path, standard: str) -> Report:
         errors.append(f"sequence header bit rate {info.bit_rate / 1e6:.2f} Mbps exceeds 9.8")
     if info.vbv_bits > VBV_BITS:
         errors.append(f"VBV buffer {info.vbv_bits} bits exceeds the DVD maximum {VBV_BITS}")
+    # Colour description: primaries, transfer and matrix of the SD standard (codes 5 / 6).
+    sd = (5, 5, 5) if standard == "pal" else (6, 6, 6)
+    if info.colour is None:
+        warnings.append("no colour description; players assume the SD standard")
+    elif info.colour != sd:
+        warnings.append(f"colour description {info.colour} is not {standard.upper()} {sd}")
     if not info.first_gop_closed:
         warnings.append("first GOP is not closed")
     long_gops = [g for g in info.gops if g > MAX_GOP[standard]]

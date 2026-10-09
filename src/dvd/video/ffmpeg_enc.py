@@ -29,6 +29,7 @@ _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 def ffmpeg_args(settings: EncodeSettings, fps: float, passlog: Path, pass_no: int) -> list[str]:
     s = settings
     pal = s.standard == "pal"
+    sd = "bt470bg" if pal else "smpte170m"
     args = [
         "-v", "error", "-y", "-f", "yuv4mpegpipe", "-i", "-",
         "-c:v", "mpeg2video", "-pix_fmt", "yuv420p",
@@ -41,9 +42,8 @@ def ffmpeg_args(settings: EncodeSettings, fps: float, passlog: Path, pass_no: in
         "-dc", "10", "-intra_vlc", "1", "-non_linear_quant", "1",
         "-mbd", "rd", "-trellis", "2", "-cmp", "2", "-subcmp", "2", "-qmin", "1", "-qmax", "28",
         "-aspect", s.aspect, "-seq_disp_ext", "1", "-video_format", "1" if pal else "2",
-        "-color_primaries", "bt470bg" if pal else "smpte170m",
-        "-color_trc", "gamma28" if pal else "smpte170m",
-        "-colorspace", "bt470bg" if pal else "smpte170m",
+        # -color_primaries/-color_trc are ignored for y4m input; setparams tags the frames.
+        "-vf", f"setparams=color_primaries={sd}:color_trc={sd}:colorspace={sd}",
         "-pass", str(pass_no), "-passlogfile", str(passlog),
     ]  # fmt: skip
     chapters = sorted({c for c in s.chapters if c > 0})

@@ -48,6 +48,7 @@ def test_hcenc_output_is_compliant(tmp_path: Path):
     report = check(m2v, "pal")
     assert report.ok, report.errors
     assert report.peak_bps <= 9_800_000
+    assert report.info.colour == (5, 5, 5)
 
 
 @needs_ffmpeg
