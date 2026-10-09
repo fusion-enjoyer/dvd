@@ -108,7 +108,7 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 
 ## Faz 3 — Ses, altyazı, bölümler
 
-- [ ] Çoklu ses izi, AC-3 passthrough, HD ses → 5.1 AC-3, stereo downmix, DRC/gece modu, delay
+- [x] Çoklu ses izi, AC-3 passthrough, HD ses → 5.1 AC-3, stereo downmix, DRC/gece modu, delay: DVD'ye uyan AC-3 bit bit kopyalanır; stereo downmix Dolby Pro Logic II matrisiyle; gece modu sıkıştırıcı; gecikme iz başına (ms) ve dosyanın kendi ses/görüntü kayması otomatik korunur
 - [ ] Altyazı render motoru: istenen font, anamorfik düzeltme, akıllı kenar yumuşatma (4 renk), Türkçe kodlama tespiti, stil editörü ve stil şablonları
 - [ ] ASS, PGS, VobSub girişi; forced altyazılar; letterbox bandına altyazı
 - [ ] Bölüm zaman çizelgesi: elle düzenleme, otomatik öneri, thumbnail karesi seçimi
