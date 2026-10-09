@@ -89,7 +89,8 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 - [ ] **Test encode** (seçili aralık) ve **karşılaştırma ekranı** (kaynak / sonuç / referans DVD)
   - [x] Test encode: `dvd trial --at 42:17 --seconds 20 [--kbps N]`, en kötü karenin A/B PNG'leri
   - [x] Arayüzde karşılaştırma: Kaynak / Diskte / Kaydırmalı, filmde gezinme, "Bu aralığı test encode et (20 sn)" ve sonucun puanları
-  - [ ] Yakınlaştırma (%200/%400), kare kare ilerleme, referans DVD ile üçlü karşılaştırma
+  - [x] Yakınlaştırma (Sığdır / %100 / %200 / %400, sürükleyerek kaydırma), kare kare ilerleme (‹ › ve ← →); disk karesi 720 piksel genişliğinde, kaynak kendi çözünürlüğüne yakın gösterilir
+  - [ ] Referans DVD ile üçlü karşılaştırma (ripler gelince)
 - [x] Başlık ekranı: crop düzeltme, ön işleme ayarları, önizleme
   - [x] Önizleme (kaynak ve disk görüntüsü aynı geometride), tespit edilen crop ve ön işleme değerleri
   - [x] Crop'u ve ön işleme ayarlarını arayüzden düzenleme: crop Otomatik / Kırpma yok / Elle (4 kenar, 2 piksel adım); küçültme, deband, dither, encoder için "Profilden" ya da elle değer; her değişiklik kaydedilir, önizleme yenilenir
