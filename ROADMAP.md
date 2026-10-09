@@ -67,11 +67,14 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
   - [x] Altyapı: 16-bit zincir (ölçekleme, matris, deband, bantlar), sonda tek dither adımı; deband vszip ile, kademe profil katmanlarından (`video.overrides` ile elle)
   - [ ] Kademe ve dither türünü test korpusuyla ölç ve ayarla (ripler gelince)
 - [ ] Denoise / gren yönetimi, deinterlace (QTGMC), HDR → SDR tonemapping
+  - [x] HDR → SDR: HDR10 (PQ) ve HLG, BT.2390 eğrisi en parlak kanala uygulanır (renk tonu kaymaz), tepe MaxCLL / mastering display'den; küçültmeden sonra float'ta, ek eklenti yok. Önizlemede kaynak da aynı şekilde gösterilir
+  - [ ] Ton eşleme değerlerini HDR kliplerle kalibre et; Dolby Vision profil 5; denoise/gren; deinterlace
 - [ ] Kişisel videolar: değişken kare hızı, 50/60 fps → interlaced encode, dikey video yerleşimi, telefon HDR'ı
   - [x] 50p → PAL 25i, 59.94/60p → NTSC 29.97i (iki kaynak karesi bir DVD karesinin iki alanı, üst alan önce; renk alan başına 4:2:0); 30p → NTSC 29.97 (%0.1 yavaşlatma, ses eşlenir); HCEnc ve FFmpeg
   - [x] Değişken kare hızı: ortalama hız en yakın standart hıza oturtulur, kaynak zaman damgalarına göre sabit hıza çevrilir (BestSource), ses senkronu korunur
   - [x] Dikey video: döndürme bilgisi okunur, 4:3 karede yan bantlar; bantlar siyah ya da bulanık görüntü (`side_fill`, telefon profilinde varsayılan bulanık); dikey videoda proje telefon profiliyle açılır
-  - [ ] Telefon HDR'ı (HLG/Dolby Vision), 30/60 fps → PAL kare hızı dönüşümü
+  - [x] Telefon HDR'ı: HLG ve HLG/HDR10 tabanlı Dolby Vision (profil 8) ton eşlemeyle
+  - [ ] 30/60 fps → PAL kare hızı dönüşümü
 
 **Encode**
 - [ ] Encoder sürücüleri: HCEnc, FFmpeg (ayarlı parametre seti), x262 (deneysel)
