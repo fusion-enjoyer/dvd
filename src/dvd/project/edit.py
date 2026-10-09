@@ -16,14 +16,37 @@ _LANG_WORDS = {
 }  # fmt: skip
 
 
-def audio_from_source(track: AudioTrack) -> Audio:
-    surround = track.channels >= 6
+def audio_from_source(track: AudioTrack, layout: str = "5.1", bitrate: int = 448) -> Audio:
+    """A disc track for a source track; `layout`/`bitrate` come from the audio profile and
+    only apply to surround sources (stereo and mono stay 2.0 at 192k)."""
+    surround = track.channels >= 6 and layout == "5.1"
     return Audio(
         track=track.index,
         lang=to_dvd_code(track.language) or "en",
         channels="5.1" if surround else "2.0",
-        bitrate=448 if surround else 192,
+        bitrate=bitrate if surround else 192,
     )
+
+
+def apply_audio_profile(title: Title, info: SourceInfo, settings) -> None:
+    """Re-shape the chosen tracks for an audio profile: layout, bit rate and the optional
+    stereo copy of the main track. Track choice, languages and the default are kept."""
+    by_index = {a.index: a for a in info.audio}
+    seen, shaped = set(), []
+    for a in title.audio:
+        if a.track in seen or a.track not in by_index:
+            continue  # drop earlier stereo copies; they are re-added below if wanted
+        seen.add(a.track)
+        new = audio_from_source(by_index[a.track], settings["audio_channels"],
+                                settings["audio_bitrate"])  # fmt: skip
+        new.lang, new.default = a.lang, a.default
+        shaped.append(new)
+    main = next((a for a in shaped if a.default), shaped[0] if shaped else None)
+    wants_copy = settings["audio_extra_stereo"] and main is not None and main.channels == "5.1"
+    if wants_copy and len(shaped) < MAX_AUDIO_TRACKS:
+        copy = Audio(track=main.track, lang=main.lang, channels="2.0", bitrate=192)
+        shaped.insert(shaped.index(main) + 1, copy)
+    title.audio = shaped
 
 
 def _ensure_one_default(items: list) -> None:

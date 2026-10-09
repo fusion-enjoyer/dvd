@@ -15,6 +15,7 @@ from dvd.author.dvdauthor import AuthorTitle, author, mux, timecode
 from dvd.budget.planner import Plan, plan
 from dvd.output.iso import write_iso
 from dvd.probe import SourceInfo, probe
+from dvd.profiles import resolve as resolve_profiles
 from dvd.project import load, source_path
 from dvd.project.model import (
     MAX_CHAPTERS,
@@ -25,6 +26,7 @@ from dvd.project.model import (
     parse_timecode,
 )
 from dvd.subs.extract import extract_text_track
+from dvd.subs.render import style_for
 from dvd.subs.spumux import add_subtitle_stream
 from dvd.subs.srt import Cue, read_srt, retime
 from dvd.video.compliance import check as check_video
@@ -121,7 +123,7 @@ def estimate(project: Project, infos: list[SourceInfo]) -> Plan:
         max(total, 1.0),
         [round(audio / total) if total else 0],
         subtitle_tracks=max(len(t.subtitles) for t in project.titles),
-        viewing=project.disc.profiles.viewing,
+        peak_kbps=resolve_profiles(project.disc.profiles)["peak_kbps"],
     )
 
 
@@ -186,12 +188,14 @@ def build(
         total,
         [round(audio_avg)],
         subtitle_tracks=max(len(t.subtitles) for t in project.titles),
-        viewing=project.disc.profiles.viewing,
+        peak_kbps=resolve_profiles(project.disc.profiles)["peak_kbps"],
     )
     warnings += budget.warnings
     if not budget.fits or budget.video_kbps <= 0:
         raise BuildError(f"the titles do not fit on {project.disc.media.upper()}")
 
+    disc_settings = resolve_profiles(project.disc.profiles)
+    sub_style = style_for(disc_settings["subtitle_size"], disc_settings["safe_area"])
     author_titles = []
     for n, p in enumerate(prepared, start=1):
         tag = f"t{n:02}"
@@ -250,6 +254,7 @@ def build(
                 project.disc.standard,
                 work_dir / f"{tag}_subs",
                 forced=sub.forced,
+                style=sub_style,
                 progress=lambda f, n=n, i=i: report(f"title {n} subtitles {i + 1}", f),
             )
         author_titles.append(

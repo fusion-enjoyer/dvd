@@ -264,6 +264,74 @@ def measure(
         _print_measurement(m)
 
 
+profile_app = typer.Typer(help="Show, save and share profile settings.", no_args_is_help=True)
+app.add_typer(profile_app, name="profile")
+
+
+@profile_app.command("show")
+def profile_show(path: Path = typer.Argument(..., help="Project file")) -> None:
+    """Print every setting of a project and the layer that set it."""
+    from dvd.profiles import ProfileError, resolve
+
+    proj_ = project.load(path)
+    try:
+        r = resolve(proj_.disc.profiles, proj_.titles[0].video.overrides)
+    except ProfileError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from None
+    width = max(map(len, r.values))
+    for key, value in r.values.items():
+        typer.echo(f"{key:<{width}}  {value!s:<16} {r.origin[key]}")
+
+
+@profile_app.command("save")
+def profile_save(
+    name: str = typer.Argument(..., help="Profile name, e.g. 'Salon TV'"),
+    path: Path = typer.Argument(..., help="Project whose current settings are saved"),
+) -> None:
+    """Save a project's resolved settings as a user profile."""
+    from dvd.profiles import resolve, save_user_profile
+
+    proj_ = project.load(path)
+    r = resolve(proj_.disc.profiles, proj_.titles[0].video.overrides)
+    typer.echo(f"wrote {save_user_profile(name, r.values)}")
+
+
+@profile_app.command("list")
+def profile_list() -> None:
+    """List saved user profiles."""
+    from dvd.profiles import list_user_profiles, user_profile_dir
+
+    names = list_user_profiles()
+    typer.echo("\n".join(names) if names else f"no profiles in {user_profile_dir()}")
+
+
+@profile_app.command("export")
+def profile_export(name: str, file: Path) -> None:
+    """Copy a user profile to a file, to take it to another computer."""
+    from dvd.profiles import load_user_profile, save_user_profile
+
+    settings = load_user_profile(name)
+    save_user_profile(name, settings, folder=file.parent)
+    target = file.parent / f"{name}.yaml"
+    if target != file:
+        target.replace(file)
+    typer.echo(f"wrote {file}")
+
+
+@profile_app.command("import")
+def profile_import(file: Path) -> None:
+    """Add a profile file exported on another computer."""
+    from dvd.profiles import ProfileError, load_user_profile, save_user_profile
+
+    try:
+        settings = load_user_profile(file.stem, folder=file.parent)
+    except ProfileError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from None
+    typer.echo(f"wrote {save_user_profile(file.stem, settings)}")
+
+
 @app.command()
 def gui(path: Path | None = typer.Argument(None, help="Video or project file to open")) -> None:
     """Open the desktop application."""

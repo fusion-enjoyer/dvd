@@ -26,12 +26,12 @@ def test_short_film_is_capped_below_peak():
 
 
 def test_peak_leaves_room_for_audio_in_mux_limit():
-    p = plan("dvd9", FILM, [448] * 8, viewing="bilgisayar")
+    p = plan("dvd9", FILM, [448] * 8, peak_kbps=9_500)
     assert p.peak_kbps == 10_080 - 8 * 448
 
 
-def test_viewing_profile_lowers_peak():
-    assert plan("dvd9", FILM, [448], viewing="tasinabilir").peak_kbps == 7_500
+def test_requested_peak_is_used():
+    assert plan("dvd9", FILM, [448], peak_kbps=7_500).peak_kbps == 7_500
 
 
 def test_zero_duration_is_an_error():

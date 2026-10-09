@@ -11,11 +11,6 @@ VIDEO_LIMIT = 9_800  # kbit/s
 SUBTITLE_KBPS = 10  # rough average for a subpicture stream
 AVERAGE_HEADROOM = 1_000  # VBR needs room between average and peak
 LOW_QUALITY_BELOW = 4_000  # kbit/s average video
-# Peak video bitrate by viewing profile (docs/profiller.md); older players dislike high peaks.
-PEAK_BY_VIEWING = {
-    "modern-tv": 9_000, "projeksiyon": 9_000, "crt": 9_000, "bilgisayar": 9_500,
-    "konsol": 8_000, "tasinabilir": 7_500, "evrensel": 8_000,
-}  # fmt: skip
 
 
 @dataclass(frozen=True)
@@ -40,7 +35,7 @@ def plan(
     duration: float,
     audio_kbps: list[int],
     subtitle_tracks: int = 0,
-    viewing: str = "modern-tv",
+    peak_kbps: int = 9_000,
 ) -> Plan:
     if duration <= 0:
         raise ValueError("duration must be positive")
@@ -48,7 +43,7 @@ def plan(
     audio = sum(audio_kbps)
     subs = subtitle_tracks * SUBTITLE_KBPS
     total = capacity * 8 * (1 - OVERHEAD) / duration / 1000
-    peak = min(PEAK_BY_VIEWING.get(viewing, 9_000), VIDEO_LIMIT, MUX_LIMIT - audio - subs)
+    peak = min(peak_kbps, VIDEO_LIMIT, MUX_LIMIT - audio - subs)
     video = int(min(total - audio - subs, peak - AVERAGE_HEADROOM))
 
     warnings = []

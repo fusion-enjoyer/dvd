@@ -90,6 +90,7 @@ class Profiles(Strict):
     content: ContentProfile = "modern-film"
     viewing: ViewingProfile = "modern-tv"
     audio: AudioProfile = "5.1"
+    user: str | None = Field(None, description="saved user profile applied on top")
 
 
 class Disc(Strict):

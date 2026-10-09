@@ -527,6 +527,13 @@ class MainWindow(QMainWindow):
         if self.project is None:
             return
         setattr(self.project.disc.profiles, field_name, value)
+        if field_name == "audio":
+            from dvd.profiles import resolve as resolve_profiles
+            from dvd.project.edit import apply_audio_profile
+
+            settings = resolve_profiles(self.project.disc.profiles)
+            for title, info in zip(self.project.titles, self.infos, strict=True):
+                apply_audio_profile(title, info, settings)
         proj.save(self.project, self.project_file)
         self._refresh()
 
