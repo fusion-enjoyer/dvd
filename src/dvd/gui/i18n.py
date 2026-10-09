@@ -91,6 +91,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "pro.side.right": "Sağ",
         "pro.encoder_used": "Kodlama",
         "pro.side_fill": "Yan bantlar",
+        "tracks.delay_hint": "Ses gecikmesi: artı değer sesi geciktirir, eksi değer öne alır",
         "pro.side_fill.black": "siyah",
         "pro.side_fill.blur": "bulanık görüntü",
         "pro.encoder": "Encoder",

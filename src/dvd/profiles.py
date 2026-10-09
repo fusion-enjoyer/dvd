@@ -33,6 +33,7 @@ SETTINGS: dict[str, tuple[Any, Any]] = {
     # PAL speedup: "keep" corrects the pitch (time stretch), "raise" lets it rise ~0.7 semitone
     # as on most commercial PAL discs.
     "audio_pitch": ("keep", ("keep", "raise")),
+    "audio_night": (False, bool),  # compress the dynamic range for quiet listening
 }
 
 CONTENT: dict[str, dict[str, Any]] = {
@@ -62,8 +63,7 @@ VIEWING: dict[str, dict[str, Any]] = {
 AUDIO: dict[str, dict[str, Any]] = {
     "tv": {"audio_channels": "2.0", "audio_bitrate": 192},
     "5.1": {"audio_channels": "5.1", "audio_bitrate": 448},
-    # Night mode compression comes with the audio work in Phase 3; until then it is 5.1.
-    "gece": {"audio_channels": "5.1", "audio_bitrate": 448},
+    "gece": {"audio_channels": "5.1", "audio_bitrate": 448, "audio_night": True},
     "hepsi": {"audio_channels": "5.1", "audio_bitrate": 448, "audio_extra_stereo": True},
 }
 

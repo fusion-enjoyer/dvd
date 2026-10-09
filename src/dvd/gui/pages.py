@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QRadioButton,
     QScrollArea,
+    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
@@ -153,11 +154,24 @@ class TracksPage(QWidget):
                 bitrate.setCurrentIndex(bitrate.findData(a.bitrate))
                 bitrate.currentIndexChanged.connect(lambda _n, c=bitrate, a=a: self._edit(
                     lambda: setattr(a, "bitrate", c.currentData())))  # fmt: skip
+                delay = QSpinBox()
+                delay.setRange(-10_000, 10_000)
+                delay.setSingleStep(10)
+                delay.setSuffix(" ms")
+                delay.setValue(a.delay)
+                delay.setToolTip(t("tracks.delay_hint"))
+                # editingFinished: a rebuild per arrow click would take the box away mid-edit.
+                delay.editingFinished.connect(lambda d=delay, a=a: self._set_delay(a, d.value()))
                 grid.addWidget(channels, row, 3)
                 grid.addWidget(bitrate, row, 4)
+                grid.addWidget(delay, row, 5)
             else:
                 grid.addWidget(_label(f"AC-3 {a.channels}", "hint"), row, 3)
         grid.setColumnStretch(0, 1)
+
+    def _set_delay(self, audio, value: int) -> None:
+        if value != audio.delay:
+            self._edit(lambda: setattr(audio, "delay", value))
 
     def _subtitle_section(self) -> None:
         title, info = self.project.titles[0], self.info

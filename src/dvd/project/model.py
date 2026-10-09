@@ -120,6 +120,7 @@ class Audio(Strict):
     channels: Literal["2.0", "5.1"] = "5.1"
     bitrate: Kbps = 448
     default: bool = False
+    delay: int = Field(0, ge=-10_000, le=10_000, description="ms; positive plays the audio later")
 
     @field_validator("bitrate")
     @classmethod

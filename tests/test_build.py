@@ -299,3 +299,31 @@ def test_build_variable_frame_rate_and_rotated_phone_video(tmp_path: Path):
     luma = np.fromfile(frame, dtype=np.uint8).reshape(480, 720)
     assert luma[:, :40].mean() > 30  # side bars carry the blurred picture, not black
     assert luma[:, :40].std() < luma[:, 300:420].std()  # and are smoother than the picture
+
+
+@pytest.mark.skipif(not READY, reason="toolchain not installed")
+def test_audio_offset_in_the_source_is_kept_and_ac3_is_copied(tmp_path: Path):
+    src = tmp_path / "kayma.mkv"
+    subprocess.run(
+        [str(FFMPEG), "-v", "error", "-y",
+         "-f", "lavfi", "-i", "testsrc2=size=1280x720:rate=25:duration=3",
+         "-itsoffset", "0.5", "-f", "lavfi", "-i", "sine=sample_rate=48000:duration=2.5",
+         "-f", "lavfi", "-i", "sine=frequency=660:sample_rate=48000:duration=3",
+         "-map", "0", "-map", "1", "-map", "2",
+         "-c:v", "libx264", "-preset", "ultrafast",
+         "-c:a", "ac3", "-ac", "6", "-b:a", "448k", str(src)],
+        check=True,
+    )  # fmt: skip
+    info = probe(src)
+    assert info.audio[0].start_time == pytest.approx(0.5, abs=0.05)
+    project = new_project(info, tmp_path)
+    project_file = tmp_path / "kayma.dvd.yaml"
+    save(project, project_file)
+
+    build(project_file, make_iso=False)
+
+    shifted = next(tmp_path.rglob("t01_a0.ac3"))
+    assert probe(shifted).duration == pytest.approx(3.0, abs=0.06)  # 0.5 s silence + 2.5 s
+    aligned = next(tmp_path.rglob("t01_a1.ac3"))  # starts with the video: copied unchanged
+    assert probe(aligned).audio[0].bitrate == 448000
+    assert probe(aligned).duration == pytest.approx(3.0, abs=0.06)

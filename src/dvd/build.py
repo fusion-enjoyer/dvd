@@ -10,7 +10,7 @@ from pathlib import Path
 
 import vapoursynth as vs
 
-from dvd.audio.ac3 import encode_ac3
+from dvd.audio.ac3 import can_copy, encode_ac3
 from dvd.author.dvdauthor import AuthorTitle, author, mux, timecode
 from dvd.author.pscheck import check as check_mux
 from dvd.budget.planner import Plan, plan
@@ -209,8 +209,14 @@ def build(
         # language setting says otherwise, so the default track goes first.
         tracks = sorted(p.title.audio, key=lambda a: not a.default)
         audio_files = []
+        night = disc_settings["audio_night"]
         for i, a in enumerate(tracks):
             report(f"title {n} audio {i + 1}", 0.0)
+            source_track = next(t for t in p.info.audio if t.index == a.track)
+            # Disc audio and video both start at 0; keep the file's own offset between them.
+            offset = (source_track.start_time - p.info.main_video.start_time) * 1000
+            delay = a.delay + offset
+            copy = can_copy(source_track, a.channels, p.target.speedup, delay, night)
             audio_files.append(
                 encode_ac3(
                     p.source,
@@ -220,6 +226,10 @@ def build(
                     a.bitrate,
                     p.target.speedup,
                     disc_settings["audio_pitch"],
+                    delay_ms=delay,
+                    night=night,
+                    source_channels=source_track.channels,
+                    copy=copy,
                 )  # fmt: skip
             )
         chapters = chapter_frames(p.title, p.info, p.target, p.frames)

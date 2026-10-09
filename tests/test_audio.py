@@ -71,3 +71,64 @@ def test_pal_speedup_pitch(tmp_path: Path, pitch: str, hz: float):
     out = encode_ac3(src, 0, tmp_path / "ton.ac3", "2.0", 192, PAL_SPEEDUP, pitch)
     assert probe(out).duration == pytest.approx(4 / float(PAL_SPEEDUP), abs=0.1)
     assert _main_frequency(out) == pytest.approx(hz, abs=2)
+
+
+def _track(**kw):
+    from dvd.probe import AudioTrack
+
+    base = {"index": 1, "codec": "ac3", "channels": 6, "sample_rate": 48000, "bitrate": 448000}
+    return AudioTrack(**{**base, **kw})
+
+
+def test_dvd_ready_ac3_is_copied_only_when_nothing_changes():
+    from dvd.audio.ac3 import can_copy
+
+    assert can_copy(_track(), "5.1")
+    assert not can_copy(_track(bitrate=640000), "5.1")  # Blu-ray AC-3 is above the DVD limit
+    assert not can_copy(_track(codec="eac3"), "5.1")
+    assert not can_copy(_track(), "2.0")  # needs a downmix
+    assert not can_copy(_track(), "5.1", speedup=PAL_SPEEDUP)
+    assert not can_copy(_track(), "5.1", delay_ms=120)
+    assert not can_copy(_track(), "5.1", night=True)
+    assert can_copy(_track(channels=2, bitrate=192000), "2.0")
+
+
+def test_args_for_downmix_night_and_delay():
+    args = ffmpeg_args(Path("i.mkv"), 1, Path("o.ac3"), "2.0", 192, delay_ms=250, night=True,
+                       source_channels=6)  # fmt: skip
+    af = args[args.index("-af") + 1]
+    assert af.startswith("adelay=delays=250:all=1,")
+    assert "matrix_encoding=dplii" in af and "acompressor" in af
+    assert args[args.index("-dsur_mode") + 1] == "on"
+    cut = ffmpeg_args(Path("i.mkv"), 1, Path("o.ac3"), "5.1", 448, delay_ms=-1500)
+    assert cut[cut.index("-af") + 1] == "atrim=start=1.500,asetpts=PTS-STARTPTS"
+    copy = ffmpeg_args(Path("i.mkv"), 1, Path("o.ac3"), "5.1", 448, copy=True)
+    assert copy[copy.index("-c:a") + 1] == "copy" and "-af" not in copy
+
+
+@pytest.mark.skipif(FFMPEG is None, reason="ffmpeg not installed")
+def test_copied_track_is_bit_identical(tmp_path: Path):
+    src = tmp_path / "ac3.mkv"
+    subprocess.run(
+        [str(FFMPEG), "-v", "error", "-y", "-f", "lavfi",
+         "-i", "sine=frequency=440:sample_rate=48000:duration=3",
+         "-ac", "6", "-c:a", "ac3", "-b:a", "448k", str(src)],
+        check=True,
+    )  # fmt: skip
+    out = encode_ac3(src, 0, tmp_path / "out.ac3", "5.1", 448, copy=True)
+    ref = tmp_path / "ref.ac3"
+    subprocess.run([str(FFMPEG), "-v", "error", "-y", "-i", str(src), "-c", "copy", str(ref)],
+                   check=True)  # fmt: skip
+    assert out.read_bytes() == ref.read_bytes()
+
+
+@pytest.mark.skipif(FFMPEG is None, reason="ffmpeg not installed")
+def test_positive_delay_adds_silence_in_front(tmp_path: Path):
+    src = tmp_path / "ton.flac"
+    subprocess.run(
+        [str(FFMPEG), "-v", "error", "-y", "-f", "lavfi",
+         "-i", "sine=frequency=440:sample_rate=48000:duration=2", str(src)],
+        check=True,
+    )  # fmt: skip
+    out = encode_ac3(src, 0, tmp_path / "ton.ac3", "2.0", 192, delay_ms=500)
+    assert probe(out).duration == pytest.approx(2.5, abs=0.06)

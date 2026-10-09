@@ -45,6 +45,7 @@ class VideoTrack:
     dolby_vision: bool = False
     rotation: int = 0  # display rotation; width/height above are already the displayed ones
     hdr_peak: float | None = None  # nits: MaxCLL, else mastering display maximum
+    start_time: float = 0.0  # seconds
 
     @property
     def dar(self) -> Fraction:
@@ -96,6 +97,7 @@ class AudioTrack:
     title: str | None = None
     default: bool = False
     forced: bool = False
+    start_time: float = 0.0  # seconds; differs from the video's when the file has an offset
 
 
 @dataclass(frozen=True)
@@ -229,6 +231,7 @@ def _video(s: dict[str, Any]) -> VideoTrack:
         dolby_vision=any("DOVI" in (d.get("side_data_type") or "") for d in side_data),
         rotation=rotation,
         hdr_peak=_hdr_peak(side_data),
+        start_time=_float(s.get("start_time")) or 0.0,
     )
 
 
@@ -245,6 +248,7 @@ def _audio(s: dict[str, Any]) -> AudioTrack:
         title=_tag(s, "title"),
         default=_flag(s, "default"),
         forced=_flag(s, "forced"),
+        start_time=_float(s.get("start_time")) or 0.0,
     )
 
 
