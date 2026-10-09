@@ -151,7 +151,7 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
   - [x] Klasör tarama: S01E02, 1x02, "Sezon 3 Bölüm 7", "Bölüm 4"; sample ve numarasız dosyalar atlanır, aynı numara hata; `dvd series plan|new`, disk başına proje (bölüm başına başlık, ses/altyazı izleri dile göre ilk bölümle hizalı)
   - [ ] TMDB'den bölüm adları ve görselleri; arayüzde sezon içe aktarma
 - [x] **Disk seti planlayıcı** (bölüm sayısı + medya + kalite hedefi → dağılım): hedefe (standart 4 / iyi 5 / yüksek 6 Mbps) ulaşan en az disk, bölümler sırayla ve disk süreleri dengeli (en uzun diski en kısa yapan bölme)
-- [ ] Hepsini oynat, bölüm seçim menüsü, set boyunca ortak tasarım ("Disk 2 / 4")
+- [x] Hepsini oynat, bölüm seçim menüsü, set boyunca ortak tasarım ("Disk 2 / 4"): ana menüde "Hepsini oynat" (g1 = 1: bölümler arka arkaya; menüden seçilen tek bölüm bitince menüye dönülür), "Bölümler" sayfası (bölüm başına kare ve ad, 6'şar sayfa), dizi adı ve "Disk n / m"; `dvd series new` setin her diskine aynı menü düzenini yazar
 - [ ] Dizi kutusu menü şablonu
 
 **Bitti kriteri:** Bir sezonu tutarlı menülü disk setine çevirebiliyoruz.
