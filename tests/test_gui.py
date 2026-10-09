@@ -195,3 +195,37 @@ def test_chapters_page_edits_and_shows_frames(app, tmp_path: Path):
     page.mode.setCurrentIndex(page.mode.findData("every"))
     assert load(project_file).titles[0].chapters == ChapterEvery(every=5)
     QThreadPool.globalInstance().waitForDone(60000)
+
+
+@pytest.mark.skipif(FFMPEG is None, reason="ffmpeg not installed")
+def test_menu_page_toggles_menus_and_previews_pages(app, tmp_path: Path):
+    src = tmp_path / "menu.mkv"
+    subprocess.run(
+        [str(FFMPEG), "-v", "error", "-y", "-f", "lavfi",
+         "-i", "testsrc2=size=1280x720:rate=25:duration=8",
+         "-f", "lavfi", "-i", "sine=duration=8", "-f", "lavfi", "-i", "sine=duration=8",
+         "-map", "0", "-map", "1", "-map", "2", "-c:v", "libx264", "-preset", "ultrafast",
+         "-c:a", "ac3", str(src)],
+        check=True,
+    )  # fmt: skip
+    w = MainWindow(mode="pro")
+    w.resize(1280, 800)
+    w.show()
+    w._loaded(w._load(src))
+    QThreadPool.globalInstance().waitForDone(60000)
+    project_file = tmp_path / "menu.dvd.yaml"
+    menus = load(project_file).menus
+    assert menus is not None and menus.background.frame.startswith("0:00:02.0")  # a quarter in
+    w.show_page("menu")
+    app.processEvents()
+    QThreadPool.globalInstance().waitForDone(60000)
+    app.processEvents()
+    page = w.menu_page
+    assert page.page_list.count() == 2  # main, languages (no chapters in the source -> one page)
+    assert page.well.image is not None
+    page.page_checks["chapters"].setChecked(False)
+    assert [p.kind for p in load(project_file).menus.pages] == ["main", "languages"]
+    page.enabled.setChecked(False)
+    assert load(project_file).menus is None
+    QThreadPool.globalInstance().waitForDone(60000)
+    w.close()

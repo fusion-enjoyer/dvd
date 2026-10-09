@@ -98,7 +98,9 @@ def test_build_menuless_pal_disc(tmp_path: Path):
     project_dir.mkdir()
     src = _sample(project_dir)
     project_file = project_dir / "deneme.dvd.yaml"
-    save(new_project(probe(src), project_dir), project_file)
+    project = new_project(probe(src), project_dir)
+    project.menus = None  # menus are on by default; this disc plays the film straight away
+    save(project, project_file)
     stages = []
 
     result = build(project_file, progress=lambda s, f: stages.append(s))

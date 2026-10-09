@@ -12,6 +12,8 @@ from dvd.project.model import (
     MAX_AUDIO_TRACKS,
     Audio,
     Disc,
+    MenuBackground,
+    Menus,
     Profiles,
     Project,
     Subtitle,
@@ -62,6 +64,15 @@ def _subtitle_tracks(info: SourceInfo) -> list[Subtitle]:
     ][:32]
 
 
+def default_menus(info: SourceInfo) -> Menus:
+    """Menus for a new project: the standard pages over a film frame a quarter in."""
+    from dvd.project.edit import format_time
+
+    at = (info.duration or 0) * 0.25
+    frame = format_time(at) if info.main_video is not None and at > 0 else None
+    return Menus(background=MenuBackground(frame=frame))
+
+
 def new_project(info: SourceInfo, project_dir: Path) -> Project:
     video = info.main_video
     standard, _ = suggest_standard(video.playback_fps if video else None)
@@ -88,4 +99,5 @@ def new_project(info: SourceInfo, project_dir: Path) -> Project:
                 chapters="from-source" if info.chapters else "none",
             )
         ],
+        menus=default_menus(info),
     )

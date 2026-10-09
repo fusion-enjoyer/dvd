@@ -69,12 +69,15 @@ def expand(project: Project, info: SourceInfo) -> list[Page]:
         return []
     title = project.titles[0]
     first = menus.first
+    times = edit.chapter_times(title, info)
+    # A film without chapters gets no chapter page (and no button for it).
+    shown = [p for p in menus.pages if not (p.kind == "chapters" and len(times) < 2)]
     pages: list[Page] = []
-    for page in menus.pages:
+    for page in shown:
         if page.kind == "main":
-            pages.append(_main(page, menus.pages, project))
+            pages.append(_main(page, shown, project))
         elif page.kind == "chapters":
-            pages += _chapters(page, edit.chapter_times(title, info), first)
+            pages += _chapters(page, times, first)
         elif page.kind in ("languages", "audio", "subtitles"):
             pages.append(_languages(page, project, first))
         else:

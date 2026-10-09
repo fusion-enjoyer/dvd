@@ -147,6 +147,13 @@ def test_background_picture_covers_the_frame(tmp_path):
     assert plain.pixelColor(5, 5) == QColor("#204060")
 
 
+def test_no_chapter_page_for_a_film_without_chapters():
+    p, info = project(chapters=0)
+    pages = expand(p, info)
+    assert [pg.id for pg in pages] == ["main", "languages"]
+    assert [b.label for b in pages[0].buttons] == ["Filmi oynat", "Dil ayarları"]
+
+
 def test_languages_page_only_shows_columns_with_a_choice():
     p, info = project(audio=2, subs=0)
     langs = next(pg for pg in expand(p, info) if pg.id == "languages")

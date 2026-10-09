@@ -29,6 +29,7 @@ from dvd.build import estimate
 from dvd.gui import tasks
 from dvd.gui.chapters import ChaptersPage
 from dvd.gui.i18n import t
+from dvd.gui.menu_page import MenuEditorPage
 from dvd.gui.pages import BuildPage, TracksPage
 from dvd.gui.theme import DENSITY, stylesheet
 from dvd.gui.video_editor import VideoEditor
@@ -438,7 +439,10 @@ class MainWindow(QMainWindow):
         self.chapters_page = ChaptersPage(lambda: self._source_position())
         self.chapters_page.changed.connect(self._tracks_changed)
         self.pages["chapters"] = self.chapters_page
-        for key in ("menu", "disc"):
+        self.menu_page = MenuEditorPage(lambda: self._source_position())
+        self.menu_page.changed.connect(self._tracks_changed)
+        self.pages["menu"] = self.menu_page
+        for key in ("disc",):
             page = QWidget()
             later = QVBoxLayout(page)
             later.setContentsMargins(24, 20, 24, 20)
@@ -704,6 +708,9 @@ class MainWindow(QMainWindow):
         self.picture_page.show_project(p, self.infos[0], self.plan, self.detected)
         for page in (self.audio_page, self.subs_page):
             page.show_project(p, self.infos[0], self.project_file.parent, self.mode)
+        self.menu_page.show_project(p, self.infos[0],
+                                    proj.source_path(self.project_file, p.titles[0]),
+                                    self.project_file.parent, self._menu_frame())  # fmt: skip
         self.chapters_page.show_project(p, self.infos[0],
                                         proj.source_path(self.project_file, p.titles[0]),
                                         self._speedup())  # fmt: skip
@@ -718,6 +725,16 @@ class MainWindow(QMainWindow):
                          .speedup) if v else 1.0  # fmt: skip
         except UnsupportedSource:
             return 1.0
+
+    def _menu_frame(self) -> tuple | None:
+        from dvd.video.pipeline import UnsupportedSource, plan_target
+
+        v = self.infos[0].main_video
+        try:
+            tg = plan_target(v, self.project.disc.standard, self.project.titles[0].video)
+        except (UnsupportedSource, AttributeError):
+            return None
+        return (tg.width, tg.height, tg.dar)
 
     def _source_position(self) -> float:
         """The preview frame's time in the source (the preview counts disc time)."""
