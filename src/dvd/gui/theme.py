@@ -131,6 +131,11 @@ QWidget#dropZone[active="true"] {{ border-color: {c["amber"]};
     background: rgba(240, 180, 73, 0.06); }}
 QWidget#videoWell {{ background: {c["video"]}; border-radius: 3px; }}
 
+QSlider::groove:horizontal {{ background: {c["girdi"]}; height: 4px; border-radius: 2px; }}
+QSlider::sub-page:horizontal {{ background: {c["metin_2"]}; border-radius: 2px; }}
+QSlider::handle:horizontal {{ background: {c["metin"]}; width: 12px; height: 12px;
+    margin: -4px 0; border-radius: 6px; }}
+QSlider::handle:horizontal:hover {{ background: {c["amber"]}; }}
 QProgressBar {{ background: {c["girdi"]}; border: none; border-radius: 3px; height: 6px;
     text-align: center; color: transparent; }}
 QProgressBar::chunk {{ background: {c["amber"]}; border-radius: 3px; }}

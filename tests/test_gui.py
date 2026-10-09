@@ -65,3 +65,26 @@ def test_open_video_creates_project_and_updates_budget(app, tmp_path: Path):
     combo.setCurrentIndex(combo.findData("tasinabilir"))
     assert load(project_file).disc.profiles.viewing == "tasinabilir"
     assert w.plan.peak_kbps == 7_500
+
+
+@pytest.mark.skipif(FFMPEG is None, reason="ffmpeg not installed")
+def test_preview_source_and_disc_share_geometry(app, tmp_path: Path):
+    from dvd.gui.preview import preview_frames
+    from dvd.probe import probe
+    from dvd.project.model import Title
+
+    src = tmp_path / "kapsam.mkv"
+    subprocess.run(
+        [str(FFMPEG), "-v", "error", "-y", "-f", "lavfi",
+         "-i", "testsrc2=size=1920x804:rate=25:duration=2", "-vf", "pad=1920:1080:0:138:black",
+         "-c:v", "libx264", "-preset", "ultrafast", str(src)],
+        check=True,
+    )  # fmt: skip
+    f = preview_frames(src, probe(src), Title(source=src.name), "pal", position=0.5)
+    assert (f.source.width(), f.source.height()) == (1024, 576)
+    assert (f.disc.width(), f.disc.height()) == (1024, 576)
+    assert f.detected is not None and f.detected.top == 138
+    for image in (f.source, f.disc):
+        assert image.pixelColor(512, 30).value() < 20  # top bar
+        assert image.pixelColor(512, 300).value() > 40  # picture
+    assert f.frame == 25 and f.seconds == pytest.approx(1.0)

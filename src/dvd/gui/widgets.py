@@ -123,3 +123,66 @@ class VideoWell(QWidget):
             painter.setPen(QPen(color("metin_3")))
             painter.drawText(r, Qt.AlignmentFlag.AlignCenter, self.message)
         painter.end()
+
+
+class CompareWell(VideoWell):
+    """Video well that shows one of two pictures, or both split by a draggable line."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.other: QImage | None = None
+        self.mode = "b"  # "a", "b" or "split"
+        self.split = 0.5
+        self.labels = ("", "")
+        self.setMouseTracking(False)
+
+    def set_pair(self, a: QImage, b: QImage, aspect: float, labels: tuple[str, str]) -> None:
+        self.other, self.labels = a, labels
+        self.set_image(b, aspect)
+
+    def set_mode(self, mode: str) -> None:
+        self.mode = mode
+        self.update()
+
+    def _target(self) -> QRectF:
+        r = QRectF(self.rect())
+        w = min(r.width(), r.height() * self.aspect)
+        target = QRectF(0, 0, w, w / self.aspect)
+        target.moveCenter(r.center())
+        return target
+
+    def _drag(self, event) -> None:
+        if self.mode == "split":
+            t = self._target()
+            self.split = min(1.0, max(0.0, (event.position().x() - t.left()) / t.width()))
+            self.update()
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802 (Qt API)
+        self._drag(event)
+
+    def mouseMoveEvent(self, event) -> None:  # noqa: N802
+        self._drag(event)
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        if self.image is None or self.other is None or self.mode == "b":
+            super().paintEvent(event)
+            return
+        painter = QPainter(self)
+        painter.fillRect(self.rect(), color("video"))
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        t = self._target()
+        painter.drawImage(t, self.other)
+        if self.mode == "split":
+            x = t.left() + self.split * t.width()
+            painter.save()
+            painter.setClipRect(QRectF(x, t.top(), t.right() - x, t.height()))
+            painter.drawImage(t, self.image)
+            painter.restore()
+            painter.setPen(QPen(color("amber"), 2))
+            painter.drawLine(int(x), int(t.top()), int(x), int(t.bottom()))
+            painter.setPen(QPen(color("metin")))
+            margin = 8
+            painter.drawText(QRectF(t.left() + margin, t.top() + margin, 300, 20), self.labels[0])
+            right = QRectF(t.right() - 300 - margin, t.top() + margin, 300, 20)
+            painter.drawText(right, Qt.AlignmentFlag.AlignRight, self.labels[1])
+        painter.end()

@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QMainWindow,
     QPushButton,
+    QSlider,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -28,7 +29,7 @@ from dvd.gui import tasks
 from dvd.gui.i18n import t
 from dvd.gui.pages import BuildPage, TracksPage
 from dvd.gui.theme import DENSITY, stylesheet
-from dvd.gui.widgets import BudgetBar, ModeSwitch, VideoWell
+from dvd.gui.widgets import BudgetBar, CompareWell, ModeSwitch
 from dvd.probe import SourceInfo, probe
 from dvd.probe.report import fps_text, size_text, timecode
 from dvd.project.model import AudioProfile, ContentProfile, Crop, Project, ViewingProfile
@@ -163,6 +164,8 @@ class VideoPage(QWidget):
 class PicturePage(QWidget):
     profile_changed = Signal(str, str)  # field, value
     switch_to_pro = Signal()
+    position_changed = Signal(float)  # 0..1 of the film
+    trial_requested = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -172,8 +175,34 @@ class PicturePage(QWidget):
         center = QWidget()
         cbox = QVBoxLayout(center)
         cbox.setContentsMargins(16, 16, 16, 16)
-        self.well = VideoWell()
+        self.well = CompareWell()
         cbox.addWidget(self.well, 1)
+        scrub = QHBoxLayout()
+        self.slider = QSlider(Qt.Orientation.Horizontal)
+        self.slider.setRange(0, 1000)
+        self.slider.setValue(400)
+        self.slider.sliderReleased.connect(
+            lambda: self.position_changed.emit(self.slider.value() / 1000)
+        )
+        self.timecode = label("", "mono")
+        scrub.addWidget(self.slider, 1)
+        scrub.addWidget(self.timecode)
+        cbox.addLayout(scrub)
+        self.compare_row = QWidget()
+        row = QHBoxLayout(self.compare_row)
+        row.setContentsMargins(0, 0, 0, 0)
+        self.view_switch = ModeSwitch(
+            {"a": t("compare.source"), "b": t("compare.disc"), "split": t("compare.split")}, "b"
+        )
+        self.view_switch.changed.connect(self.well.set_mode)
+        self.trial_button = QPushButton(t("trial.button"))
+        self.trial_button.clicked.connect(self.trial_requested)
+        self.trial_result = label("", "muted", wrap=True)
+        row.addWidget(self.view_switch)
+        row.addStretch()
+        row.addWidget(self.trial_button)
+        cbox.addWidget(self.compare_row)
+        cbox.addWidget(self.trial_result)
         self.side = panel("side")
         self.side.setFixedWidth(300)
         self.side_box = QVBoxLayout(self.side)
@@ -227,6 +256,11 @@ class PicturePage(QWidget):
     def set_mode(self, mode: str) -> None:
         self.simple.setVisible(mode == "basit")
         self.pro.setVisible(mode == "pro")
+        self.compare_row.setVisible(mode == "pro")
+        self.trial_result.setVisible(mode == "pro")
+        if mode == "basit":
+            self.well.set_mode("b")
+            self.view_switch.set_mode("b")
         self.side.setFixedWidth(300 if mode == "basit" else 290)
 
     def show_project(self, project: Project, info: SourceInfo, plan: Plan | None,
@@ -353,6 +387,8 @@ class MainWindow(QMainWindow):
         self.picture_page = PicturePage()
         self.picture_page.profile_changed.connect(self.set_profile)
         self.picture_page.switch_to_pro.connect(lambda: self.set_mode("pro"))
+        self.picture_page.position_changed.connect(self._load_preview)
+        self.picture_page.trial_requested.connect(self.run_trial)
         self.pages["video"] = self.video_page
         self.pages["picture"] = self.picture_page
         self.audio_page = TracksPage("both")
@@ -504,24 +540,64 @@ class MainWindow(QMainWindow):
         self.drop.set_busy(None)
         self.drop.body.setText(f"{t('error.read')}: {message}")
 
-    def _load_preview(self) -> None:
-        from dvd.gui.preview import disc_frame
+    def _load_preview(self, position: float = 0.4) -> None:
+        from dvd.gui.preview import preview_frames
 
         p, info, file = self.project, self.infos[0], self.project_file
-        well = self.picture_page.well
-        well.set_image(None, well.aspect, t("picture.preview_loading"))
+        page = self.picture_page
+        well = page.well
+        if well.image is None:
+            well.set_image(None, well.aspect, t("picture.preview_loading"))
         source = proj.source_path(file, p.titles[0])
 
-        def shown(result) -> None:
-            image, aspect, self.detected = result
-            well.set_image(image, aspect)
+        def shown(frames) -> None:
+            self.detected, self.preview_seconds = frames.detected, frames.seconds
+            well.set_pair(frames.source, frames.disc, frames.aspect,
+                          (t("compare.source"), t("compare.disc")))  # fmt: skip
+            page.timecode.setText(timecode(frames.seconds))
             self._refresh()
 
         tasks.run(
-            lambda: disc_frame(source, info, p.titles[0], p.disc.standard, p.disc.profiles),
+            lambda: preview_frames(
+                source, info, p.titles[0], p.disc.standard, p.disc.profiles, position
+            ),  # fmt: skip
             shown,
             lambda msg: well.set_image(None, well.aspect, msg),
         )
+
+    def run_trial(self) -> None:
+        from dvd.qa.trial import trial_encode
+
+        page, project_file = self.picture_page, self.project_file
+        at = getattr(self, "preview_seconds", 0.0)
+        page.trial_button.setEnabled(False)
+        page.trial_result.setText(t("trial.running", stage="", pct=0))
+
+        def progress(stage: str, f: float) -> None:
+            page.trial_result.setText(
+                t("trial.running", stage=t(f"trial.{stage}"), pct=round(f * 100))
+            )
+
+        def done(r) -> None:
+            from PySide6.QtGui import QImage
+
+            page.trial_button.setEnabled(True)
+            m = r.measurement
+            worst = timecode((r.start + r.worst_frame) / float(m.fps))
+            page.trial_result.setText(t("trial.result", ss=m.mean("ssimu2"), xp=m.mean("xpsnr"),
+                                        kbps=r.video_kbps / 1000, tc=worst))  # fmt: skip
+            labels = (t("compare.before"), t("compare.after"))
+            before, after = QImage(str(r.reference_png)), QImage(str(r.encoded_png))
+            page.well.set_pair(before, after, page.well.aspect, labels)
+            page.well.set_mode("split")
+            page.view_switch.set_mode("split")
+
+        def failed(message: str) -> None:
+            page.trial_button.setEnabled(True)
+            page.trial_result.setText(f"{t('trial.failed')} {message}")
+
+        tasks.run(lambda report: trial_encode(project_file, at, 20, progress=report),
+                  done, failed, progress)  # fmt: skip
 
     def set_profile(self, field_name: str, value: str) -> None:
         if self.project is None:
