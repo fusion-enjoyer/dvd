@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import numpy as np
 import pytest
 from pydantic import ValidationError
 
@@ -94,3 +95,53 @@ def test_custom_pages_and_validation():
     with pytest.raises(ValidationError, match="not a standard page"):
         Menus.model_validate({"pages": ["bilinmeyen"]})
     assert chapter_page_ids("chapters", 13) == ["chapters", "chapters-2", "chapters-3"]
+
+
+@pytest.mark.parametrize(("standard_h", "aspect"), [(576, (16, 9)), (480, (4, 3))])
+def test_rendered_pages_fit_dvd_limits(standard_h, aspect):
+    from fractions import Fraction
+
+    from dvd.menu.render import render_page
+
+    p, info = project()
+    for page in expand(p, info):
+        r = render_page(page, (720, standard_h, Fraction(*aspect)))
+        assert (r.background.width(), r.background.height()) == (720, standard_h)
+        boxes = []
+        for overlay in (r.highlight, r.select):
+            assert overlay.shape == (standard_h, 720, 4)
+            assert len({tuple(c) for c in overlay.reshape(-1, 4)}) <= 4
+        for b, (x0, y0, x1, y1) in r.buttons:
+            assert all(v % 2 == 0 for v in (x0, y0, x1, y1))
+            assert 0 <= x0 < x1 <= 720 and 0 <= y0 < y1 <= standard_h
+            assert r.highlight[y0:y1, x0:x1, 3].any(), b.id  # every button lights up
+            boxes.append((x0, y0, x1, y1))
+        for i, a in enumerate(boxes):  # button areas never overlap
+            for c in boxes[i + 1 :]:
+                assert a[2] <= c[0] or c[2] <= a[0] or a[3] <= c[1] or c[3] <= a[1]
+        inside = np.zeros((standard_h, 720), bool)
+        for x0, y0, x1, y1 in boxes:
+            inside[y0:y1, x0:x1] = True
+        assert not r.highlight[~inside, 3].any()  # nothing lights up outside the buttons
+
+
+def test_background_picture_covers_the_frame(tmp_path):
+    from fractions import Fraction
+
+    from PySide6.QtGui import QColor, QImage
+
+    from dvd.menu.pictures import background_image
+    from dvd.menu.render import render_page
+    from dvd.project.model import MenuBackground
+
+    p, info = project()
+    img = QImage(400, 300, QImage.Format.Format_RGB32)
+    img.fill(QColor(200, 30, 30))
+    img.save(str(tmp_path / "bg.png"))
+    bg = background_image(MenuBackground(image="bg.png"), Path("x"), info, tmp_path, (1024, 576))
+    r = render_page(expand(p, info)[0], (720, 576, Fraction(16, 9)), bg)
+    right = r.background.pixelColor(700, 300)  # far from the shaded text column
+    assert right.red() > 100 and right.green() < 60
+    plain = background_image(MenuBackground(color="#204060"), Path("x"), info, tmp_path,
+                             (64, 36))  # fmt: skip
+    assert plain.pixelColor(5, 5) == QColor("#204060")

@@ -114,7 +114,7 @@ def _chapters(page: MenuPage, times: list[float], back: str) -> list[Page]:
         for i, at in enumerate(chunk):
             number = n * CHAPTERS_PER_PAGE + i + 1
             col, row = i % 3, i // 3
-            rect = (0.10 + col * 0.28, 0.20 + row * 0.31, 0.24, 0.27)  # picture + label line
+            rect = (0.10 + col * 0.28, 0.19 + row * 0.32, 0.22, 0.29)  # picture + label line
             buttons.append(Button(f"ch{number}", f"{number}  {timecode(at)}", _play(number),
                                   rect, thumb=at))  # fmt: skip
         bottom = []

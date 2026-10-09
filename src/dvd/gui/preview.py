@@ -8,10 +8,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-import numpy as np
 import vapoursynth as vs
 from PySide6.QtGui import QImage
 
+from dvd.menu.pictures import to_qimage
 from dvd.probe import SourceInfo
 from dvd.project.model import Crop, Profiles, Standard, Title
 from dvd.video.crop import detect_crop
@@ -37,13 +37,6 @@ class PreviewFrames:
     frame: int
     seconds: float  # playback position of `frame`
     frames: int
-
-
-def to_qimage(rgb: vs.VideoNode, n: int) -> QImage:
-    with rgb.get_frame(n) as f:
-        pixels = np.ascontiguousarray(np.dstack([np.asarray(f[i]) for i in range(3)]))
-    h, w, _ = pixels.shape
-    return QImage(pixels.data, w, h, w * 3, QImage.Format.Format_RGB888).copy()
 
 
 def _frame_number(frames: int, position: float, frame: int | None) -> int:

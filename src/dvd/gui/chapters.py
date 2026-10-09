@@ -39,18 +39,9 @@ def _label(text: str, name: str | None = None, wrap: bool = False) -> QLabel:
 
 def thumbnails(source: Path, info: SourceInfo, times: list[float]) -> dict[float, QImage]:
     """Small frames at chapter starts, in display aspect, tone mapped like the disc."""
-    import vapoursynth as vs
+    from dvd.menu.pictures import frame_images
 
-    from dvd.gui.preview import to_qimage
-    from dvd.video.pipeline import open_source, scale_to_sd
-
-    v = info.main_video
-    clip = open_source(source, v)
-    w, h = THUMB
-    small = scale_to_sd(clip, v, w, h, "bicubic", "709", vs.YUV444P16)
-    rgb = vs.core.resize.Point(small, format=vs.RGB24, matrix_in_s="709")
-    fps = clip.fps_num / clip.fps_den
-    return {at: to_qimage(rgb, min(rgb.num_frames - 1, round(at * fps))) for at in times}
+    return frame_images(source, info, times, THUMB)
 
 
 class ChaptersPage(QWidget):
