@@ -75,9 +75,9 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
   - [ ] x262 (deneysel); HCEnc ↔ FFmpeg kalite karşılaştırması korpusla
 - [x] NTSC soft pulldown bayrak enjektörü (kendimiz yazacağız): `video/pulldown.py`, FFmpeg encode'una bağlı; denetim GOP'u alan sayısıyla da ölçüyor
 - [ ] PAL speedup (ses pitch seçenekli)
-- [ ] Encode sonrası uyumluluk denetimi (VBV, tepe bitrate, GOP)
+- [x] Encode sonrası uyumluluk denetimi (VBV, tepe bitrate, GOP)
   - [x] Video akışı: MP@ML, boyut, kare hızı, progressive_sequence, GOP uzunluğu, ardışık B, 1 sn tepe, VBV simülasyonu (`dvd verify`, her build'de)
-  - [ ] VOB düzeyinde mux bitrate'i (10.08 Mbps, ses dahil)
+  - [x] VOB düzeyinde mux bitrate'i (10.08 Mbps, ses dahil): 2048 baytlık paketler, bildirilen mux hızı, 1 sn tepe, decode zamanından geç gelen paketler (`dvd verify x.mpg`, her build'de)
 
 **Profiller**
 - [x] Katmanlı profil sistemi: standart → medya → içerik tipi → izleme ortamı → ses düzeni → kullanıcı (`src/dvd/profiles.py`, `dvd profile show`; deband/dither/kernel, tepe bitrate, altyazı boyutu ve güvenli alan, ses düzeni)
