@@ -179,12 +179,15 @@ def iso_cmd(
 
 @app.command()
 def verify(
-    m2v: Path = typer.Argument(..., help="MPEG-2 video stream (.m2v)"),
+    m2v: Path = typer.Argument(..., help="Video stream (.m2v) or program stream (.mpg/.vob)"),
     standard: str = typer.Option("pal", "--standard", help="pal or ntsc"),
 ) -> None:
-    """Check an MPEG-2 video stream against DVD-Video limits."""
+    """Check an MPEG-2 video stream or a muxed program stream against DVD-Video limits."""
     from dvd.video.compliance import check as check_video
 
+    if m2v.suffix.lower() in (".mpg", ".vob", ".mpeg"):
+        _verify_mux(m2v)
+        return
     try:
         r = check_video(m2v, standard)
     except (OSError, ValueError) as exc:
@@ -199,6 +202,25 @@ def verify(
     )
     for w in r.warnings:
         typer.echo(f"warning: {w}")
+    for e in r.errors:
+        typer.echo(f"error: {e}", err=True)
+    if r.errors:
+        raise typer.Exit(1)
+    typer.echo("ok: DVD compliant")
+
+
+def _verify_mux(path: Path) -> None:
+    from dvd.author.pscheck import check as check_mux
+
+    try:
+        r = check_mux(path)
+    except OSError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from None
+    rates = ", ".join(f"{name} {s.bytes * 8 / r.duration / 1e3:.0f} kbps"
+                      for name, s in sorted(r.streams.items()) if r.duration)  # fmt: skip
+    typer.echo(f"{r.packs} packs, {r.duration:.1f} s | mux rate {r.max_mux_rate / 1e6:.2f} Mbps, "
+               f"1 s peak {r.peak_bps / 1e6:.2f} Mbps | {rates}")  # fmt: skip
     for e in r.errors:
         typer.echo(f"error: {e}", err=True)
     if r.errors:

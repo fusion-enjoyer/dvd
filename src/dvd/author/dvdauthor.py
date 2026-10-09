@@ -46,7 +46,9 @@ def mux(video: Path, audio: list[Path], out: Path, ffmpeg: Path | None = None) -
     args += ["-map", "0:v"]
     for i in range(len(audio)):
         args += ["-map", f"{i + 1}:a"]
-    args += ["-c", "copy", "-f", "dvd", str(out)]
+    # FFmpeg derives the mux rate from the streams and can declare more than DVD allows; fix it
+    # at the DVD rate so an overloaded stream shows up as late packets (author/pscheck.py).
+    args += ["-c", "copy", "-muxrate", "10080000", "-f", "dvd", str(out)]
     proc = subprocess.run(args, capture_output=True, creationflags=_NO_WINDOW)
     if proc.returncode != 0:
         raise AuthorError("mux failed: " + proc.stderr.decode("utf-8", errors="replace").strip())

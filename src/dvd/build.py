@@ -12,6 +12,7 @@ import vapoursynth as vs
 
 from dvd.audio.ac3 import encode_ac3
 from dvd.author.dvdauthor import AuthorTitle, author, mux, timecode
+from dvd.author.pscheck import check as check_mux
 from dvd.budget.planner import Plan, plan
 from dvd.output.iso import write_iso
 from dvd.probe import SourceInfo, probe
@@ -263,6 +264,10 @@ def build(
                 style=sub_style,
                 progress=lambda f, n=n, i=i: report(f"title {n} subtitles {i + 1}", f),
             )
+        muxed = check_mux(mpg)
+        if not muxed.ok:
+            raise BuildError(f"title {n} program stream is not DVD compliant: "
+                             + "; ".join(muxed.errors))  # fmt: skip
         author_titles.append(
             AuthorTitle(
                 vob=mpg.name,
