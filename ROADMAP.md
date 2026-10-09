@@ -133,7 +133,7 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
   - [x] Otomatik: her yön için o yöndeki en yakın buton (yan sapma iki kat sayılır), kenarda vurgu yerinde kalır; elle verilen yönler korunur (proje dosyasında up/down/left/right)
   - [ ] Editörde elle düzenleme (menü editörüyle)
 - [x] Standart menü seti: Ana, Bölümler (sayfalı), Ses, Altyazı, Ayarlar (Dil ayarları sayfası ses ve altyazıyı birlikte sunar; ayrı Ses / Altyazı sayfaları da tanımlanabilir)
-- [ ] Şablon sistemi + ilk hazır şablonlar (Minimal, Sinematik, 2000'ler DVD'si)
+- [x] Şablon sistemi + ilk hazır şablonlar (Minimal, Sinematik, 2000'ler DVD'si): `menu/templates.py`, şablon hem yerleşimi (ana menü sütun / alt sıra / ortada sütun, başlık yeri) hem çizimi (karartma, renk tonu, büyük harf, gölge, imleç işareti: çubuk / alt çizgi / ok) belirler; Menü sayfasında seçilir
 - [ ] First Play zinciri (intro → menü), başlık bitince davranışı
 - [ ] **TMDB entegrasyonu**: otomatik eşleştirme, Türkçe başlık/özet, arka plan/afiş/saydam logo seçici, menü şablonlarına bağlama
 - [ ] **Menü editörü v1**: tuval, katmanlar, özellikler paneli, güvenli alan kılavuzları, navigasyon okları görünümü
