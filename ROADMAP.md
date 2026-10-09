@@ -71,6 +71,8 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 
 **Encode**
 - [ ] Encoder sürücüleri: HCEnc, FFmpeg (ayarlı parametre seti), x262 (deneysel)
+  - [x] HCEnc ve FFmpeg (DVD bayrakları düzeltilmiş, uyumluluk denetiminden geçiyor); `video.overrides: {encoder: ffmpeg}`, HCEnc yoksa otomatik FFmpeg
+  - [ ] x262 (deneysel); HCEnc ↔ FFmpeg kalite karşılaştırması korpusla
 - [ ] NTSC soft pulldown bayrak enjektörü (kendimiz yazacağız)
 - [ ] PAL speedup (ses pitch seçenekli)
 - [ ] Encode sonrası uyumluluk denetimi (VBV, tepe bitrate, GOP)
