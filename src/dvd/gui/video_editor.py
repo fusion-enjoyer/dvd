@@ -14,7 +14,7 @@ from dvd.probe import VideoTrack
 from dvd.profiles import SETTINGS, resolve
 from dvd.project.model import Crop, Profiles, Title
 
-EDITABLE = ("kernel", "deband", "dither", "encoder")
+EDITABLE = ("kernel", "deband", "dither", "side_fill", "encoder")
 SIDES = ("top", "bottom", "left", "right")
 
 
@@ -23,6 +23,8 @@ def value_text(key: str, value) -> str:
         return t(f"pro.dither.{value}")
     if key == "kernel":
         return {"spline36": "Spline36", "lanczos": "Lanczos", "bicubic": "Bicubic"}[value]
+    if key == "side_fill":
+        return t(f"pro.side_fill.{value}")
     if key == "encoder":
         return {"hcenc": "HCEnc", "ffmpeg": "FFmpeg"}[value]
     return str(value)

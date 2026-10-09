@@ -21,6 +21,11 @@ class ProbeError(Exception):
     pass
 
 
+STANDARD_RATES = tuple(Fraction(n, d) for n, d in (
+    (24000, 1001), (24, 1), (25, 1), (30000, 1001), (30, 1), (50, 1), (60000, 1001), (60, 1),
+))  # fmt: skip
+
+
 @dataclass(frozen=True)
 class VideoTrack:
     index: int
@@ -38,6 +43,7 @@ class VideoTrack:
     color_matrix: str | None = None
     color_range: str | None = None
     dolby_vision: bool = False
+    rotation: int = 0  # display rotation; width/height above are already the displayed ones
 
     @property
     def dar(self) -> Fraction:
@@ -64,6 +70,16 @@ class VideoTrack:
         if not self.fps or not self.avg_fps:
             return False
         return abs(self.fps - self.avg_fps) / self.fps > Fraction(1, 1000)
+
+    @property
+    def playback_fps(self) -> Fraction | None:
+        """The constant rate the title is planned at: the nominal rate, or for variable frame
+        rate sources the average, snapped to the nearest standard rate within 10%."""
+        rate = self.avg_fps if self.maybe_vfr and self.avg_fps else self.fps
+        if not rate:
+            return None
+        nearest = min(STANDARD_RATES, key=lambda r: abs(r - rate) / r)
+        return nearest if abs(nearest - rate) / nearest < Fraction(1, 10) else rate
 
 
 @dataclass(frozen=True)
@@ -170,14 +186,27 @@ def _bit_depth(stream: dict[str, Any]) -> int:
     return 8
 
 
+def _rotation(s: dict[str, Any]) -> int:
+    for d in s.get("side_data_list") or []:
+        if "rotation" in d:
+            return round(float(d["rotation"])) % 360
+    rotate = (s.get("tags") or {}).get("rotate")
+    return round(float(rotate)) % 360 if rotate else 0
+
+
 def _video(s: dict[str, Any]) -> VideoTrack:
     side_data = s.get("side_data_list") or []
+    width, height = s.get("width", 0), s.get("height", 0)
+    sar = _fraction(s.get("sample_aspect_ratio")) or Fraction(1)
+    rotation = _rotation(s)
+    if rotation in (90, 270):  # phones store portrait video as landscape plus a rotation
+        width, height, sar = height, width, 1 / sar
     return VideoTrack(
         index=s["index"],
         codec=s.get("codec_name", "unknown"),
-        width=s.get("width", 0),
-        height=s.get("height", 0),
-        sar=_fraction(s.get("sample_aspect_ratio")) or Fraction(1),
+        width=width,
+        height=height,
+        sar=sar,
         fps=_fraction(s.get("r_frame_rate")),
         avg_fps=_fraction(s.get("avg_frame_rate")),
         pix_fmt=s.get("pix_fmt"),
@@ -188,6 +217,7 @@ def _video(s: dict[str, Any]) -> VideoTrack:
         color_matrix=s.get("color_space"),
         color_range=s.get("color_range"),
         dolby_vision=any("DOVI" in (d.get("side_data_type") or "") for d in side_data),
+        rotation=rotation,
     )
 
 

@@ -1,7 +1,8 @@
 """Pre-processing settings for the video chain, resolved through `dvd.profiles`.
 
 A title can override them under `video.overrides`:
-    deband: 0..4, dither: error_diffusion | ordered | none, kernel: spline36 | lanczos | bicubic
+    deband: 0..4, dither: error_diffusion | ordered | none, kernel: spline36 | lanczos | bicubic,
+    side_fill: black | blur (what fills the side bars of narrow, e.g. portrait, video)
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ class Preprocess:
     deband: int = 1
     dither: str = "error_diffusion"
     kernel: str = "spline36"
+    side_fill: str = "black"
     source: dict[str, str] | None = None  # which layer set each value, for the UI
 
     @property
@@ -38,5 +40,5 @@ def resolve(profiles: Profiles, overrides: dict[str, Any]) -> Preprocess:
         r = layers.resolve(profiles, overrides)
     except layers.ProfileError as exc:
         raise ValueError(str(exc)) from None
-    keys = ("deband", "dither", "kernel")
-    return Preprocess(r["deband"], r["dither"], r["kernel"], {k: r.origin[k] for k in keys})
+    keys = ("deband", "dither", "kernel", "side_fill")
+    return Preprocess(*(r[k] for k in keys), {k: r.origin[k] for k in keys})

@@ -2,6 +2,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from dvd import toolchain
@@ -260,3 +261,41 @@ def test_build_50p_source_as_interlaced_pal(tmp_path: Path, encoder: str):
     vob = probe(result.video_ts / "VTS_01_1.VOB")
     assert vob.main_video.fps == 25 and vob.main_video.field_order == "tt"
     assert vob.duration == pytest.approx(4, abs=0.2)
+
+
+@pytest.mark.skipif(not READY, reason="toolchain not installed")
+def test_build_variable_frame_rate_and_rotated_phone_video(tmp_path: Path):
+    # 30 fps with every 10th frame missing after the first second: timestamps say 4 s,
+    # the container says 30 fps. Stored landscape with a 90° display rotation.
+    flat = tmp_path / "flat.mkv"
+    subprocess.run(
+        [str(FFMPEG), "-v", "error", "-y",
+         "-f", "lavfi", "-i", "testsrc2=size=640x360:rate=30:duration=4",
+         "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000:duration=4",
+         "-vf", r"select='lt(n\,30)+mod(n\,10)'", "-fps_mode", "vfr",
+         "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", str(flat)],
+        check=True,
+    )  # fmt: skip
+    src = tmp_path / "telefon.mp4"
+    subprocess.run([str(FFMPEG), "-v", "error", "-y", "-display_rotation", "90", "-i", str(flat),
+                    "-c", "copy", str(src)], check=True)  # fmt: skip
+    info = probe(src)
+    assert info.main_video.portrait
+    project = new_project(info, tmp_path)
+    assert project.disc.standard == "ntsc" and project.disc.profiles.content == "telefon"
+    project_file = tmp_path / "telefon.dvd.yaml"
+    save(project, project_file)
+
+    result = build(project_file, make_iso=False)
+
+    vob = probe(result.video_ts / "VTS_01_1.VOB")
+    assert vob.main_video.height == 480
+    assert vob.duration == pytest.approx(4, abs=0.2)  # 30 -> 29.97 adds 0.1%
+    m2v = next(tmp_path.rglob("t01.m2v"))
+    assert check_video(m2v, "ntsc").info.aspect_code == 2  # portrait goes in a 4:3 frame
+    frame = tmp_path / "frame.gray"
+    subprocess.run([str(FFMPEG), "-v", "error", "-y", "-ss", "2", "-i", str(m2v), "-frames:v", "1",
+                    "-f", "rawvideo", "-pix_fmt", "gray", str(frame)], check=True)  # fmt: skip
+    luma = np.fromfile(frame, dtype=np.uint8).reshape(480, 720)
+    assert luma[:, :40].mean() > 30  # side bars carry the blurred picture, not black
+    assert luma[:, :40].std() < luma[:, 300:420].std()  # and are smoother than the picture

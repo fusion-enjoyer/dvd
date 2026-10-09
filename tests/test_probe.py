@@ -104,6 +104,21 @@ def test_phone_video_portrait_and_variable_frame_rate():
     ).main_video
     assert v.portrait
     assert v.maybe_vfr
+    assert v.playback_fps == Fraction(30000, 1001)  # average 29.871 snaps to 29.97
+
+
+def test_rotated_phone_video_reports_displayed_size():
+    side = [{"side_data_type": "Display Matrix", "rotation": -90}]
+    v = info_of(video_stream(width=1920, height=1080, side_data_list=side)).main_video
+    assert (v.width, v.height, v.rotation) == (1080, 1920, 270)
+    assert v.portrait
+    old = info_of(video_stream(width=1920, height=1080, tags={"rotate": "90"})).main_video
+    assert (old.width, old.height) == (1080, 1920)
+
+
+def test_playback_rate_keeps_unusual_rates():
+    v = info_of(video_stream(r_frame_rate="15/1", avg_frame_rate="15/1")).main_video
+    assert v.playback_fps == 15
 
 
 def test_missing_values_do_not_crash():

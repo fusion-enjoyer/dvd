@@ -69,8 +69,21 @@ def check_supported(v: VideoTrack) -> None:
         raise UnsupportedSource("HDR sources need tone mapping, planned for Phase 2")
     if v.interlaced:
         raise UnsupportedSource("interlaced sources need deinterlacing, planned for Phase 2")
-    if v.maybe_vfr:
-        raise UnsupportedSource("variable frame rate sources are planned for Phase 2")
+
+
+def open_source(source: Path, v: VideoTrack) -> vs.VideoNode:
+    """The source as constant frame rate video at `v.playback_fps`.
+
+    BestSource reports the true average rate; when it differs from the planned rate (variable
+    frame rate phone video, or a container that misreports), the source is reopened with a
+    fixed rate: frames are repeated or dropped by their timestamps, so audio stays in sync.
+    Rotation metadata is applied by BestSource."""
+    clip = core.bs.VideoSource(str(source), track=v.index)
+    rate = v.playback_fps
+    if rate and abs(Fraction(clip.fps_num, clip.fps_den) - rate) / rate > Fraction(1, 1000):
+        clip = core.bs.VideoSource(str(source), track=v.index, fpsnum=rate.numerator,
+                                   fpsden=rate.denominator)  # fmt: skip
+    return clip
 
 
 def crop_values(video: Video, detected: Crop | None = None) -> Crop:
@@ -104,7 +117,8 @@ def plan_target(
     macroblock straddles the edge between picture and black. To keep the shape exact, a few
     more source pixels are cropped instead of stretching; an odd bar goes to the bottom/right.
     """
-    if v.fps is None:
+    rate = v.playback_fps
+    if rate is None:
         raise UnsupportedSource("source frame rate is unknown")
     crop = crop_values(video, detected)
     width = v.width - crop.left - crop.right
@@ -118,27 +132,27 @@ def plan_target(
         aspect = "16:9" if content_dar >= WIDESCREEN_FROM else "4:3"
     frame_dar = Fraction(16, 9) if aspect == "16:9" else Fraction(4, 3)
 
-    film = any(_close(v.fps, r) for r in FILM_RATES)
+    film = any(_close(rate, r) for r in FILM_RATES)
     pulldown, interlaced, speedup = False, False, Fraction(1)
     if standard == "pal":
         frame_w, frame_h, fps = 720, 576, PAL_RATE
-        if _close(v.fps, 2 * PAL_RATE):
+        if _close(rate, 2 * PAL_RATE):
             interlaced = True
         elif film:
-            speedup = PAL_RATE / v.fps
-        elif not _close(v.fps, PAL_RATE):
-            raise UnsupportedSource(f"{float(v.fps):g} fps to PAL needs frame rate conversion")
+            speedup = PAL_RATE / rate
+        elif not _close(rate, PAL_RATE):
+            raise UnsupportedSource(f"{float(rate):g} fps to PAL needs frame rate conversion")
     else:
         frame_w, frame_h, fps = 720, 480, NTSC_RATE
         if film:
             fps, pulldown = Fraction(24000, 1001), True
-        elif _close(v.fps, NTSC_RATE) or _close(v.fps, Fraction(30)):
-            speedup = Fraction(1) if _close(v.fps, NTSC_RATE) else SLOWDOWN
-        elif _close(v.fps, 2 * NTSC_RATE) or _close(v.fps, Fraction(60)):
+        elif _close(rate, NTSC_RATE) or _close(rate, Fraction(30)):
+            speedup = Fraction(1) if _close(rate, NTSC_RATE) else SLOWDOWN
+        elif _close(rate, 2 * NTSC_RATE) or _close(rate, Fraction(60)):
             interlaced = True
-            speedup = Fraction(1) if _close(v.fps, 2 * NTSC_RATE) else SLOWDOWN
+            speedup = Fraction(1) if _close(rate, 2 * NTSC_RATE) else SLOWDOWN
         else:
-            raise UnsupportedSource(f"{float(v.fps):g} fps to NTSC needs frame rate conversion")
+            raise UnsupportedSource(f"{float(rate):g} fps to NTSC needs frame rate conversion")
 
     left, right, top, bottom = crop.left, crop.right, crop.top, crop.bottom
     if content_dar >= frame_dar:  # wider: full width, bars top and bottom
@@ -190,7 +204,7 @@ def build_clip(
     """Source -> DVD frame. Scaling, matrix conversion, deband and bars run at 16 bits; the
     single step down to 8 bits is the final dither, so no stage adds its own rounding bands."""
     check_supported(v)
-    clip = core.bs.VideoSource(str(source), track=v.index)
+    clip = open_source(source, v)
     crop = target.crop
     if any((crop.left, crop.right, crop.top, crop.bottom)):
         clip = core.std.Crop(clip, crop.left, crop.right, crop.top, crop.bottom)
@@ -212,7 +226,9 @@ def build_clip(
         clip = core.vszip.Deband(clip, range=radius, thr=[threshold], keep_tv_range=True)
     pad_w = target.width - target.active_width
     pad_h = target.height - target.active_height
-    if pad_w or pad_h:
+    if pad_w and not pad_h and pre.side_fill == "blur":
+        clip = _blurred_sides(clip, target)
+    elif pad_w or pad_h:
         clip = core.std.AddBorders(
             clip,
             left=target.pad_left,
@@ -226,6 +242,23 @@ def build_clip(
     else:
         clip = core.resize.Point(clip, format=vs.YUV420P8, dither_type=pre.dither)
     return core.std.AssumeFPS(clip, fpsnum=target.fps.numerator, fpsden=target.fps.denominator)
+
+
+def _blurred_sides(clip: vs.VideoNode, target: Target) -> vs.VideoNode:
+    """Fill the side bars with the picture itself, enlarged to the frame width, heavily
+    blurred, darkened and desaturated, as TV does with portrait phone video. The blur is a
+    1/16 downscale and back, which also keeps the bars cheap to encode."""
+    scale = target.width / target.active_width
+    height = round(target.height * scale / 2) * 2
+    small = core.resize.Bilinear(clip, width=max(2, target.width // 16 // 2 * 2),
+                                 height=max(2, height // 16 // 2 * 2))  # fmt: skip
+    bg = core.resize.Bicubic(small, width=target.width, height=height)
+    top = (height - target.height) // 4 * 2
+    bg = core.std.Crop(bg, top=top, bottom=height - target.height - top)
+    bg = core.std.Expr(bg, ["x 4096 - 0.45 * 4096 +", "x 32768 - 0.5 * 32768 +"])
+    left = core.std.Crop(bg, right=target.width - target.pad_left)
+    right = core.std.Crop(bg, left=target.pad_left + target.active_width)
+    return core.std.StackHorizontal([left, clip, right])
 
 
 def interlace(clip: vs.VideoNode, dither: str) -> vs.VideoNode:

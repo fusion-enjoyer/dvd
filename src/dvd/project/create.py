@@ -8,7 +8,15 @@ from pathlib import Path
 
 from dvd.lang import to_dvd_code
 from dvd.probe import SourceInfo
-from dvd.project.model import MAX_AUDIO_TRACKS, Audio, Disc, Project, Subtitle, Title
+from dvd.project.model import (
+    MAX_AUDIO_TRACKS,
+    Audio,
+    Disc,
+    Profiles,
+    Project,
+    Subtitle,
+    Title,
+)
 
 DVD9_FROM_MINUTES = 100  # K6: long films go on DVD-9
 
@@ -56,7 +64,7 @@ def _subtitle_tracks(info: SourceInfo) -> list[Subtitle]:
 
 def new_project(info: SourceInfo, project_dir: Path) -> Project:
     video = info.main_video
-    standard, _ = suggest_standard(video.fps if video else None)
+    standard, _ = suggest_standard(video.playback_fps if video else None)
     long_film = (info.duration or 0) / 60 >= DVD9_FROM_MINUTES
     audio, subtitles = _audio_tracks(info), _subtitle_tracks(info)
     # A Turkish viewer of a film whose main audio is not Turkish wants Turkish subtitles on.
@@ -69,6 +77,8 @@ def new_project(info: SourceInfo, project_dir: Path) -> Project:
             name=info.title or info.path.stem,
             standard=standard,
             media="dvd9" if long_film else "dvd5",
+            # Portrait video is almost always from a phone: blurred side bars, phone settings.
+            profiles=Profiles(content="telefon") if video and video.portrait else Profiles(),
         ),
         titles=[
             Title(

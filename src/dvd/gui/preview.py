@@ -15,7 +15,13 @@ from PySide6.QtGui import QImage
 from dvd.probe import SourceInfo
 from dvd.project.model import Crop, Profiles, Standard, Title
 from dvd.video.crop import detect_crop
-from dvd.video.pipeline import UnsupportedSource, build_clip, check_supported, plan_target
+from dvd.video.pipeline import (
+    UnsupportedSource,
+    build_clip,
+    check_supported,
+    open_source,
+    plan_target,
+)
 from dvd.video.preprocess import resolve
 
 core = vs.core
@@ -68,7 +74,7 @@ def preview_frames(
         pre = resolve(profiles or Profiles(), title.video.overrides)
         disc = build_clip(source, v, target, title.video, pre)
     except UnsupportedSource:
-        raw = core.bs.VideoSource(str(source), track=v.index)
+        raw = open_source(source, v)
         rgb = core.resize.Bicubic(raw, format=vs.RGB24, matrix_in_s=_matrix(v))
         n = _frame_number(rgb.num_frames, position, frame)
         image = to_qimage(rgb, n)
@@ -83,7 +89,7 @@ def preview_frames(
     # The source through the same crop and bars, at about its own line count: the whole frame
     # is `scale` times the disc frame in height and has the display aspect.
     c = target.crop
-    raw = core.bs.VideoSource(str(source), track=v.index)
+    raw = open_source(source, v)
     if any((c.left, c.right, c.top, c.bottom)):
         raw = core.std.Crop(raw, c.left, c.right, c.top, c.bottom)
     scale = max(1.0, raw.height / target.active_height)

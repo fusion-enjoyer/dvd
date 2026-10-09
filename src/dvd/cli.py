@@ -83,7 +83,7 @@ def new(
         raise typer.Exit(1) from None
     proj = project.new_project(info, out.parent)
     project.save(proj, out)
-    _, reason = project.suggest_standard(info.main_video.fps if info.main_video else None)
+    _, reason = project.suggest_standard(info.main_video.playback_fps if info.main_video else None)
     typer.echo(f"wrote {out}")
     typer.echo(f"standard {proj.disc.standard.upper()} ({reason}), media {proj.disc.media.upper()}")
 

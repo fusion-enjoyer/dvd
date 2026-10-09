@@ -27,7 +27,10 @@ def test_viewing_profile_shifts_deband():
 def test_overrides_win_and_are_validated():
     p = resolve(Profiles(), {"deband": 0, "dither": "ordered", "kernel": "lanczos"})
     assert (p.deband, p.dither, p.kernel) == (0, "ordered", "lanczos")
-    assert p.source == {"deband": "override", "dither": "override", "kernel": "override"}
+    assert {k: p.source[k] for k in ("deband", "dither", "kernel")} == dict.fromkeys(
+        ("deband", "dither", "kernel"), "override"
+    )
+    assert p.side_fill == "black" and p.source["side_fill"] == "default"
     with pytest.raises(ValueError):
         resolve(Profiles(), {"deband": 9})
     with pytest.raises(ValueError):

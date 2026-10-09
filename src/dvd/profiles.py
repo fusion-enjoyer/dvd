@@ -23,6 +23,7 @@ SETTINGS: dict[str, tuple[Any, Any]] = {
     "dither": ("error_diffusion", ("error_diffusion", "ordered", "none")),
     "kernel": ("spline36", ("spline36", "lanczos", "bicubic")),
     "encoder": ("hcenc", ("hcenc", "ffmpeg")),
+    "side_fill": ("black", ("black", "blur")),  # side bars of narrow (portrait) video
     "peak_kbps": (9_000, range(4_000, 9_801)),
     "subtitle_size": (1.0, float),  # multiplier on the default subtitle height
     "safe_area": (0.95, float),  # fraction of the frame kept clear of overscan
@@ -43,7 +44,7 @@ CONTENT: dict[str, dict[str, Any]] = {
     "dizi": {"deband": 1},
     "yayin": {"deband": 1},
     "icerik-4-3": {"deband": 1},
-    "telefon": {"deband": 1},
+    "telefon": {"deband": 1, "side_fill": "blur"},
     "kamera": {"deband": 1},
     "eski-kamera": {"deband": 1},
     "ekran-kaydi": {"deband": 2},
