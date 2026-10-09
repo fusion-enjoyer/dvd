@@ -29,9 +29,10 @@ from dvd.subs.extract import extract_text_track
 from dvd.subs.render import style_for
 from dvd.subs.spumux import add_subtitle_stream
 from dvd.subs.srt import Cue, read_srt, retime
+from dvd.video import encoders
 from dvd.video.compliance import check as check_video
 from dvd.video.crop import detect_crop
-from dvd.video.hcenc import EncodeSettings, encode
+from dvd.video.hcenc import EncodeSettings
 from dvd.video.pipeline import (
     Target,
     UnsupportedSource,
@@ -225,11 +226,16 @@ def build(
             chapters=chapters,
         )
         clip = disc_clip(project, p)
-        m2v = encode(
+        title_settings = resolve_profiles(project.disc.profiles, p.title.video.overrides)
+        encoder, note = encoders.choose(title_settings["encoder"], p.target.pulldown)
+        if note:
+            warnings.append(f"title {n}: {note}")
+        m2v = encoders.encode(
+            encoder,
             clip,
             work_dir / f"{tag}.m2v",
             settings,
-            work_dir / f"{tag}_hcenc",
+            work_dir / f"{tag}_{encoder}",
             progress=lambda f, n=n: report(f"title {n} video", f),
         )
         report(f"title {n} check", 0.0)

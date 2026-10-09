@@ -243,6 +243,7 @@ STAGES = [
 
 
 WARNINGS = [
+    (r"HCEnc is not installed; encoded with FFmpeg", "warning.no_hcenc", None),
     (r"black bars could not be detected", "warning.crop", None),
     (r"average video bitrate ([\d.]+) Mbps is low; consider DVD-9", "warning.low_dvd5", 1),
     (r"average video bitrate ([\d.]+) Mbps is low; use fewer", "warning.low_dvd9", 1),

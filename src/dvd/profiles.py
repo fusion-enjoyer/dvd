@@ -22,6 +22,7 @@ SETTINGS: dict[str, tuple[Any, Any]] = {
     "deband": (1, range(0, 5)),
     "dither": ("error_diffusion", ("error_diffusion", "ordered", "none")),
     "kernel": ("spline36", ("spline36", "lanczos", "bicubic")),
+    "encoder": ("hcenc", ("hcenc", "ffmpeg")),
     "peak_kbps": (9_000, range(4_000, 9_801)),
     "subtitle_size": (1.0, float),  # multiplier on the default subtitle height
     "safe_area": (0.95, float),  # fraction of the frame kept clear of overscan

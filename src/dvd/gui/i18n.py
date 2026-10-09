@@ -120,6 +120,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "build.stage.author": "DVD yapısı oluşturuluyor",
         "build.stage.iso": "Disk imajı yazılıyor",
         "build.stage.done": "Disk hazır",
+        "warning.no_hcenc": "HCEnc kurulu değil; görüntü FFmpeg ile kodlandı.",
         "warning.crop": "Siyah bantlar bulunamadı; görüntünün tamamı kodlandı.",
         "warning.low_dvd5": "Ortalama görüntü bitrate'i {value} Mbps, düşük. DVD-9 önerilir.",
         "warning.low_dvd9": (

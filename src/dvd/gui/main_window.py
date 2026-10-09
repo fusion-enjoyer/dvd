@@ -330,7 +330,14 @@ class PicturePage(QWidget):
                 origin = (pre.source or {}).get(key, "default")
                 if origin != "default":
                     rows.append(("", self._origin_text(origin)))
-        rows.append((t("pro.encoder"), "HCEnc · 2 pass"))
+        try:
+            from dvd.profiles import resolve as resolve_profiles
+
+            wanted = resolve_profiles(project.disc.profiles, project.titles[0].video.overrides)
+            name = {"hcenc": "HCEnc", "ffmpeg": "FFmpeg"}[wanted["encoder"]]
+        except ValueError:
+            name = "?"
+        rows.append((t("pro.encoder"), f"{name} · 2 pass"))
         if plan:
             rows.append((t("pro.bitrate"), f"{plan.video_kbps / 1000:.2f} Mbps"))
             rows.append((t("pro.peak"), f"{plan.peak_kbps / 1000:.1f} Mbps"))

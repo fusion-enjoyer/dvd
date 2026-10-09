@@ -12,9 +12,11 @@ import vapoursynth as vs
 
 from dvd.build import disc_clip, estimate, prepare_title
 from dvd.probe import probe
+from dvd.profiles import resolve as resolve_profiles
 from dvd.project import load, source_path
 from dvd.qa.metrics import Measurement, measure
-from dvd.video.hcenc import EncodeSettings, encode
+from dvd.video import encoders
+from dvd.video.hcenc import EncodeSettings
 
 core = vs.core
 
@@ -80,7 +82,10 @@ def trial_encode(
         pulldown=p.target.pulldown,
     )
     report = (lambda stage: lambda f: progress(stage, f)) if progress else (lambda _s: None)
-    m2v = encode(piece, out_dir / "trial.m2v", settings, out_dir / "hcenc", report("encode"))
+    wanted = resolve_profiles(project.disc.profiles, p.title.video.overrides)["encoder"]
+    encoder, _ = encoders.choose(wanted, p.target.pulldown)
+    m2v = encoders.encode(encoder, piece, out_dir / "trial.m2v", settings, out_dir / encoder,
+                          report("encode"))  # fmt: skip
     result = measure(piece, m2v, project.disc.standard, progress=report("measure"))
     worst = min(result.scores, key=lambda s: s.ssimu2).frame
     aspect = float(p.target.dar)
