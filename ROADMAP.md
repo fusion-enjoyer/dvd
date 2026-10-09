@@ -86,8 +86,11 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 - [x] VMAF / SSIM / PSNR, en kötü sahneler listesi: SSIMULACRA2 + XPSNR (vszip, süreç içinde), en kötü saniyeler; `dvd measure`
 - [ ] **Test encode** (seçili aralık) ve **karşılaştırma ekranı** (kaynak / sonuç / referans DVD)
   - [x] Test encode: `dvd trial --at 42:17 --seconds 20 [--kbps N]`, en kötü karenin A/B PNG'leri
-  - [ ] Arayüzde karşılaştırma ekranı (kaydırmalı, yakınlaştırma)
+  - [x] Arayüzde karşılaştırma: Kaynak / Diskte / Kaydırmalı, filmde gezinme, "Bu aralığı test encode et (20 sn)" ve sonucun puanları
+  - [ ] Yakınlaştırma (%200/%400), kare kare ilerleme, referans DVD ile üçlü karşılaştırma
 - [ ] Başlık ekranı: crop düzeltme, ön işleme ayarları, önizleme
+  - [x] Önizleme (kaynak ve disk görüntüsü aynı geometride), tespit edilen crop ve ön işleme değerleri
+  - [ ] Crop'u ve ön işleme ayarlarını arayüzden düzenleme
 
 **Bitti kriteri:** Kör karşılaştırmada sonuç, referans ticari DVD'lerle aynı ligde; metrikler raporlanıyor.
 
