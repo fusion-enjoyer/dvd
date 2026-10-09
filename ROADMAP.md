@@ -128,11 +128,11 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 - [ ] Render: arka plan + 3 durumlu highlight subpicture'ları (4 renk sınırı)
   - [x] `menu/render.py`: etiketler, başlık ve bölüm kareleri arka plan videosunda; vurgu (amber) ve seçim (beyaz) katmanları en çok 3 renk + saydam; kare piksel çizim, 720'ye anamorfik sıkıştırma; buton alanları çift sayılı ve çakışmasız; arka plan film karesi / resim / düz renk
   - [x] Diske yazma: sayfa başına 1 sn MPEG-2 durağan video + sessiz AC-3, spumux ile buton katmanı, dvdauthor titleset menüleri; root / ptt / audio giriş noktaları, film sonunda menüye dönüş, ses/altyazı seçince imleç aynı butonda kalır
-  - [ ] Menü önizlemesi ve açma/kapama arayüzde
+  - [x] Menü sayfası (arayüz): menü açık/kapalı, Bölümler / Dil ayarları sayfaları, arka plan (filmden kare: önizlemedeki kare / resim / düz renk), her sayfanın diske gidecek hâliyle önizlemesi (normal ve ilk buton seçili)
 - [ ] Otomatik navigasyon grafiği + elle düzenleme
   - [x] Otomatik: her yön için o yöndeki en yakın buton (yan sapma iki kat sayılır), kenarda vurgu yerinde kalır; elle verilen yönler korunur (proje dosyasında up/down/left/right)
   - [ ] Editörde elle düzenleme (menü editörüyle)
-- [ ] Standart menü seti: Ana, Bölümler (sayfalı), Ses, Altyazı, Ayarlar
+- [x] Standart menü seti: Ana, Bölümler (sayfalı), Ses, Altyazı, Ayarlar (Dil ayarları sayfası ses ve altyazıyı birlikte sunar; ayrı Ses / Altyazı sayfaları da tanımlanabilir)
 - [ ] Şablon sistemi + ilk hazır şablonlar (Minimal, Sinematik, 2000'ler DVD'si)
 - [ ] First Play zinciri (intro → menü), başlık bitince davranışı
 - [ ] **TMDB entegrasyonu**: otomatik eşleştirme, Türkçe başlık/özet, arka plan/afiş/saydam logo seçici, menü şablonlarına bağlama
