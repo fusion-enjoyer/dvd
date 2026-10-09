@@ -124,9 +124,11 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 
 ## Faz 4 — Menü motoru ve editör v1
 
-- [ ] Menü modeli: sayfalar, öğeler, butonlar, eylemler, navigasyon
+- [x] Menü modeli: sayfalar, öğeler, butonlar, eylemler, navigasyon: proje dosyasında `menus` (sayfa türleri main / chapters / languages / audio / subtitles / custom; eylemler play / page / audio / subtitle); `menu/layout.py` standart sayfaları projeden doldurur (bölümler 6'şar sayfalanır)
 - [ ] Render: arka plan + 3 durumlu highlight subpicture'ları (4 renk sınırı)
 - [ ] Otomatik navigasyon grafiği + elle düzenleme
+  - [x] Otomatik: her yön için o yöndeki en yakın buton (yan sapma iki kat sayılır), kenarda vurgu yerinde kalır; elle verilen yönler korunur (proje dosyasında up/down/left/right)
+  - [ ] Editörde elle düzenleme (menü editörüyle)
 - [ ] Standart menü seti: Ana, Bölümler (sayfalı), Ses, Altyazı, Ayarlar
 - [ ] Şablon sistemi + ilk hazır şablonlar (Minimal, Sinematik, 2000'ler DVD'si)
 - [ ] First Play zinciri (intro → menü), başlık bitince davranışı
