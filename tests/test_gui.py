@@ -81,13 +81,18 @@ def test_preview_source_and_disc_share_geometry(app, tmp_path: Path):
         check=True,
     )  # fmt: skip
     f = preview_frames(src, probe(src), Title(source=src.name), "pal", position=0.5)
-    assert (f.source.width(), f.source.height()) == (1024, 576)
-    assert (f.disc.width(), f.disc.height()) == (1024, 576)
+    assert (f.disc.width(), f.disc.height()) == (720, 576)  # stored pixels, drawn at 16:9
+    # The source keeps about its own resolution: 804 picture lines instead of 432.
+    assert f.source.height() > 1000
+    assert f.source.width() / f.source.height() == pytest.approx(16 / 9, abs=0.01)
     assert f.detected is not None and f.detected.top == 138
     for image in (f.source, f.disc):
-        assert image.pixelColor(512, 30).value() < 20  # top bar
-        assert image.pixelColor(512, 300).value() > 40  # picture
+        w, h = image.width(), image.height()
+        assert image.pixelColor(w // 2, h * 30 // 576).value() < 20  # top bar
+        assert image.pixelColor(w // 2, h * 300 // 576).value() > 40  # picture
     assert f.frame == 25 and f.seconds == pytest.approx(1.0)
+    g = preview_frames(src, probe(src), Title(source=src.name), "pal", frame=26)
+    assert g.frame == 26 and g.seconds == pytest.approx(26 / 25)
 
 
 @pytest.mark.skipif(FFMPEG is None, reason="ffmpeg not installed")
@@ -125,3 +130,34 @@ def test_pro_editor_changes_crop_and_preprocessing(app, tmp_path: Path):
     QThreadPool.globalInstance().waitForDone(60000)
     app.processEvents()
     assert w.picture_page.well.image is not None
+
+
+@pytest.mark.skipif(FFMPEG is None, reason="ffmpeg not installed")
+def test_frame_step_and_zoom(app, tmp_path: Path):
+    src = tmp_path / "adim.mkv"
+    subprocess.run(
+        [str(FFMPEG), "-v", "error", "-y", "-f", "lavfi",
+         "-i", "testsrc2=size=1280x720:rate=25:duration=2",
+         "-c:v", "libx264", "-preset", "ultrafast", str(src)],
+        check=True,
+    )  # fmt: skip
+    w = MainWindow(mode="pro")
+    w.resize(1280, 800)
+    w._loaded(w._load(src))
+    QThreadPool.globalInstance().waitForDone(60000)
+    app.processEvents()
+    first = w.preview_frame
+    assert first == 20  # 40% of 50 frames
+    w.step_frame(1)
+    w.step_frame(1)  # the first request's result is dropped when it lands late
+    QThreadPool.globalInstance().waitForDone(60000)
+    app.processEvents()
+    assert w.preview_frame == 21  # each step starts from the last shown frame
+    assert "kare 21" in w.picture_page.timecode.text()
+
+    well = w.picture_page.well
+    assert (well.image.width(), well.image.height()) == (720, 576)
+    well.set_zoom(2)
+    target = well._target()
+    assert target.height() == 2 * 576 and target.width() == pytest.approx(2 * 576 * 16 / 9)
+    assert target.top() <= 0 and target.bottom() >= well.height()  # covers the well

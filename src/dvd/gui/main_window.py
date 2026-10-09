@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QButtonGroup,
@@ -166,6 +167,7 @@ class PicturePage(QWidget):
     profile_changed = Signal(str, str)  # field, value
     switch_to_pro = Signal()
     position_changed = Signal(float)  # 0..1 of the film
+    frame_step = Signal(int)  # -1 or +1
     trial_requested = Signal()
 
     def __init__(self) -> None:
@@ -186,8 +188,21 @@ class PicturePage(QWidget):
             lambda: self.position_changed.emit(self.slider.value() / 1000)
         )
         self.timecode = label("", "mono")
+        self.step_buttons = []
+        for delta, text, tip in ((-1, "‹", "picture.prev_frame"), (1, "›", "picture.next_frame")):
+            b = QPushButton(text)
+            b.setFixedWidth(32)
+            b.setToolTip(t(tip))
+            b.clicked.connect(lambda _=False, d=delta: self.frame_step.emit(d))
+            self.step_buttons.append(b)
+            key = Qt.Key.Key_Left if delta < 0 else Qt.Key.Key_Right
+            shortcut = QShortcut(QKeySequence(key), self)
+            shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+            shortcut.activated.connect(lambda d=delta: self.frame_step.emit(d))
         scrub.addWidget(self.slider, 1)
+        scrub.addWidget(self.step_buttons[0])
         scrub.addWidget(self.timecode)
+        scrub.addWidget(self.step_buttons[1])
         cbox.addLayout(scrub)
         self.compare_row = QWidget()
         row = QHBoxLayout(self.compare_row)
@@ -196,10 +211,14 @@ class PicturePage(QWidget):
             {"a": t("compare.source"), "b": t("compare.disc"), "split": t("compare.split")}, "b"
         )
         self.view_switch.changed.connect(self.well.set_mode)
+        self.zoom_switch = ModeSwitch({"0": t("zoom.fit"), "1": "100%", "2": "200%", "4": "400%"},
+                                      "0")  # fmt: skip
+        self.zoom_switch.changed.connect(lambda z: self.well.set_zoom(int(z)))
         self.trial_button = QPushButton(t("trial.button"))
         self.trial_button.clicked.connect(self.trial_requested)
         self.trial_result = label("", "muted", wrap=True)
         row.addWidget(self.view_switch)
+        row.addWidget(self.zoom_switch)
         row.addStretch()
         row.addWidget(self.trial_button)
         cbox.addWidget(self.compare_row)
@@ -268,9 +287,13 @@ class PicturePage(QWidget):
         self.pro.setVisible(mode == "pro")
         self.compare_row.setVisible(mode == "pro")
         self.trial_result.setVisible(mode == "pro")
+        for b in self.step_buttons:
+            b.setVisible(mode == "pro")
         if mode == "basit":
             self.well.set_mode("b")
             self.view_switch.set_mode("b")
+            self.well.set_zoom(0)
+            self.zoom_switch.set_mode("0")
         self.side.setFixedWidth(300 if mode == "basit" else 290)
 
     def show_project(self, project: Project, info: SourceInfo, plan: Plan | None,
@@ -358,6 +381,8 @@ class MainWindow(QMainWindow):
         self.infos: list[SourceInfo] = []
         self.plan: Plan | None = None
         self.detected = None  # black bars found in the first title, once the preview ran
+        self.preview_frame: int | None = None
+        self.preview_request = 0
         self.setWindowTitle(t("app.title"))
         self.resize(1280, 800)
         self.setAcceptDrops(True)
@@ -393,6 +418,7 @@ class MainWindow(QMainWindow):
         self.picture_page.profile_changed.connect(self.set_profile)
         self.picture_page.switch_to_pro.connect(lambda: self.set_mode("pro"))
         self.picture_page.position_changed.connect(self._load_preview)
+        self.picture_page.frame_step.connect(self.step_frame)
         self.picture_page.trial_requested.connect(self.run_trial)
         self.picture_page.editor.changed.connect(self._video_changed)
         self.pages["video"] = self.video_page
@@ -546,10 +572,16 @@ class MainWindow(QMainWindow):
         self.drop.set_busy(None)
         self.drop.body.setText(f"{t('error.read')}: {message}")
 
-    def _load_preview(self, position: float = 0.4) -> None:
+    def step_frame(self, delta: int) -> None:
+        if self.project is not None and self.preview_frame is not None:
+            self._load_preview(frame=self.preview_frame + delta)
+
+    def _load_preview(self, position: float = 0.4, frame: int | None = None) -> None:
         from dvd.gui.preview import preview_frames
 
         p, info, file = self.project, self.infos[0], self.project_file
+        self.preview_request += 1
+        request = self.preview_request
         page = self.picture_page
         well = page.well
         if well.image is None:
@@ -557,15 +589,22 @@ class MainWindow(QMainWindow):
         source = proj.source_path(file, p.titles[0])
 
         def shown(frames) -> None:
+            if request != self.preview_request:
+                return  # a newer frame was asked for while this one rendered
             self.detected, self.preview_seconds = frames.detected, frames.seconds
+            self.preview_frame = frames.frame
             well.set_pair(frames.source, frames.disc, frames.aspect,
                           (t("compare.source"), t("compare.disc")))  # fmt: skip
-            page.timecode.setText(timecode(frames.seconds))
+            tc = timecode(frames.seconds)
+            page.timecode.setText(t("picture.frame", tc=tc, n=frames.frame)
+                                  if self.mode == "pro" else tc)  # fmt: skip
+            if not page.slider.isSliderDown():
+                page.slider.setValue(round(frames.frame / max(1, frames.frames - 1) * 1000))
             self._refresh()
 
         tasks.run(
             lambda: preview_frames(
-                source, info, p.titles[0], p.disc.standard, p.disc.profiles, position
+                source, info, p.titles[0], p.disc.standard, p.disc.profiles, position, frame
             ),  # fmt: skip
             shown,
             lambda msg: well.set_image(None, well.aspect, msg),
@@ -623,7 +662,7 @@ class MainWindow(QMainWindow):
         """Crop or pre-processing edited: the plan, the panel and the preview all change."""
         proj.save(self.project, self.project_file)
         self._refresh()
-        self._load_preview(self.picture_page.slider.value() / 1000)
+        self._load_preview(frame=self.preview_frame)
 
     def _refresh(self) -> None:
         p = self.project
