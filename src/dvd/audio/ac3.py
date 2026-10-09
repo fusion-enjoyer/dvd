@@ -20,11 +20,17 @@ def ffmpeg_args(
     channels: str,
     bitrate: int,
     speedup: Fraction = Fraction(1),
+    pitch: str = "keep",
 ) -> list[str]:
     filters = []
-    if speedup != 1:
+    if speedup != 1 and pitch == "keep":
         # Keep the pitch: the film plays 4% faster on PAL but voices should not rise a semitone.
         filters.append(f"atempo={float(speedup):.10f}")
+    elif speedup != 1:
+        # Like most commercial PAL discs: play the samples faster, pitch rises with the speed.
+        # 48000 * 25025/24000 = 50050 exactly; resample to 48 kHz on both sides.
+        rate = 48000 * speedup
+        filters += ["aresample=48000", f"asetrate={float(rate):.4f}", "aresample=48000"]
     args = [
         "-v", "error", "-y", "-i", str(source),
         "-map", f"0:{stream_index}", "-vn", "-sn", "-dn",
@@ -44,6 +50,7 @@ def encode_ac3(
     channels: str,
     bitrate: int,
     speedup: Fraction = Fraction(1),
+    pitch: str = "keep",
     ffmpeg: Path | None = None,
 ) -> Path:
     ffmpeg = ffmpeg or toolchain.find_executable(["ffmpeg.exe", "ffmpeg"], toolchain.tool_dirs())
@@ -51,7 +58,7 @@ def encode_ac3(
         raise AudioError("ffmpeg not found")
     out.parent.mkdir(parents=True, exist_ok=True)
     proc = subprocess.run(
-        [str(ffmpeg), *ffmpeg_args(source, stream_index, out, channels, bitrate, speedup)],
+        [str(ffmpeg), *ffmpeg_args(source, stream_index, out, channels, bitrate, speedup, pitch)],
         capture_output=True,
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
     )

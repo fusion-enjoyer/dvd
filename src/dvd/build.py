@@ -215,6 +215,7 @@ def build(
                     a.channels,
                     a.bitrate,
                     p.target.speedup,
+                    disc_settings["audio_pitch"],
                 )  # fmt: skip
             )
         chapters = chapter_frames(p.title, p.info, p.target, p.frames)

@@ -29,6 +29,9 @@ SETTINGS: dict[str, tuple[Any, Any]] = {
     "audio_channels": ("5.1", ("5.1", "2.0")),
     "audio_bitrate": (448, (192, 224, 256, 320, 384, 448)),
     "audio_extra_stereo": (False, bool),  # also add a stereo copy of the main track
+    # PAL speedup: "keep" corrects the pitch (time stretch), "raise" lets it rise ~0.7 semitone
+    # as on most commercial PAL discs.
+    "audio_pitch": ("keep", ("keep", "raise")),
 }
 
 CONTENT: dict[str, dict[str, Any]] = {
