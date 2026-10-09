@@ -98,7 +98,10 @@ FFmpeg bu yol için alan DCT'siz (progresif) ve 12 film karelik GOP ile çalış
 ### PAL speedup
 
 23.976 → 25 fps: video kare kare aynı, sadece süre %4.1 kısalır. Ses aynı oranda hızlandırılır;
-pitch düzeltmesi opsiyonel (ticari PAL DVD'lerin çoğu düzeltmez, ses yarım ton tize kayar).
+pitch düzeltmesi opsiyonel (ticari PAL DVD'lerin çoğu düzeltmez, ses yaklaşık 0.7 yarım ton tize kayar).
+Uygulamada `audio_pitch` ayarı: `keep` (varsayılan, FFmpeg `atempo` ile zaman esnetme) ya da `raise`
+(örnekler hızlı çalınır, 48000 × 25025/24000 = 50050 Hz → 48 kHz). `atempo` ile `rubberband` arasındaki fark
+korpusla dinlenerek ölçülecek.
 
 ## 4. Bitrate bütçesi
 
