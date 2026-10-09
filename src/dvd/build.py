@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from fractions import Fraction
 from pathlib import Path
 
+import vapoursynth as vs
+
 from dvd.audio.ac3 import encode_ac3
 from dvd.author.dvdauthor import AuthorTitle, author, mux, timecode
 from dvd.budget.planner import Plan, plan
@@ -123,24 +125,37 @@ def estimate(project: Project, infos: list[SourceInfo]) -> Plan:
     )
 
 
+def prepare_title(
+    project: Project, project_file: Path, n: int, warnings: list[str] | None = None
+) -> _Prepared:
+    """Probe title `n` (1-based), detect its bars and plan its DVD frame."""
+    title = project.titles[n - 1]
+    source = source_path(project_file, title)
+    info = probe(source)
+    if info.main_video is None:
+        raise BuildError(f"{source.name} has no video track")
+    detected = None
+    if title.video.crop == "auto":
+        check_supported(info.main_video)
+        detected = detect_crop(source, info.main_video)
+        if detected is None and warnings is not None:
+            warnings.append(f"title {n}: black bars could not be detected; full frame used")
+    target = plan_target(info.main_video, project.disc.standard, title.video, detected)
+    # Frame count from the decoder is exact; container duration is not.
+    frames = build_clip(source, info.main_video, target, title.video).num_frames
+    return _Prepared(title, source, info, target, frames)
+
+
+def disc_clip(project: Project, p: _Prepared) -> vs.VideoNode:
+    """The exact picture that is encoded for a title: the reference for quality metrics."""
+    pre = resolve_preprocess(project.disc.profiles, p.title.video.overrides)
+    return build_clip(p.source, p.info.main_video, p.target, p.title.video, pre)
+
+
 def _prepare(project: Project, project_file: Path, warnings: list[str]) -> list[_Prepared]:
-    prepared = []
-    for n, title in enumerate(project.titles, start=1):
-        source = source_path(project_file, title)
-        info = probe(source)
-        if info.main_video is None:
-            raise BuildError(f"{source.name} has no video track")
-        detected = None
-        if title.video.crop == "auto":
-            check_supported(info.main_video)
-            detected = detect_crop(source, info.main_video)
-            if detected is None:
-                warnings.append(f"title {n}: black bars could not be detected; full frame used")
-        target = plan_target(info.main_video, project.disc.standard, title.video, detected)
-        # Frame count from the decoder is exact; container duration is not.
-        frames = build_clip(source, info.main_video, target, title.video).num_frames
-        prepared.append(_Prepared(title, source, info, target, frames))
-    return prepared
+    return [
+        prepare_title(project, project_file, n, warnings) for n in range(1, len(project.titles) + 1)
+    ]
 
 
 def build(
@@ -205,8 +220,7 @@ def build(
             pulldown=p.target.pulldown,
             chapters=chapters,
         )
-        pre = resolve_preprocess(project.disc.profiles, p.title.video.overrides)
-        clip = build_clip(p.source, p.info.main_video, p.target, p.title.video, pre)
+        clip = disc_clip(project, p)
         m2v = encode(
             clip,
             work_dir / f"{tag}.m2v",

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 import json
 import sys
 from pathlib import Path
@@ -203,6 +204,64 @@ def verify(
     if r.errors:
         raise typer.Exit(1)
     typer.echo("ok: DVD compliant")
+
+
+def _print_measurement(m, offset: int = 0) -> None:
+    from dvd.qa.metrics import Measurement
+
+    assert isinstance(m, Measurement)
+    typer.echo(
+        f"SSIMULACRA2 mean {m.mean('ssimu2'):.1f}, 5% low {m.percentile('ssimu2', 5):.1f} | "
+        f"XPSNR-Y mean {m.mean('xpsnr'):.2f} dB, 5% low {m.percentile('xpsnr', 5):.2f} dB"
+    )
+    typer.echo("worst seconds:")
+    for scene in m.worst_scenes(5):
+        scene = dataclasses.replace(scene, start=scene.start + offset, end=scene.end + offset)
+        typer.echo(
+            f"  {scene.timecode(m.fps)}  SSIMULACRA2 {scene.ssimu2:5.1f}  "
+            f"XPSNR {scene.xpsnr:5.2f} dB"
+        )
+
+
+def _parse_time(text: str) -> float:
+    from dvd.project.model import parse_timecode
+
+    return float(text) if text.replace(".", "", 1).isdigit() else parse_timecode(text)
+
+
+@app.command()
+def trial(
+    path: Path = typer.Argument(..., help="Project file"),
+    at: str = typer.Option("0", "--at", help="Start, as h:mm:ss or seconds of playback"),
+    seconds: float = typer.Option(20, "--seconds", help="Length of the trial"),
+    title: int = typer.Option(1, "--title", help="Title number"),
+    kbps: int | None = typer.Option(None, "--kbps", help="Average video bit rate to try"),
+) -> None:
+    """Encode a short stretch with the disc settings and score it against the source."""
+    from dvd.qa.trial import trial_encode
+
+    r = trial_encode(path, _parse_time(at), seconds, title, video_kbps=kbps)
+    typer.echo(f"frames {r.start}-{r.start + r.frames - 1} at {r.video_kbps} kbit/s average")
+    _print_measurement(r.measurement, offset=r.start)
+    typer.echo(f"A/B of the worst frame: {r.reference_png}  {r.encoded_png}")
+
+
+@app.command()
+def measure(
+    path: Path = typer.Argument(..., help="Project file built with `dvd build`"),
+    step: int = typer.Option(5, "--step", help="Score every n-th frame"),
+) -> None:
+    """Score the encoded titles of a build against the pictures that went into the encoder."""
+    from dvd.qa.trial import measure_build
+
+    try:
+        results = measure_build(path, step)
+    except FileNotFoundError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from None
+    for n, m in enumerate(results, start=1):
+        typer.echo(f"title {n}:")
+        _print_measurement(m)
 
 
 @app.command()
