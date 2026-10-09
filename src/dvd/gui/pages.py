@@ -278,6 +278,7 @@ STAGES = [
     (r"title \d+ check", "build.stage.check"),
     (r"title \d+ mux", "build.stage.mux"),
     (r"title \d+ subtitles", "build.stage.subs"),
+    (r"menus", "build.stage.menus"),
     (r"authoring", "build.stage.author"),
     (r"iso", "build.stage.iso"),
     (r"done", "build.stage.done"),

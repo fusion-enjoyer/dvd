@@ -1,4 +1,4 @@
-"""Program-stream mux (FFmpeg) and VIDEO_TS authoring (dvdauthor) for menu-less discs."""
+"""Program-stream mux (FFmpeg) and VIDEO_TS authoring (dvdauthor), with or without menus."""
 
 from __future__ import annotations
 
@@ -55,17 +55,50 @@ def mux(video: Path, audio: list[Path], out: Path, ffmpeg: Path | None = None) -
     return out
 
 
-def dvdauthor_xml(titles: list[AuthorTitle], standard: str, dest: str = "disc") -> str:
+@dataclass(frozen=True)
+class AuthorMenu:
+    vob: str  # menu program stream with its button subpicture
+    buttons: list[tuple[str, str]]  # (button name in the subpicture, VM command)
+    entry: str | None = None  # "root", "ptt", "audio", "subtitle": the remote's menu keys
+
+
+def dvdauthor_xml(
+    titles: list[AuthorTitle],
+    standard: str,
+    dest: str = "disc",
+    menus: list[AuthorMenu] | None = None,
+) -> str:
+    """Without menus the disc plays the titles in a row. With menus it opens on the root
+    menu; each title returns to it at the end. The default subtitle is switched on once,
+    the first time the root menu runs (g0 marks that), so a choice made in the menu is
+    not undone when the film starts."""
     if len({t.aspect for t in titles}) > 1:
         raise AuthorError("titles with different aspect ratios on one disc are not supported yet")
     aspect = titles[0].aspect
     video = f'<video format="{standard}" aspect="{aspect}"'
     video += ' widescreen="nopanscan"/>' if aspect == "16:9" else "/>"
     langs, sub_langs = titles[0].audio_langs, titles[0].subtitle_langs
+    first = "jump titleset 1 menu;" if menus else "jump title 1;"
     lines = [
         f"<dvdauthor dest={quoteattr(dest)}>",
-        "  <vmgm><fpc>jump title 1;</fpc></vmgm>",
+        f"  <vmgm><fpc>{first}</fpc></vmgm>",
         "  <titleset>",
+    ]
+    if menus:
+        lines += ["    <menus>", f"      {video}"]
+        subs_on = titles[0].subtitles_on and bool(sub_langs)
+        for m in menus:
+            entry = f" entry={quoteattr(m.entry)}" if m.entry else ""
+            lines.append(f"      <pgc{entry}>")
+            if m.entry == "root":
+                start = "subtitle=64; " if subs_on else ""
+                lines.append(f"        <pre>if (g0 == 0) {{ g0 = 1; {start}}}</pre>")
+            for name, command in m.buttons:
+                lines.append(f"        <button name={quoteattr(name)}>{command}</button>")
+            lines.append(f'        <vob file={quoteattr(m.vob)} pause="inf"/>')
+            lines.append("      </pgc>")
+        lines.append("    </menus>")
+    lines += [
         "    <titles>",
         f"      {video}",
         *(f"      <audio lang={quoteattr(lang)}/>" for lang in langs),
@@ -76,11 +109,13 @@ def dvdauthor_xml(titles: list[AuthorTitle], standard: str, dest: str = "disc") 
             raise AuthorError("all titles must have the same audio and subtitle languages for now")
         chapters = ",".join(t.chapters or ["0:00:00.000"])
         lines.append("      <pgc>")
-        if t.subtitles_on and t.subtitle_langs:
+        if t.subtitles_on and t.subtitle_langs and not menus:
             lines.append("        <pre>subtitle=64;</pre>")  # 64 = display on, stream 0
         lines.append(f"        <vob file={quoteattr(t.vob)} chapters={quoteattr(chapters)}/>")
         if n < len(titles):
             lines.append(f"        <post>jump title {n + 1};</post>")
+        elif menus:
+            lines.append("        <post>call menu;</post>")
         lines.append("      </pgc>")
     lines += ["    </titles>", "  </titleset>", "</dvdauthor>"]
     return "\n".join(lines) + "\n"
@@ -92,6 +127,7 @@ def author(
     workdir: Path,
     out_dir: Path,
     dvdauthor: Path | None = None,
+    menus: list[AuthorMenu] | None = None,
 ) -> Path:
     """Write VIDEO_TS into out_dir; the vob files must already be in workdir."""
     dvdauthor = dvdauthor or toolchain.find_executable(
@@ -101,7 +137,9 @@ def author(
         raise AuthorError("dvdauthor not found; run `dvd doctor`")
     staging = workdir / "disc"
     shutil.rmtree(staging, ignore_errors=True)
-    (workdir / "dvdauthor.xml").write_text(dvdauthor_xml(titles, standard), encoding="utf-8")
+    (workdir / "dvdauthor.xml").write_text(
+        dvdauthor_xml(titles, standard, menus=menus), encoding="utf-8"
+    )
     env = {**os.environ, "VIDEO_FORMAT": standard.upper()}
     proc = subprocess.run(
         [str(dvdauthor), "-x", "dvdauthor.xml"],

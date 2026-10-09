@@ -136,11 +136,14 @@ def _languages(page: MenuPage, project: Project, back: str) -> Page:
     title = project.titles[0]
     buttons, headings = [], []
     columns = []
-    if page.kind in ("languages", "audio"):
+    # On the combined page a column only appears when it offers a choice.
+    show_audio = page.kind == "audio" or (page.kind == "languages" and len(title.audio) > 1)
+    show_subs = page.kind == "subtitles" or (page.kind == "languages" and bool(title.subtitles))
+    if show_audio:
         audio = [(f"a{i}", f"{name_tr(a.lang)}  {a.channels}", MenuAction(do="audio", stream=i))
                  for i, a in enumerate(edit.disc_audio(title))]  # fmt: skip
         columns.append(("Ses", audio))
-    if page.kind in ("languages", "subtitles"):
+    if show_subs:
         subs = [("s-off", "Kapalı", MenuAction(do="subtitle", stream=None))]
         subs += [(f"s{i}", name_tr(s.lang), MenuAction(do="subtitle", stream=i))
                  for i, s in enumerate(edit.disc_subtitles(title))]  # fmt: skip

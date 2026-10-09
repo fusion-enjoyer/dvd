@@ -145,3 +145,12 @@ def test_background_picture_covers_the_frame(tmp_path):
     plain = background_image(MenuBackground(color="#204060"), Path("x"), info, tmp_path,
                              (64, 36))  # fmt: skip
     assert plain.pixelColor(5, 5) == QColor("#204060")
+
+
+def test_languages_page_only_shows_columns_with_a_choice():
+    p, info = project(audio=2, subs=0)
+    langs = next(pg for pg in expand(p, info) if pg.id == "languages")
+    assert [h for h, _ in langs.headings] == ["Ses"]
+    p, info = project(audio=1, subs=2)
+    langs = next(pg for pg in expand(p, info) if pg.id == "languages")
+    assert [h for h, _ in langs.headings] == ["Altyazı"]

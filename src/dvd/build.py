@@ -184,6 +184,29 @@ def _prepare(project: Project, project_file: Path, warnings: list[str]) -> list[
     ]
 
 
+def _menus(project: Project, p: _Prepared, project_dir: Path, work_dir: Path) -> list:
+    """Render the menu pages from the first title's picture and author them."""
+    from dvd.menu.author import author_menus
+    from dvd.menu.layout import expand
+    from dvd.menu.pictures import background_image, frame_images
+    from dvd.menu.render import render_page
+
+    frame = (p.target.width, p.target.height, p.target.dar)
+    display = (round(p.target.height * p.target.dar), p.target.height)
+    pages = expand(project, p.info)
+    try:
+        backdrop = background_image(project.menus.background, p.source, p.info, project_dir,
+                                    display)  # fmt: skip
+    except ValueError as exc:
+        raise BuildError(str(exc)) from None
+    times = sorted({b.thumb for page in pages for b in page.buttons if b.thumb is not None})
+    width = round(0.22 * display[0])
+    thumbs = frame_images(p.source, p.info, times, (width, round(width * 9 / 16))) if times else {}
+    rendered = {page.id: render_page(page, frame, backdrop, thumbs) for page in pages}
+    return author_menus(pages, rendered, project.menus.first, project.disc.standard,
+                        p.target.dar, work_dir)  # fmt: skip
+
+
 def build(
     project_file: Path,
     out_dir: Path | None = None,
@@ -318,8 +341,12 @@ def build(
                 subtitles_on=bool(subs) and subs[0].default,
             )
         )
+    menus = None
+    if project.menus is not None:
+        report("menus", 0.0)
+        menus = _menus(project, prepared[0], project_file.parent, work_dir)
     report("authoring", 0.0)
-    video_ts = author(author_titles, project.disc.standard, work_dir, out_dir)
+    video_ts = author(author_titles, project.disc.standard, work_dir, out_dir, menus=menus)
     iso = None
     if make_iso:
         iso = write_iso(

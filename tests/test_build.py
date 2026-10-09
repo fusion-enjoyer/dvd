@@ -327,3 +327,36 @@ def test_audio_offset_in_the_source_is_kept_and_ac3_is_copied(tmp_path: Path):
     aligned = next(tmp_path.rglob("t01_a1.ac3"))  # starts with the video: copied unchanged
     assert probe(aligned).audio[0].bitrate == 448000
     assert probe(aligned).duration == pytest.approx(3.0, abs=0.06)
+
+
+@pytest.mark.skipif(not READY, reason="toolchain not installed")
+def test_build_disc_with_menus(tmp_path: Path):
+    from dvd.project.model import Menus
+
+    src = _sample(tmp_path, seconds=12)
+    project = new_project(probe(src), tmp_path)
+    project.menus = Menus.model_validate({"background": {"frame": "0:00:06"}})
+    project.titles[0].video.overrides = {"encoder": "ffmpeg"}
+    project_file = tmp_path / "menulu.dvd.yaml"
+    save(project, project_file)
+
+    result = build(project_file)
+
+    names = sorted(p.name for p in result.video_ts.iterdir())
+    assert "VTS_01_0.VOB" in names  # the titleset menus
+    xml = (next(tmp_path.rglob("dvdauthor.xml"))).read_text(encoding="utf-8")
+    assert "jump titleset 1 menu;" in xml and 'entry="root"' in xml and 'entry="ptt"' in xml
+    assert "<post>call menu;</post>" in xml
+    assert "jump title 1 chapter 2;" in xml  # chapter 2 button of the chapter page
+    log = next(tmp_path.rglob("menu01/spumux.log")).read_text(encoding="utf-8")
+    assert "ERR" not in log
+    menu = probe(result.video_ts / "VTS_01_0.VOB")
+    assert [s.codec for s in menu.subtitles] == ["dvd_subtitle"]  # the button highlights
+    assert menu.main_video.width == 720
+    # The ISO still reads as a DVD and the film is title 1.
+    duration = subprocess.run(
+        [str(toolchain.find_executable(["ffprobe.exe"], DIRS)), "-v", "quiet", "-f", "dvdvideo",
+         "-i", str(result.iso), "-show_entries", "format=duration", "-of", "csv=p=0"],
+        capture_output=True, text=True, check=True,
+    ).stdout  # fmt: skip
+    assert float(duration) == pytest.approx(12 * 24000 / 1001 / 25, abs=0.4)

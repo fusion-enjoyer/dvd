@@ -169,6 +169,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "build.stage.check": "DVD uyumluluğu denetleniyor",
         "build.stage.mux": "Ses ve görüntü birleştiriliyor",
         "build.stage.subs": "Altyazılar ekleniyor",
+        "build.stage.menus": "Menüler çiziliyor",
         "build.stage.author": "DVD yapısı oluşturuluyor",
         "build.stage.iso": "Disk imajı yazılıyor",
         "build.stage.done": "Disk hazır",
