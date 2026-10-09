@@ -9,7 +9,7 @@ import vapoursynth as vs
 
 from dvd import toolchain
 from dvd.video import ffmpeg_enc, hcenc
-from dvd.video.hcenc import EncodeError, EncodeSettings
+from dvd.video.hcenc import EncodeSettings
 
 ENCODERS = {"hcenc": hcenc.encode, "ffmpeg": ffmpeg_enc.encode}
 
@@ -19,14 +19,10 @@ def hcenc_available() -> bool:
     return all(toolchain.find_executable([p], dirs) for p in ("HCenc_*.exe", "DvdSource.dll"))
 
 
-def choose(wanted: str, pulldown: bool) -> tuple[str, str | None]:
+def choose(wanted: str) -> tuple[str, str | None]:
     """The encoder to use and a warning when it differs from the one asked for."""
     if wanted == "hcenc" and not hcenc_available():
-        if pulldown:
-            raise EncodeError("NTSC film needs HCEnc, which is not installed")
         return "ffmpeg", "HCEnc is not installed; encoded with FFmpeg"
-    if wanted == "ffmpeg" and pulldown:
-        return "hcenc", "FFmpeg cannot write soft pulldown; encoded NTSC film with HCEnc"
     return wanted, None
 
 

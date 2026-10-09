@@ -7,7 +7,8 @@ DVD details FFmpeg does not do by default:
   - closed GOPs (`+cgop`, which FFmpeg only allows without scene-change detection) and
     forced key frames at chapter frames;
   - VBV: 224 KiB buffer, peak from the plan, GOP 15 (PAL) / 18 (NTSC), at most 2 B-frames.
-NTSC film needs soft pulldown flags, which FFmpeg cannot write; that combination is refused.
+NTSC film is encoded as 23.976 fps progressive (no field DCT; GOP 12 film frames = 15 video
+frames) and gets its soft pulldown flags afterwards from `pulldown.inject`.
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from pathlib import Path
 import vapoursynth as vs
 
 from dvd import toolchain
+from dvd.video import pulldown
 from dvd.video.hcenc import EncodeError, EncodeSettings
 
 _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
@@ -32,9 +34,11 @@ def ffmpeg_args(settings: EncodeSettings, fps: float, passlog: Path, pass_no: in
         "-c:v", "mpeg2video", "-pix_fmt", "yuv420p",
         "-b:v", f"{s.bitrate}k", "-maxrate", f"{s.maxrate}k", "-minrate", "0",
         "-bufsize", "1835k", "-rc_init_occupancy", "1835k",
-        "-g", "15" if pal else "18", "-bf", "2", "-mpv_flags", "+strict_gop",
-        "-sc_threshold", "1000000000",
-        "-flags", "+ildct+cgop", "-dc", "10", "-intra_vlc", "1", "-non_linear_quant", "1",
+        "-g", "15" if pal else "12" if s.pulldown else "18", "-bf", "2",
+        "-mpv_flags", "+strict_gop", "-sc_threshold", "1000000000",
+        # +ildct clears progressive_sequence; pulldown streams stay progressive until inject.
+        "-flags", "+cgop" if s.pulldown else "+ildct+cgop",
+        "-dc", "10", "-intra_vlc", "1", "-non_linear_quant", "1",
         "-mbd", "rd", "-trellis", "2", "-cmp", "2", "-subcmp", "2", "-qmin", "1", "-qmax", "28",
         "-aspect", s.aspect, "-seq_disp_ext", "1", "-video_format", "1" if pal else "2",
         "-color_primaries", "bt470bg" if pal else "smpte170m",
@@ -56,8 +60,6 @@ def encode(
     progress: Callable[[float], None] | None = None,
     ffmpeg: Path | None = None,
 ) -> Path:
-    if settings.pulldown:
-        raise EncodeError("NTSC film needs soft pulldown flags; use HCEnc for NTSC film for now")
     ffmpeg = ffmpeg or toolchain.find_executable(["ffmpeg.exe", "ffmpeg"], toolchain.tool_dirs())
     if ffmpeg is None:
         raise EncodeError("ffmpeg not found")
@@ -88,6 +90,11 @@ def encode(
         if proc.returncode != 0:
             tail = log.read_text(encoding="utf-8", errors="replace")[-1500:]
             raise EncodeError(f"ffmpeg pass {pass_no} failed:\n{tail}")
+    if settings.pulldown:
+        try:
+            pulldown.inject(out)
+        except pulldown.PulldownError as e:
+            raise EncodeError(f"soft pulldown failed: {e}") from e
     if progress:
         progress(1.0)
     return out

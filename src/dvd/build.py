@@ -227,7 +227,7 @@ def build(
         )
         clip = disc_clip(project, p)
         title_settings = resolve_profiles(project.disc.profiles, p.title.video.overrides)
-        encoder, note = encoders.choose(title_settings["encoder"], p.target.pulldown)
+        encoder, note = encoders.choose(title_settings["encoder"])
         if note:
             warnings.append(f"title {n}: {note}")
         m2v = encoders.encode(

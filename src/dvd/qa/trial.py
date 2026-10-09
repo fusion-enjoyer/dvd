@@ -83,7 +83,7 @@ def trial_encode(
     )
     report = (lambda stage: lambda f: progress(stage, f)) if progress else (lambda _s: None)
     wanted = resolve_profiles(project.disc.profiles, p.title.video.overrides)["encoder"]
-    encoder, _ = encoders.choose(wanted, p.target.pulldown)
+    encoder, _ = encoders.choose(wanted)
     m2v = encoders.encode(encoder, piece, out_dir / "trial.m2v", settings, out_dir / encoder,
                           report("encode"))  # fmt: skip
     result = measure(piece, m2v, project.disc.standard, progress=report("measure"))

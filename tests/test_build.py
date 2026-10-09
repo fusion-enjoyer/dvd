@@ -213,3 +213,21 @@ def test_letterboxed_source_is_cropped_and_bars_sit_on_macroblock_rows(tmp_path:
     rows = np.frombuffer(raw, np.uint8).reshape(576, 720).mean(axis=1)
     picture = np.flatnonzero(rows > 24)
     assert (picture[0], picture[-1]) == (64, 64 + 432 - 1)  # 64 lines above, 80 below
+
+
+@pytest.mark.skipif(not READY, reason="toolchain not installed")
+def test_build_ntsc_film_disc_with_ffmpeg_soft_pulldown(tmp_path: Path):
+    src = _sample(tmp_path, seconds=6)
+    project = new_project(probe(src), tmp_path)
+    project.disc.standard = "ntsc"
+    project.titles[0].video.overrides = {"encoder": "ffmpeg"}
+    project_file = tmp_path / "ntsc.dvd.yaml"
+    save(project, project_file)
+
+    result = build(project_file, make_iso=False)
+
+    vob = probe(result.video_ts / "VTS_01_1.VOB")
+    v = vob.main_video
+    assert (v.codec, v.width, v.height) == ("mpeg2video", 720, 480)
+    # Soft pulldown keeps the original running time: 23.976 film frames, 29.97 playback.
+    assert vob.duration == pytest.approx(6, abs=0.2)

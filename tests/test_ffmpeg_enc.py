@@ -7,7 +7,7 @@ from dvd import toolchain
 from dvd.video import encoders
 from dvd.video.compliance import check
 from dvd.video.ffmpeg_enc import encode, ffmpeg_args
-from dvd.video.hcenc import EncodeError, EncodeSettings
+from dvd.video.hcenc import EncodeSettings
 
 sys.path.insert(0, str(Path(__file__).parent))
 FFMPEG = toolchain.find_executable(["ffmpeg.exe", "ffmpeg"], toolchain.tool_dirs())
@@ -21,23 +21,21 @@ def test_args_set_dvd_flags_and_chapter_keyframes():
     assert args[args.index("-force_key_frames") + 1] == "2.000000"
 
 
-def test_ntsc_film_is_refused():
+def test_ntsc_film_is_encoded_progressive_with_short_gops():
     s = EncodeSettings(6000, 8000, "16:9", "ntsc", pulldown=True)
-    with pytest.raises(EncodeError, match="pulldown"):
-        encode(None, Path("x.m2v"), s, Path("."))
+    args = ffmpeg_args(s, 24000 / 1001, Path("log"), 1)
+    assert args[args.index("-flags") + 1] == "+cgop"
+    assert args[args.index("-g") + 1] == "12"
 
 
 def test_choose_falls_back_and_explains(monkeypatch):
     monkeypatch.setattr(encoders, "hcenc_available", lambda: False)
-    assert encoders.choose("hcenc", False) == (
+    assert encoders.choose("hcenc") == (
         "ffmpeg",
         "HCEnc is not installed; encoded with FFmpeg",
     )
-    with pytest.raises(EncodeError):
-        encoders.choose("hcenc", True)
     monkeypatch.setattr(encoders, "hcenc_available", lambda: True)
-    assert encoders.choose("ffmpeg", True)[0] == "hcenc"
-    assert encoders.choose("ffmpeg", False) == ("ffmpeg", None)
+    assert encoders.choose("ffmpeg") == ("ffmpeg", None)
 
 
 @pytest.mark.skipif(FFMPEG is None, reason="ffmpeg not installed")
@@ -54,3 +52,23 @@ def test_ffmpeg_output_is_dvd_compliant_with_chapter_keyframe(tmp_path: Path):
     sizes, total = report.info.gops, 0
     starts = [total := total + g for g in sizes[:-1]]
     assert 37 in [0, *starts]
+
+
+@pytest.mark.skipif(FFMPEG is None, reason="ffmpeg not installed")
+def test_ntsc_film_gets_soft_pulldown(tmp_path: Path):
+    from fractions import Fraction
+
+    import vapoursynth as vs
+    from test_frameserver import pattern_clip
+
+    clip = vs.core.resize.Point(pattern_clip(96), 720, 480)
+    clip = vs.core.std.AssumeFPS(clip, fpsnum=24000, fpsden=1001)
+    settings = EncodeSettings(6000, 8000, "16:9", "ntsc", pulldown=True, chapters=[48])
+    out = encode(clip, tmp_path / "v.m2v", settings, tmp_path / "w")
+    report = check(out, "ntsc")
+    assert report.ok, report.errors
+    info = report.info
+    assert info.frame_rate == Fraction(30000, 1001) and info.progressive_sequence == 0
+    # 96 film frames play as 240 fields = 120 video frames, 2:3 cadence.
+    assert len(info.pictures) == 96 and sum(p.fields for p in info.pictures) == 240
+    assert max(info.gop_fields) <= 36

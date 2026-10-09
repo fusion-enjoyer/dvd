@@ -40,6 +40,7 @@ class Picture:
     kind: str  # I, P, B
     bits: int
     fields: int  # display duration in fields: 2, or 3 with repeat_first_field
+    progressive: bool = True  # progressive_frame
 
 
 @dataclass
@@ -54,6 +55,7 @@ class StreamInfo:
     progressive_sequence: int = 0
     pictures: list[Picture] = field(default_factory=list)
     gops: list[int] = field(default_factory=list)  # pictures per GOP
+    gop_fields: list[int] = field(default_factory=list)  # display fields per GOP
     first_gop_closed: bool = False
 
 
@@ -112,6 +114,8 @@ def parse(path: Path) -> StreamInfo:
                     structure = b.read(2)
                     b.read(1 + 1 + 1 + 1 + 1 + 1)  # tff .. alternate_scan
                     rff = b.read(1)
+                    b.read(1)  # chroma_420_type
+                    current.progressive = bool(b.read(1))
                     current.fields = (3 if rff else 2) if structure == 3 else 1
             elif code == 0xB8:
                 closed = bool((int.from_bytes(body[:4], "big") >> 6) & 1)
@@ -132,6 +136,10 @@ def parse(path: Path) -> StreamInfo:
         close_unit(size)
         if gop_count > 0:
             info.gops.append(gop_count)
+        skip = len(info.pictures) - sum(info.gops)  # pictures before the first GOP header
+        for n in info.gops:
+            info.gop_fields.append(sum(p.fields for p in info.pictures[skip : skip + n]))
+            skip += n
         if not seen_sequence:
             raise ValueError(f"{path.name} has no MPEG video sequence header")
     return info
@@ -200,6 +208,13 @@ def check(path: Path, standard: str) -> Report:
     if long_gops:
         errors.append(f"{len(long_gops)} GOP(s) longer than {MAX_GOP[standard]} pictures "
                       f"(longest {max(long_gops)})")  # fmt: skip
+    # With pulldown a GOP of few pictures can still play too long: count display fields too.
+    long_fields = [g for g in info.gop_fields if g > 2 * MAX_GOP[standard]]
+    if long_fields and not long_gops:
+        errors.append(f"{len(long_fields)} GOP(s) play longer than {2 * MAX_GOP[standard]} "
+                      f"fields (longest {max(long_fields)})")  # fmt: skip
+    if any(p.fields == 3 and not p.progressive for p in info.pictures):
+        errors.append("repeat_first_field is set on a picture with progressive_frame 0")
     run = longest_b = 0
     for p in info.pictures:
         run = run + 1 if p.kind == "B" else 0
