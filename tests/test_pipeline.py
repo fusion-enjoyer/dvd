@@ -115,9 +115,10 @@ def test_frame_rate_conversion_not_supported_yet():
         plan_target(track(fps=Fraction(25)), "ntsc", Video())
 
 
-def test_hdr_and_interlaced_are_rejected_for_now():
-    with pytest.raises(UnsupportedSource, match="HDR"):
-        check_supported(track(color_transfer="smpte2084"))
+def test_dolby_vision_only_and_interlaced_are_rejected_for_now():
+    check_supported(track(color_transfer="smpte2084"))  # HDR10 is tone mapped
+    with pytest.raises(UnsupportedSource, match="Dolby Vision"):
+        check_supported(track(dolby_vision=True))
     with pytest.raises(UnsupportedSource, match="interlaced"):
         check_supported(track(field_order="tt"))
 

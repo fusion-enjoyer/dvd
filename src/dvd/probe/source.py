@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from fractions import Fraction
 from pathlib import Path
 from typing import Any
@@ -44,6 +44,7 @@ class VideoTrack:
     color_range: str | None = None
     dolby_vision: bool = False
     rotation: int = 0  # display rotation; width/height above are already the displayed ones
+    hdr_peak: float | None = None  # nits: MaxCLL, else mastering display maximum
 
     @property
     def dar(self) -> Fraction:
@@ -194,6 +195,15 @@ def _rotation(s: dict[str, Any]) -> int:
     return round(float(rotate)) % 360 if rotate else 0
 
 
+def _hdr_peak(side_data: list[dict[str, Any]]) -> float | None:
+    cll = next((d.get("max_content") for d in side_data if "max_content" in d), None)
+    if cll:
+        return float(cll)
+    mastering = next((d.get("max_luminance") for d in side_data if "max_luminance" in d), None)
+    value = _fraction(mastering) if mastering else None
+    return float(value) if value else None
+
+
 def _video(s: dict[str, Any]) -> VideoTrack:
     side_data = s.get("side_data_list") or []
     width, height = s.get("width", 0), s.get("height", 0)
@@ -218,6 +228,7 @@ def _video(s: dict[str, Any]) -> VideoTrack:
         color_range=s.get("color_range"),
         dolby_vision=any("DOVI" in (d.get("side_data_type") or "") for d in side_data),
         rotation=rotation,
+        hdr_peak=_hdr_peak(side_data),
     )
 
 
@@ -301,4 +312,26 @@ def probe(path: Path | str, ffprobe: Path | None = None) -> SourceInfo:
     if proc.returncode != 0:
         message = proc.stderr.decode("utf-8", errors="replace").strip()
         raise ProbeError(f"ffprobe failed for {path}: {message}")
-    return parse(json.loads(proc.stdout.decode("utf-8", errors="replace")), path)
+    info = parse(json.loads(proc.stdout.decode("utf-8", errors="replace")), path)
+    v = info.main_video
+    if v is not None and v.hdr and v.hdr_peak is None:
+        # HEVC carries MaxCLL and the mastering display in SEI: look at the first frame.
+        peak = _first_frame_peak(ffprobe, path, v.index)
+        if peak:
+            info.video[info.video.index(v)] = replace(v, hdr_peak=peak)
+    return info
+
+
+def _first_frame_peak(ffprobe: Path, path: Path, index: int) -> float | None:
+    proc = subprocess.run(
+        [str(ffprobe), "-v", "error", "-print_format", "json", "-select_streams", str(index),
+         "-read_intervals", "%+#1", "-show_entries", "frame=side_data_list:side_data",
+         str(path)],
+        capture_output=True, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    )  # fmt: skip
+    if proc.returncode != 0:
+        return None
+    data = json.loads(proc.stdout.decode("utf-8", errors="replace"))
+    items = data.get("frames") or data.get("packets_and_frames") or []
+    frames = [i for i in items if i.get("type", "frame") == "frame"]
+    return _hdr_peak(frames[0].get("side_data_list") or []) if frames else None

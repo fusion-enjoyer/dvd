@@ -21,6 +21,7 @@ from dvd.video.pipeline import (
     check_supported,
     open_source,
     plan_target,
+    scale_to_sd,
 )
 from dvd.video.preprocess import resolve
 
@@ -97,8 +98,12 @@ def preview_frames(
     width = round(height * aspect / 2) * 2
     active_w = round(width * target.active_width / target.width / 2) * 2
     active_h = round(target.active_height * scale / 2) * 2
-    src_rgb = core.resize.Spline36(raw, width=active_w, height=active_h,
-                                   format=vs.RGB24, matrix_in_s=_matrix(v))  # fmt: skip
+    if v.hdr:  # the source as an SDR display would show it, tone mapped like the disc
+        sdr = scale_to_sd(raw, v, active_w, active_h, "spline36", "709", vs.YUV444P16)
+        src_rgb = core.resize.Point(sdr, format=vs.RGB24, matrix_in_s="709")
+    else:
+        src_rgb = core.resize.Spline36(raw, width=active_w, height=active_h,
+                                       format=vs.RGB24, matrix_in_s=_matrix(v))  # fmt: skip
     left = round(width * target.pad_left / target.width)
     top = round(target.pad_top * scale)
     src_rgb = core.std.AddBorders(src_rgb, left=left, right=width - active_w - left, top=top,

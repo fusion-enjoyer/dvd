@@ -17,6 +17,7 @@ import vapoursynth as vs
 from dvd.probe import VideoTrack
 from dvd.project.model import Crop, Standard, Video
 from dvd.video.preprocess import Preprocess
+from dvd.video.tonemap import TRANSFERS, tonemap
 
 DEFAULT_PREPROCESS = Preprocess()
 
@@ -65,8 +66,8 @@ def _even(x: float) -> int:
 
 
 def check_supported(v: VideoTrack) -> None:
-    if v.hdr:
-        raise UnsupportedSource("HDR sources need tone mapping, planned for Phase 2")
+    if v.hdr and v.color_transfer not in TRANSFERS:
+        raise UnsupportedSource("Dolby Vision without an HDR10 or HLG base layer is not supported")
     if v.interlaced:
         raise UnsupportedSource("interlaced sources need deinterlacing, planned for Phase 2")
 
@@ -209,18 +210,10 @@ def build_clip(
     if any((crop.left, crop.right, crop.top, crop.bottom)):
         clip = core.std.Crop(clip, crop.left, crop.right, crop.top, crop.bottom)
     out_matrix = "470bg" if target.standard == "pal" else "170m"
-    scale = getattr(core.resize, _KERNEL[pre.kernel])
-    clip = scale(
-        clip,
-        width=target.active_width,
-        height=target.active_height,
-        # Interlaced output subsamples chroma per field at the end, so keep it full until then.
-        format=vs.YUV444P16 if target.interlaced else vs.YUV420P16,
-        matrix_in_s=_matrix(v),
-        matrix_s=out_matrix,
-        range_in_s="full" if v.color_range == "pc" else "limited",
-        range_s="limited",
-    )
+    # Interlaced output subsamples chroma per field at the end, so keep it full until then.
+    out_format = vs.YUV444P16 if target.interlaced else vs.YUV420P16
+    clip = scale_to_sd(clip, v, target.active_width, target.active_height, pre.kernel,
+                       out_matrix, out_format)  # fmt: skip
     if pre.deband_args:
         radius, threshold = pre.deband_args
         clip = core.vszip.Deband(clip, range=radius, thr=[threshold], keep_tv_range=True)
@@ -242,6 +235,27 @@ def build_clip(
     else:
         clip = core.resize.Point(clip, format=vs.YUV420P8, dither_type=pre.dither)
     return core.std.AssumeFPS(clip, fpsnum=target.fps.numerator, fpsden=target.fps.denominator)
+
+
+def scale_to_sd(
+    clip: vs.VideoNode,
+    v: VideoTrack,
+    width: int,
+    height: int,
+    kernel: str,
+    out_matrix: str,
+    out_format: int,
+) -> vs.VideoNode:
+    """Downscale and convert to SD colours; HDR is tone mapped after the downscale (in float),
+    which is far cheaper than at 4K and looks the same at DVD resolution."""
+    scale = getattr(core.resize, _KERNEL[kernel])
+    range_in = "full" if v.color_range == "pc" else "limited"
+    if v.hdr:
+        small = scale(clip, width=width, height=height, format=vs.YUV444PS,
+                      matrix_in_s="2020ncl", matrix_s="2020ncl", range_in_s=range_in)  # fmt: skip
+        return tonemap(small, v.color_transfer, out_matrix, out_format, v.hdr_peak, "full")
+    return scale(clip, width=width, height=height, format=out_format, matrix_in_s=_matrix(v),
+                 matrix_s=out_matrix, range_in_s=range_in, range_s="limited")  # fmt: skip
 
 
 def _blurred_sides(clip: vs.VideoNode, target: Target) -> vs.VideoNode:
