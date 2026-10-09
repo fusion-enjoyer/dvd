@@ -78,9 +78,9 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
   - [ ] VOB düzeyinde mux bitrate'i (10.08 Mbps, ses dahil)
 
 **Profiller**
-- [ ] Katmanlı profil sistemi: standart → medya → içerik tipi → izleme ortamı → ses düzeni → kullanıcı
+- [x] Katmanlı profil sistemi: standart → medya → içerik tipi → izleme ortamı → ses düzeni → kullanıcı (`src/dvd/profiles.py`, `dvd profile show`; deband/dither/kernel, tepe bitrate, altyazı boyutu ve güvenli alan, ses düzeni)
 - [ ] İçerik tipi ve izleme ortamı profillerinin değerlerini korpus + cihaz matrisiyle kalibre et
-- [ ] Kullanıcı profili kaydet / dışa aktar
+- [x] Kullanıcı profili kaydet / dışa aktar (`dvd profile save|list|export|import`)
 
 **Ölçüm ve arayüz**
 - [x] VMAF / SSIM / PSNR, en kötü sahneler listesi: SSIMULACRA2 + XPSNR (vszip, süreç içinde), en kötü saniyeler; `dvd measure`

@@ -79,6 +79,14 @@ Uygulama kaynağın kare hızına bakıp **önerilen standardı** gösterir, kar
 | **Gece modu** | Dinamik aralık sıkıştırması daha güçlü, normalize |
 | **Hepsi** | 5.1 + stereo iz birlikte (disk bütçesinden yer alır) |
 
+## Uygulamadaki karşılığı (2026-10-09)
+
+Katmanlar `src/dvd/profiles.py`'de. Şu an uygulanan ayarlar: deband kademesi, dither, küçültme yöntemi,
+tepe bitrate, altyazı boyutu, güvenli alan (altyazı kenar payı), ses düzeni (5.1 / stereo / ikisi).
+Henüz uygulanmayanlar tablolarda kalır, ilgili özellik gelince eklenir: dikey low-pass (menü/altyazı, Faz 3–4),
+gren yönetimi ve denoise (Faz 2), gece modu sıkıştırması (Faz 3), menü karmaşıklığı (Faz 4).
+`dvd profile show film.dvd.yaml` her ayarın değerini ve hangi katmandan geldiğini gösterir.
+
 ## Kullanıcı profilleri
 
 - Herhangi bir kombinasyon **kendi profilim** olarak kaydedilebilir ("Salon TV'si", "Yazlık CRT").
