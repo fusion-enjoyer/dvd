@@ -97,15 +97,17 @@ def test_custom_pages_and_validation():
     assert chapter_page_ids("chapters", 13) == ["chapters", "chapters-2", "chapters-3"]
 
 
+@pytest.mark.parametrize("name", ["minimal", "sinematik", "2000ler"])
 @pytest.mark.parametrize(("standard_h", "aspect"), [(576, (16, 9)), (480, (4, 3))])
-def test_rendered_pages_fit_dvd_limits(standard_h, aspect):
+def test_rendered_pages_fit_dvd_limits(standard_h, aspect, name):
     from fractions import Fraction
 
     from dvd.menu.render import render_page
+    from dvd.menu.templates import template
 
-    p, info = project()
+    p, info = project(menus={"template": name})
     for page in expand(p, info):
-        r = render_page(page, (720, standard_h, Fraction(*aspect)))
+        r = render_page(page, (720, standard_h, Fraction(*aspect)), None, None, template(name))
         assert (r.background.width(), r.background.height()) == (720, standard_h)
         boxes = []
         for overlay in (r.highlight, r.select):
@@ -208,3 +210,26 @@ def test_simulator_rejects_unknown_commands():
         sim.run("g3 = 1;")
     with pytest.raises(SimulatorError):
         sim.run("jump menu 9;")
+
+
+def test_templates_place_the_main_buttons():
+    p, info = project(menus={"template": "sinematik"})
+    main = expand(p, info)[0]
+    ys = {round(b.rect[1], 3) for b in main.buttons}
+    assert len(ys) == 1  # one row
+    xs = [b.rect[0] + b.rect[2] / 2 for b in main.buttons]
+    assert sum(xs) / len(xs) == pytest.approx(0.5)  # centred
+    assert main.buttons[0].nav["right"] == "chapters" and "down" not in main.buttons[0].nav
+    p, info = project(menus={"template": "2000ler"})
+    main = expand(p, info)[0]
+    assert all(b.rect[0] + b.rect[2] / 2 == pytest.approx(0.5) for b in main.buttons)
+    with pytest.raises(ValidationError):
+        Menus.model_validate({"template": "yok"})
+
+
+def test_uppercase_labels_keep_turkish_letters():
+    from dvd.menu.render import _case
+    from dvd.menu.templates import template
+
+    assert _case("Dil ayarları", template("sinematik")) == "DİL AYARLARI"
+    assert _case("Dil ayarları", template("minimal")) == "Dil ayarları"

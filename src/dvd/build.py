@@ -190,6 +190,7 @@ def _menus(project: Project, p: _Prepared, project_dir: Path, work_dir: Path) ->
     from dvd.menu.layout import expand
     from dvd.menu.pictures import background_image, frame_images
     from dvd.menu.render import render_page
+    from dvd.menu.templates import template
 
     frame = (p.target.width, p.target.height, p.target.dar)
     display = (round(p.target.height * p.target.dar), p.target.height)
@@ -202,7 +203,8 @@ def _menus(project: Project, p: _Prepared, project_dir: Path, work_dir: Path) ->
     times = sorted({b.thumb for page in pages for b in page.buttons if b.thumb is not None})
     width = round(0.22 * display[0])
     thumbs = frame_images(p.source, p.info, times, (width, round(width * 9 / 16))) if times else {}
-    rendered = {page.id: render_page(page, frame, backdrop, thumbs) for page in pages}
+    tpl = template(project.menus.template)
+    rendered = {page.id: render_page(page, frame, backdrop, thumbs, tpl) for page in pages}
     return author_menus(pages, rendered, project.menus.first, project.disc.standard,
                         p.target.dar, work_dir)  # fmt: skip
 

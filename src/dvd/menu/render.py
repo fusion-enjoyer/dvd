@@ -20,33 +20,22 @@ from PySide6.QtGui import (
     QColor,
     QFont,
     QFontDatabase,
+    QFontMetricsF,
     QImage,
     QLinearGradient,
     QPainter,
     QPainterPath,
     QPen,
+    QRadialGradient,
 )
 
 from dvd.menu.layout import Button, Page
+from dvd.menu.templates import Template
+from dvd.menu.templates import template as get_template
 from dvd.subs.render import _qt
 
 FONTS = Path(__file__).resolve().parents[1] / "assets" / "fonts"
 LEFT_MIDDLE = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
-
-
-@dataclass(frozen=True)
-class Template:
-    text: tuple[int, int, int] = (226, 221, 212)  # labels: off-white, inside video levels
-    title: tuple[int, int, int] = (236, 231, 222)
-    muted: tuple[int, int, int] = (160, 154, 144)
-    highlight: tuple[int, int, int] = (240, 180, 73)  # amber, as in the app
-    select: tuple[int, int, int] = (250, 246, 238)
-    shade: float = 0.62  # darkening of the background behind the text column
-    label_size: float = 0.040  # of the frame height
-    title_size: float = 0.070
-
-
-TEMPLATES = {"minimal": Template()}
 
 
 @dataclass
@@ -89,6 +78,60 @@ def _quantize(image: QImage, rgb: tuple[int, int, int]) -> np.ndarray:
     return out
 
 
+def _case(text: str, t: Template) -> str:
+    # Turkish capitals: i -> İ, ı -> I (str.upper would turn i into a dotless I).
+    return text.replace("i", "İ").replace("ı", "I").upper() if t.uppercase else text
+
+
+def _text(p: QPainter, rect: QRectF, flags, text: str, rgb, shadow: bool) -> None:
+    if shadow:
+        p.setPen(QColor(0, 0, 0, 170))
+        p.drawText(rect.translated(2, 2), flags, text)
+    p.setPen(QColor(*rgb))
+    p.drawText(rect, flags, text)
+
+
+def _shade(p: QPainter, t: Template, w: int, h: int) -> None:
+    """Darken where the text goes, so light text reads on any picture."""
+    a = t.shade_strength
+    if t.shade == "bottom":
+        g = QLinearGradient(0, 0, 0, h)
+        g.setColorAt(0, QColor(0, 0, 0, round(255 * a * 0.15)))
+        g.setColorAt(0.45, QColor(0, 0, 0, round(255 * a * 0.25)))
+        g.setColorAt(1, QColor(0, 0, 0, round(255 * a)))
+        p.fillRect(0, 0, w, h, g)
+    elif t.shade == "vignette":
+        g = QRadialGradient(QPointF(w / 2, h / 2), max(w, h) * 0.75)
+        g.setColorAt(0, QColor(0, 0, 0, round(255 * a * 0.35)))
+        g.setColorAt(1, QColor(0, 0, 0, round(255 * a)))
+        p.fillRect(0, 0, w, h, g)
+    else:
+        g = QLinearGradient(0, 0, w, 0)
+        g.setColorAt(0, QColor(0, 0, 0, round(255 * a)))
+        g.setColorAt(0.65, QColor(0, 0, 0, round(255 * a * 0.55)))
+        g.setColorAt(1, QColor(0, 0, 0, round(255 * a * 0.25)))
+        p.fillRect(0, 0, w, h, g)
+
+
+def _marker(t: Template, left: float, width: float, r: QRectF, dw: int, px: int) -> QPainterPath:
+    """The cursor mark beside a text button: a bar, an underline or an arrow."""
+    path = QPainterPath()
+    if t.marker == "underline":
+        y = r.center().y() + px * 0.62
+        path.addRect(QRectF(left, y, width, max(2.0, px * 0.08)))
+    elif t.marker == "arrow":
+        s = px * 0.55
+        x, cy = left - 0.024 * dw, r.center().y()
+        path.moveTo(x, cy - s / 2)
+        path.lineTo(x + s * 0.8, cy)
+        path.lineTo(x, cy + s / 2)
+        path.closeSubpath()
+    else:
+        bar_h = r.height() * 0.55
+        path.addRect(QRectF(left - 0.028 * dw, r.center().y() - bar_h / 2, 0.008 * dw, bar_h))
+    return path
+
+
 def render_page(
     page: Page,
     frame: tuple[int, int, Fraction],
@@ -99,7 +142,7 @@ def render_page(
     """`frame`: disc frame width, height and display aspect. `background`: any size, it is
     scaled to cover the frame; None draws the template's plain backdrop."""
     _fonts()
-    t = template or TEMPLATES["minimal"]
+    t = template or get_template("minimal")
     fw, fh, aspect = frame
     dw = round(fh * aspect)  # square-pixel width
     canvas = QImage(dw, fh, QImage.Format.Format_RGB32)
@@ -111,24 +154,22 @@ def render_page(
         scaled = background.scaled(dw, fh, Qt.AspectRatioMode.KeepAspectRatioByExpanding,
                                    Qt.TransformationMode.SmoothTransformation)  # fmt: skip
         p.drawImage(QPointF((dw - scaled.width()) / 2, (fh - scaled.height()) / 2), scaled)
-    # Shade from the left so light text reads on any picture.
-    shade = QLinearGradient(0, 0, dw, 0)
-    shade.setColorAt(0, QColor(0, 0, 0, round(255 * t.shade)))
-    shade.setColorAt(0.65, QColor(0, 0, 0, round(255 * t.shade * 0.55)))
-    shade.setColorAt(1, QColor(0, 0, 0, round(255 * t.shade * 0.25)))
-    p.fillRect(canvas.rect(), shade)
+    if t.tint is not None:
+        p.fillRect(canvas.rect(), QColor(*t.tint, 90))
+    _shade(p, t, dw, fh)
 
-    title_font = _font("Bricolage Grotesque", t.title_size * fh, 600)
-    label_font = _font("Source Sans 3", t.label_size * fh, 600)
+    title_font = _font(t.title_font, t.title_size * fh, 600)
+    label_font = _font(t.label_font, t.label_size * fh, 600)
+    centred = t.title_align == "center"
+    align = Qt.AlignmentFlag.AlignHCenter if centred else Qt.AlignmentFlag.AlignLeft
     if page.title:
         p.setFont(title_font)
-        p.setPen(QColor(*t.title))
-        title_rect = QRectF(0.10 * dw, 0.08 * fh, 0.80 * dw, 0.11 * fh)
-        p.drawText(title_rect, LEFT_MIDDLE, page.title)
+        title_rect = QRectF(0.10 * dw, t.title_y * fh, 0.80 * dw, 0.11 * fh)
+        _text(p, title_rect, align | Qt.AlignmentFlag.AlignVCenter, page.title, t.title, t.shadow)
     p.setFont(label_font)
     for text, rect in page.headings:
-        p.setPen(QColor(*t.muted))
-        p.drawText(_px(rect, dw, fh), Qt.AlignmentFlag.AlignVCenter, text)
+        _text(p, _px(rect, dw, fh), Qt.AlignmentFlag.AlignVCenter, _case(text, t), t.muted,
+              t.shadow)  # fmt: skip
 
     overlays = {k: QImage(dw, fh, QImage.Format.Format_ARGB32_Premultiplied)
                 for k in ("highlight", "select")}  # fmt: skip
@@ -157,19 +198,21 @@ def render_page(
                 q.setBrush(Qt.BrushStyle.NoBrush)
                 q.drawRect(pic.adjusted(-3, -3, 3, 3))
             continue
-        p.setPen(QColor(*t.text))
-        text_rect = r.adjusted(0.028 * dw, 0, 0, 0)
-        p.drawText(text_rect, LEFT_MIDDLE, b.label)
-        # Overlay: the label redrawn in the state colour plus a bar in front of it.
-        metrics_path = QPainterPath()
+        label = _case(b.label, t)
+        width = QFontMetricsF(label_font).horizontalAdvance(label)
+        indent = 0.0 if t.marker == "underline" else 0.028 * dw  # room for the bar or arrow
+        left = r.center().x() - width / 2 if centred else r.left() + indent
         baseline = r.center().y() + label_font.pixelSize() * 0.36
-        metrics_path.addText(QPointF(text_rect.left(), baseline), label_font, b.label)
+        _text(p, QRectF(left, r.top(), width + 4, r.height()), LEFT_MIDDLE, label, t.text,
+              t.shadow)  # fmt: skip
+        # Overlay: the label redrawn in the state colour plus the template's marker.
+        glyphs = QPainterPath()
+        glyphs.addText(QPointF(left, baseline), label_font, label)
         for k, q in painters.items():
             q.setPen(Qt.PenStyle.NoPen)
             q.setBrush(QColor(*colours[k]))
-            q.drawPath(metrics_path)
-            bar_h = r.height() * 0.55
-            q.drawRect(QRectF(r.left(), r.center().y() - bar_h / 2, 0.008 * dw, bar_h))
+            q.drawPath(glyphs)
+            q.drawPath(_marker(t, left, width, r, dw, label_font.pixelSize()))
     for q in painters.values():
         q.end()
     p.end()

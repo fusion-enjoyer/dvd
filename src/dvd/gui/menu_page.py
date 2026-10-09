@@ -38,13 +38,15 @@ def render_preview(project: Project, info: SourceInfo, source: Path, project_dir
     from dvd.menu.layout import expand
     from dvd.menu.pictures import background_image, frame_images
     from dvd.menu.render import render_page
+    from dvd.menu.templates import template
 
     pages = expand(project, info)
     backdrop = background_image(project.menus.background, source, info, project_dir, display)
     times = sorted({b.thumb for p in pages for b in p.buttons if b.thumb is not None})
     width = round(0.22 * display[0])
     thumbs = frame_images(source, info, times, (width, round(width * 9 / 16))) if times else {}
-    return [(page, render_page(page, frame, backdrop, thumbs)) for page in pages]
+    tpl = template(project.menus.template)
+    return [(page, render_page(page, frame, backdrop, thumbs, tpl)) for page in pages]
 
 
 def compose(rendered, button: int | None, layer: str = "highlight") -> QImage:
@@ -99,6 +101,13 @@ class MenuEditorPage(QWidget):
             self.page_checks[kind] = check
             opts.addWidget(check)
         opts.addSpacing(16)
+        opts.addWidget(QLabel(t("menu.template")))
+        self.template = QComboBox()
+        for name in ("minimal", "sinematik", "2000ler"):
+            self.template.addItem(t(f"menu.template.{name}"), name)
+        self.template.currentIndexChanged.connect(self._template_changed)
+        opts.addWidget(self.template)
+        opts.addSpacing(16)
         opts.addWidget(QLabel(t("menu.background")))
         self.bg_kind = QComboBox()
         for key in ("frame", "image", "color"):
@@ -136,7 +145,7 @@ class MenuEditorPage(QWidget):
         self.project_dir, self.frame = project_dir, frame
         self.dirty = True
         menus = project.menus
-        widgets = [self.enabled, self.bg_kind, *self.page_checks.values()]
+        widgets = [self.enabled, self.bg_kind, self.template, *self.page_checks.values()]
         for w in widgets:
             w.blockSignals(True)
         self.enabled.setChecked(menus is not None)
@@ -147,6 +156,7 @@ class MenuEditorPage(QWidget):
             kinds = {p.kind for p in menus.pages}
             for kind, check in self.page_checks.items():
                 check.setChecked(kind in kinds)
+            self.template.setCurrentIndex(self.template.findData(menus.template))
             bg = menus.background
             key = "frame" if bg.frame else "image" if bg.image else "color"
             self.bg_kind.setCurrentIndex(self.bg_kind.findData(key))
@@ -280,6 +290,10 @@ class MenuEditorPage(QWidget):
             pages.append(MenuPage(id=kind, kind=kind))
         order = {"main": 0, "chapters": 1, "languages": 2}
         menus.pages = sorted(pages, key=lambda p: order.get(p.kind, 9))
+        self._changed()
+
+    def _template_changed(self) -> None:
+        self.project.menus.template = self.template.currentData()
         self._changed()
 
     def _bg_kind_changed(self) -> None:

@@ -258,7 +258,7 @@ def _standard_pages() -> list[MenuPage]:
 
 
 class Menus(Strict):
-    template: str = "minimal"
+    template: Literal["minimal", "sinematik", "2000ler"] = "minimal"
     background: MenuBackground = Field(default_factory=MenuBackground)
     pages: list[Annotated[MenuPage, BeforeValidator(_page)]] = Field(
         default_factory=_standard_pages, min_length=1

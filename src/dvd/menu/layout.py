@@ -12,6 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from dvd.lang import name_tr
+from dvd.menu.templates import Template, template
 from dvd.probe import SourceInfo
 from dvd.probe.report import timecode
 from dvd.project import edit
@@ -41,12 +42,33 @@ class Page:
     headings: list[tuple[str, Rect]] = field(default_factory=list)  # text that is not a button
 
 
-# Minimal template: a column of text buttons at the lower left.
 LIST_X, LIST_Y, LIST_W, ROW_H, ROW_GAP = 0.10, 0.50, 0.42, 0.060, 0.012
+BOTTOM_Y, BOTTOM_W, BOTTOM_GAP = 0.84, 0.24, 0.04
 
 
 def _column(x: float, y: float, count: int, w: float = LIST_W) -> list[Rect]:
     return [(x, y + i * (ROW_H + ROW_GAP), w, ROW_H) for i in range(count)]
+
+
+def _row(count: int, y: float, w: float, gap: float, centred: bool) -> list[Rect]:
+    total = count * w + (count - 1) * gap
+    x0 = 0.5 - total / 2 if centred else 0.10
+    return [(x0 + i * (w + gap), y, w, ROW_H) for i in range(count)]
+
+
+def main_rects(count: int, tpl: Template) -> list[Rect]:
+    """Where the template puts the main page's buttons."""
+    if tpl.main == "row-bottom":
+        return _row(count, 0.80, 0.19, 0.025, centred=True)
+    if tpl.main == "column-center":
+        return _column(0.5 - 0.18, 0.42, count, 0.36)
+    return _column(LIST_X, LIST_Y, count)
+
+
+def _bottom(items: list, tpl: Template) -> list[Button]:
+    """The navigation row at the foot of the chapter and language pages."""
+    rects = _row(len(items), BOTTOM_Y, BOTTOM_W, BOTTOM_GAP, tpl.title_align == "center")
+    return [Button(i, label, a, r) for (i, label, a), r in zip(items, rects, strict=True)]
 
 
 def _play(chapter: int = 1) -> MenuAction:
@@ -67,6 +89,7 @@ def expand(project: Project, info: SourceInfo) -> list[Page]:
     menus = project.menus
     if menus is None:
         return []
+    tpl = template(menus.template)
     title = project.titles[0]
     first = menus.first
     times = edit.chapter_times(title, info)
@@ -75,11 +98,11 @@ def expand(project: Project, info: SourceInfo) -> list[Page]:
     pages: list[Page] = []
     for page in shown:
         if page.kind == "main":
-            pages.append(_main(page, shown, project))
+            pages.append(_main(page, shown, project, tpl))
         elif page.kind == "chapters":
-            pages += _chapters(page, times, first)
+            pages += _chapters(page, times, first, tpl)
         elif page.kind in ("languages", "audio", "subtitles"):
-            pages.append(_languages(page, project, first))
+            pages.append(_languages(page, project, first, tpl))
         else:
             pages.append(_custom(page))
     for p in pages:
@@ -87,7 +110,7 @@ def expand(project: Project, info: SourceInfo) -> list[Page]:
     return pages
 
 
-def _main(page: MenuPage, all_pages: list[MenuPage], project: Project) -> Page:
+def _main(page: MenuPage, all_pages: list[MenuPage], project: Project, tpl: Template) -> Page:
     if page.buttons:
         return _custom(page)
     title = project.titles[0]
@@ -103,12 +126,12 @@ def _main(page: MenuPage, all_pages: list[MenuPage], project: Project) -> Page:
             continue
         label = other.title or labels.get(other.kind, other.id)
         choices.append((other.id, label, _page_action(other.id)))
-    rects = _column(LIST_X, LIST_Y, len(choices))
+    rects = main_rects(len(choices), tpl)
     buttons = [Button(i, label, a, r) for (i, label, a), r in zip(choices, rects, strict=True)]
     return Page(page.id, "main", page.title or project.disc.name, buttons)
 
 
-def _chapters(page: MenuPage, times: list[float], back: str) -> list[Page]:
+def _chapters(page: MenuPage, times: list[float], back: str, tpl: Template) -> list[Page]:
     ids = chapter_page_ids(page.id, len(times))
     out = []
     for n, page_id in enumerate(ids):
@@ -126,8 +149,7 @@ def _chapters(page: MenuPage, times: list[float], back: str) -> list[Page]:
         bottom.append(("back", "Ana menü", _page_action(back)))
         if n < len(ids) - 1:
             bottom.append(("next", "Sonraki ›", _page_action(ids[n + 1])))
-        for j, (bid, label, action) in enumerate(bottom):
-            buttons.append(Button(bid, label, action, (0.10 + j * 0.28, 0.84, 0.24, ROW_H)))
+        buttons += _bottom(bottom, tpl)
         title = page.title or "Bölümler"
         if len(ids) > 1:
             title += f"  {n + 1}/{len(ids)}"
@@ -135,7 +157,7 @@ def _chapters(page: MenuPage, times: list[float], back: str) -> list[Page]:
     return out
 
 
-def _languages(page: MenuPage, project: Project, back: str) -> Page:
+def _languages(page: MenuPage, project: Project, back: str, tpl: Template) -> Page:
     title = project.titles[0]
     buttons, headings = [], []
     columns = []
@@ -157,7 +179,7 @@ def _languages(page: MenuPage, project: Project, back: str) -> Page:
         for (bid, label, action), rect in zip(items, _column(x, 0.30, len(items), 0.36),
                                               strict=True):  # fmt: skip
             buttons.append(Button(bid, label, action, rect))
-    buttons.append(Button("back", "Ana menü", _page_action(back), (0.10, 0.84, 0.24, ROW_H)))
+    buttons += _bottom([("back", "Ana menü", _page_action(back))], tpl)
     names = {"languages": "Dil ayarları", "audio": "Ses", "subtitles": "Altyazı"}
     return Page(page.id, page.kind, page.title or names[page.kind], buttons, headings)
 
