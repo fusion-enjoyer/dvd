@@ -137,7 +137,7 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 - [ ] First Play zinciri (intro → menü), başlık bitince davranışı
 - [ ] **TMDB entegrasyonu**: otomatik eşleştirme, Türkçe başlık/özet, arka plan/afiş/saydam logo seçici, menü şablonlarına bağlama
 - [ ] **Menü editörü v1**: tuval, katmanlar, özellikler paneli, güvenli alan kılavuzları, navigasyon okları görünümü
-- [ ] **DVD VM simülatörü v1**: menüleri yakmadan klavyeyle gezme
+- [x] **DVD VM simülatörü v1**: menüleri yakmadan klavyeyle gezme: diske giden buton komutlarını (jump title/menu, audio, subtitle, button) yorumlar; Menü sayfasında "Klavyeyle dene" (yön tuşları, Enter, Esc = Menü tuşu), ses/altyazı durumu ve oynatılacak bölüm gösterilir
 
 **Bitti kriteri:** Editörde tasarlanan statik menüler gerçek oynatıcıda doğru çalışıyor.
 
