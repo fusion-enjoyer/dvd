@@ -161,3 +161,37 @@ def test_frame_step_and_zoom(app, tmp_path: Path):
     target = well._target()
     assert target.height() == 2 * 576 and target.width() == pytest.approx(2 * 576 * 16 / 9)
     assert target.top() <= 0 and target.bottom() >= well.height()  # covers the well
+
+
+@pytest.mark.skipif(FFMPEG is None, reason="ffmpeg not installed")
+def test_chapters_page_edits_and_shows_frames(app, tmp_path: Path):
+    from dvd.project.model import ChapterEvery
+
+    meta = tmp_path / "meta.txt"
+    chapter = "[CHAPTER]\nTIMEBASE=1/1000\nSTART={}\nEND={}\n"
+    meta.write_text(";FFMETADATA1\n" + chapter.format(0, 4000) + chapter.format(4000, 8000),
+                    encoding="utf-8")  # fmt: skip
+    src = tmp_path / "bolum.mkv"
+    subprocess.run(
+        [str(FFMPEG), "-v", "error", "-y", "-f", "lavfi",
+         "-i", "testsrc2=size=1280x720:rate=25:duration=8", "-i", str(meta),
+         "-map", "0", "-map_chapters", "1", "-c:v", "libx264", "-preset", "ultrafast", str(src)],
+        check=True,
+    )  # fmt: skip
+    w = MainWindow(mode="pro")
+    w._loaded(w._load(src))
+    QThreadPool.globalInstance().waitForDone(60000)
+    app.processEvents()
+    page, project_file = w.chapters_page, tmp_path / "bolum.dvd.yaml"
+    assert page.mode.currentData() == "from-source" and page.grid.rowCount() >= 2
+    assert page.thumbs  # frames for the chapter list arrived
+
+    page.mode.setCurrentIndex(page.mode.findData("manual"))
+    assert load(project_file).titles[0].chapters == ["0:00:00.000", "0:00:04.000"]
+    w.preview_seconds = 6.0
+    page._add()
+    page._remove(1)
+    assert load(project_file).titles[0].chapters == ["0:00:00.000", "0:00:06.000"]
+    page.mode.setCurrentIndex(page.mode.findData("every"))
+    assert load(project_file).titles[0].chapters == ChapterEvery(every=5)
+    QThreadPool.globalInstance().waitForDone(60000)

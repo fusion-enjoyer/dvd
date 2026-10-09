@@ -8,7 +8,16 @@ from pathlib import Path
 
 from dvd.lang import to_dvd_code
 from dvd.probe import AudioTrack, SourceInfo
-from dvd.project.model import MAX_AUDIO_TRACKS, MAX_SUBTITLE_TRACKS, Audio, Subtitle, Title
+from dvd.project.model import (
+    MAX_AUDIO_TRACKS,
+    MAX_CHAPTERS,
+    MAX_SUBTITLE_TRACKS,
+    Audio,
+    ChapterEvery,
+    Subtitle,
+    Title,
+    parse_timecode,
+)
 
 _LANG_WORDS = {
     "turkce": "tr", "türkçe": "tr", "turkish": "tr", "english": "en", "ingilizce": "en",
@@ -114,3 +123,30 @@ def add_subtitle_file(title: Title, path: Path, project_dir: Path) -> Subtitle:
 
 def remove_subtitle_file(title: Title, stored: str) -> None:
     title.subtitles = [s for s in title.subtitles if s.file != stored]
+
+
+def chapter_times(title: Title, info: SourceInfo, speedup: float = 1.0) -> list[float]:
+    """Chapter starts in source seconds, whatever way the title sets them. "Every N minutes"
+    counts disc minutes, so with PAL speedup the source step is `speedup` times longer."""
+    chapters = title.chapters
+    if chapters == "none":
+        return [0.0]
+    if chapters == "from-source":
+        return sorted({0.0, *(c.start for c in info.chapters)})
+    if isinstance(chapters, ChapterEvery):
+        step = chapters.every * 60 * speedup
+        end = info.duration or 0.0
+        return [i * step for i in range(max(1, int(end // step) + 1)) if i * step < end] or [0.0]
+    return sorted({0.0, *(parse_timecode(t) for t in chapters)})
+
+
+def format_time(seconds: float) -> str:
+    """Seconds as the project's chapter timecode, 'h:mm:ss.mmm'."""
+    ms = round(seconds * 1000)
+    return f"{ms // 3_600_000}:{ms // 60_000 % 60:02}:{ms // 1000 % 60:02}.{ms % 1000:03}"
+
+
+def set_manual_chapters(title: Title, seconds: list[float]) -> None:
+    """Store chapter starts as a manual list (sorted, without repeats, 0 always first)."""
+    times = sorted({round(s, 3) for s in seconds if s >= 0} | {0.0})[:MAX_CHAPTERS]
+    title.chapters = [format_time(s) for s in times]
