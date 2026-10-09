@@ -138,6 +138,7 @@ def render_page(
     background: QImage | None = None,
     thumbs: dict[float, QImage] | None = None,
     template: Template | None = None,
+    logo: QImage | None = None,
 ) -> RenderedPage:
     """`frame`: disc frame width, height and display aspect. `background`: any size, it is
     scaled to cover the frame; None draws the template's plain backdrop."""
@@ -162,7 +163,15 @@ def render_page(
     label_font = _font(t.label_font, t.label_size * fh, 600)
     centred = t.title_align == "center"
     align = Qt.AlignmentFlag.AlignHCenter if centred else Qt.AlignmentFlag.AlignLeft
-    if page.title:
+    if page.kind == "main" and logo is not None and not logo.isNull():
+        # The film's logo in place of the title: up to half the width, 18 % of the height.
+        box = QRectF(0.10 * dw, t.title_y * fh, 0.80 * dw, 0.18 * fh)
+        keep = Qt.AspectRatioMode.KeepAspectRatio
+        scaled = logo.scaled(round(0.5 * dw), round(box.height()), keep,
+                             Qt.TransformationMode.SmoothTransformation)  # fmt: skip
+        x = box.center().x() - scaled.width() / 2 if centred else box.left()
+        p.drawImage(QPointF(x, box.top()), scaled)
+    elif page.title:
         p.setFont(title_font)
         title_rect = QRectF(0.10 * dw, t.title_y * fh, 0.80 * dw, 0.11 * fh)
         _text(p, title_rect, align | Qt.AlignmentFlag.AlignVCenter, page.title, t.title, t.shadow)

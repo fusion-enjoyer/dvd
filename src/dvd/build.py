@@ -190,7 +190,7 @@ def _menus(project: Project, p: _Prepared, project_dir: Path, work_dir: Path,
     """Render the menu pages from the first title's picture and author them."""
     from dvd.menu.author import author_menus
     from dvd.menu.layout import expand, overlapping
-    from dvd.menu.pictures import background_image, frame_images
+    from dvd.menu.pictures import background_image, frame_images, logo_image
     from dvd.menu.render import render_page
     from dvd.menu.templates import template
 
@@ -209,7 +209,11 @@ def _menus(project: Project, p: _Prepared, project_dir: Path, work_dir: Path,
     width = round(0.22 * display[0])
     thumbs = frame_images(p.source, p.info, times, (width, round(width * 9 / 16))) if times else {}
     tpl = template(project.menus.template)
-    rendered = {page.id: render_page(page, frame, backdrop, thumbs, tpl) for page in pages}
+    try:
+        logo = logo_image(project.menus.logo, project_dir)
+    except ValueError as exc:
+        raise BuildError(str(exc)) from None
+    rendered = {page.id: render_page(page, frame, backdrop, thumbs, tpl, logo) for page in pages}
     return author_menus(pages, rendered, project.menus.first, project.disc.standard,
                         p.target.dar, work_dir)  # fmt: skip
 

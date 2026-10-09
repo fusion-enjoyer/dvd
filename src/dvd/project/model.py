@@ -282,6 +282,8 @@ def _standard_pages() -> list[MenuPage]:
 class Menus(Strict):
     template: Literal["minimal", "sinematik", "2000ler"] = "minimal"
     background: MenuBackground = Field(default_factory=MenuBackground)
+    logo: str | None = None  # picture drawn on the main page instead of the title text
+    tmdb_id: int | None = None  # the film on themoviedb.org the pictures came from
     pages: list[Annotated[MenuPage, BeforeValidator(_page)]] = Field(
         default_factory=_standard_pages, min_length=1
     )

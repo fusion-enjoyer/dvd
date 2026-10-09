@@ -51,3 +51,14 @@ def background_image(bg: MenuBackground, source: Path, info: SourceInfo, project
     image = QImage(*size, QImage.Format.Format_RGB32)
     image.fill(QColor(bg.color))
     return image
+
+
+def logo_image(path: str | None, project_dir: Path) -> QImage | None:
+    """The menu logo picture (PNG with transparency, usually from TMDB), if one is set."""
+    if not path:
+        return None
+    p = Path(path)
+    image = QImage(str(p if p.is_absolute() else project_dir / p))
+    if image.isNull():
+        raise ValueError(f"cannot read menu logo {path}")
+    return image

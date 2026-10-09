@@ -127,6 +127,11 @@ QComboBox::down-arrow {{ image: url({CHEVRON}); width: 12px; height: 12px; }}
 QComboBox QAbstractItemView {{ background: {c["panel"]}; border: 1px solid {c["cizgi"]};
     selection-background-color: {c["girdi"]}; }}
 QCheckBox {{ spacing: 8px; }}
+QListWidget {{ background: {c["girdi"]}; border: 1px solid {c["cizgi"]}; border-radius: 3px;
+    outline: none; }}
+QListWidget::item {{ padding: 3px; border: 1px solid transparent; }}
+QListWidget::item:selected {{ background: rgba(240, 180, 73, 0.18); color: {c["metin"]};
+    border: 1px solid {c["amber"]}; }}
 
 QWidget#card {{ background: {c["panel"]}; border: 1px solid {c["cizgi_zayif"]};
     border-radius: 10px; }}

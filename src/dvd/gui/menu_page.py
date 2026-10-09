@@ -39,7 +39,7 @@ def render_preview(project: Project, info: SourceInfo, source: Path, project_dir
                    frame: tuple, display: tuple[int, int]) -> list:  # fmt: skip
     """(page, rendered page) for every disc menu page, drawn as the build draws them."""
     from dvd.menu.layout import expand
-    from dvd.menu.pictures import background_image, frame_images
+    from dvd.menu.pictures import background_image, frame_images, logo_image
     from dvd.menu.render import render_page
     from dvd.menu.templates import template
 
@@ -49,7 +49,8 @@ def render_preview(project: Project, info: SourceInfo, source: Path, project_dir
     width = round(0.22 * display[0])
     thumbs = frame_images(source, info, times, (width, round(width * 9 / 16))) if times else {}
     tpl = template(project.menus.template)
-    return [(page, render_page(page, frame, backdrop, thumbs, tpl)) for page in pages]
+    logo = logo_image(project.menus.logo, project_dir)
+    return [(page, render_page(page, frame, backdrop, thumbs, tpl, logo)) for page in pages]
 
 
 def compose(rendered, button: int | None, layer: str = "highlight") -> QImage:
@@ -120,6 +121,10 @@ class MenuEditorPage(QWidget):
         self.bg_action = QPushButton()
         self.bg_action.clicked.connect(self._bg_action)
         opts.addWidget(self.bg_action)
+        self.tmdb = QPushButton(t("tmdb.open"))
+        self.tmdb.setToolTip(t("tmdb.open_hint"))
+        self.tmdb.clicked.connect(self._open_tmdb)
+        opts.addWidget(self.tmdb)
         opts.addStretch()
         box.addWidget(self.options)
         row = QHBoxLayout()
@@ -382,6 +387,13 @@ class MenuEditorPage(QWidget):
         order = {"main": 0, "chapters": 1, "languages": 2}
         menus.pages = sorted(pages, key=lambda p: order.get(p.kind, 9))
         self._changed()
+
+    def _open_tmdb(self) -> None:
+        from dvd.gui.tmdb_dialog import TmdbDialog
+
+        dialog = TmdbDialog(self.project, self.source, self)
+        dialog.applied.connect(self._changed)
+        dialog.exec()
 
     def _template_changed(self) -> None:
         self.project.menus.template = self.template.currentData()
