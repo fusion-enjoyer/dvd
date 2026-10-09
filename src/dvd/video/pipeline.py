@@ -2,7 +2,8 @@
 
 Steps: open the source, decide the DVD frame (PAL/NTSC, 16:9 or 4:3), scale the picture into it
 with black bars where the shapes differ, convert BT.709 to BT.601 for SD, and retime film to 25 fps
-for PAL. Pre-processing for quality (deband, dither, grain, crop detection) comes in Phase 2.
+for PAL. 50 and 60 fps sources become interlaced video (25i / 29.97i): each output frame
+carries two source frames as its top and bottom field, so motion stays as smooth as the source.
 """
 
 from __future__ import annotations
@@ -23,7 +24,8 @@ core = vs.core
 
 FILM_RATES = (Fraction(24000, 1001), Fraction(24))
 PAL_RATE = Fraction(25)
-NTSC_RATES = (Fraction(30000, 1001),)
+NTSC_RATE = Fraction(30000, 1001)
+SLOWDOWN = Fraction(1000, 1001)  # 30.000 -> 29.97 and 60.000 -> 59.94
 WIDESCREEN_FROM = Fraction(3, 2)  # sources wider than this get a 16:9 frame
 
 
@@ -47,6 +49,7 @@ class Target:
     crop: Crop = field(default_factory=Crop)  # applied to the source before scaling
     pad_left: int = 0
     pad_top: int = 0
+    interlaced: bool = False  # two source frames per DVD frame, top field first
 
     @property
     def dar(self) -> Fraction:
@@ -116,22 +119,26 @@ def plan_target(
     frame_dar = Fraction(16, 9) if aspect == "16:9" else Fraction(4, 3)
 
     film = any(_close(v.fps, r) for r in FILM_RATES)
+    pulldown, interlaced, speedup = False, False, Fraction(1)
     if standard == "pal":
-        if _close(v.fps, PAL_RATE):
-            fps, speedup = PAL_RATE, Fraction(1)
+        frame_w, frame_h, fps = 720, 576, PAL_RATE
+        if _close(v.fps, 2 * PAL_RATE):
+            interlaced = True
         elif film:
-            fps, speedup = PAL_RATE, PAL_RATE / v.fps
-        else:
+            speedup = PAL_RATE / v.fps
+        elif not _close(v.fps, PAL_RATE):
             raise UnsupportedSource(f"{float(v.fps):g} fps to PAL needs frame rate conversion")
-        frame_w, frame_h, pulldown = 720, 576, False
     else:
+        frame_w, frame_h, fps = 720, 480, NTSC_RATE
         if film:
             fps, pulldown = Fraction(24000, 1001), True
-        elif any(_close(v.fps, r) for r in NTSC_RATES):
-            fps, pulldown = Fraction(30000, 1001), False
+        elif _close(v.fps, NTSC_RATE) or _close(v.fps, Fraction(30)):
+            speedup = Fraction(1) if _close(v.fps, NTSC_RATE) else SLOWDOWN
+        elif _close(v.fps, 2 * NTSC_RATE) or _close(v.fps, Fraction(60)):
+            interlaced = True
+            speedup = Fraction(1) if _close(v.fps, 2 * NTSC_RATE) else SLOWDOWN
         else:
             raise UnsupportedSource(f"{float(v.fps):g} fps to NTSC needs frame rate conversion")
-        frame_w, frame_h, speedup = 720, 480, Fraction(1)
 
     left, right, top, bottom = crop.left, crop.right, crop.top, crop.bottom
     if content_dar >= frame_dar:  # wider: full width, bars top and bottom
@@ -158,7 +165,7 @@ def plan_target(
     pad_top = (frame_h - active_h) // 2 // step * step
     return Target(
         standard, frame_w, frame_h, fps, aspect, pulldown, speedup, active_w, active_h,
-        Crop(left=left, right=right, top=top, bottom=bottom), pad_left, pad_top,
+        Crop(left=left, right=right, top=top, bottom=bottom), pad_left, pad_top, interlaced,
     )  # fmt: skip
 
 
@@ -193,7 +200,8 @@ def build_clip(
         clip,
         width=target.active_width,
         height=target.active_height,
-        format=vs.YUV420P16,
+        # Interlaced output subsamples chroma per field at the end, so keep it full until then.
+        format=vs.YUV444P16 if target.interlaced else vs.YUV420P16,
         matrix_in_s=_matrix(v),
         matrix_s=out_matrix,
         range_in_s="full" if v.color_range == "pc" else "limited",
@@ -213,5 +221,18 @@ def build_clip(
             bottom=pad_h - target.pad_top,
             color=[16 << 8, 128 << 8, 128 << 8],
         )
-    clip = core.resize.Point(clip, format=vs.YUV420P8, dither_type=pre.dither)
+    if target.interlaced:
+        clip = interlace(clip, pre.dither)
+    else:
+        clip = core.resize.Point(clip, format=vs.YUV420P8, dither_type=pre.dither)
     return core.std.AssumeFPS(clip, fpsnum=target.fps.numerator, fpsden=target.fps.denominator)
+
+
+def interlace(clip: vs.VideoNode, dither: str) -> vs.VideoNode:
+    """50/60p -> 25/30i, top field first: the top field of output frame n comes from source
+    frame 2n, the bottom field from 2n+1. Chroma is subsampled per field (4:2:0 interlaced)."""
+    fields = core.std.SeparateFields(clip, tff=True)
+    fields = core.std.SelectEvery(fields, 4, [0, 3])  # top of even frames, bottom of odd ones
+    fields = core.resize.Bicubic(fields, format=vs.YUV420P8, dither_type=dither)
+    woven = core.std.DoubleWeave(fields, tff=True)[::2]
+    return core.std.SetFieldBased(woven, 2)

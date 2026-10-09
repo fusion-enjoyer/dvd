@@ -29,6 +29,7 @@ class EncodeSettings:
     aspect: str  # "16:9" | "4:3"
     standard: str  # "pal" | "ntsc"
     pulldown: bool = False
+    interlaced: bool = False  # top field first
     chapters: list[int] = field(default_factory=list)  # frames that must start a closed GOP
     profile: str = "best"
 
@@ -43,7 +44,7 @@ def ini_text(avs: Path, m2v: Path, log: Path, workdir: Path, s: EncodeSettings) 
         f"*MAXBITRATE {s.maxrate}",
         f"*PROFILE {s.profile.upper()}",
         f"*ASPECT {s.aspect}",
-        "*PROGRESSIVE",
+        "*TFF" if s.interlaced else "*PROGRESSIVE",
         # DVD-compliant GOP lengths from the HCEnc manual: PAL 15, NTSC film with pulldown 12.
         f"*AUTOGOP {12 if s.pulldown else 15}",
         f"*COLOUR {5 if s.standard == 'pal' else 6}",
@@ -155,7 +156,7 @@ def encode(
                 s.profile,
                 "-aspectratio",
                 s.aspect,
-                "-progressive",
+                *([] if s.interlaced else ["-progressive"]),
             ],  # fmt: skip
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,

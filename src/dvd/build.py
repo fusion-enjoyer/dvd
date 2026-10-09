@@ -77,18 +77,22 @@ def safe_name(name: str) -> str:
 
 
 def chapter_frames(title: Title, info: SourceInfo, target: Target, frames: int) -> list[int]:
-    """Frame numbers where chapters start. PAL speedup and pulldown keep frame numbers."""
-    src_fps = info.main_video.fps
+    """Frame numbers where chapters start. Source times are moved to the disc's clock (PAL
+    speedup, 30 -> 29.97) and counted in disc frames (two source frames per interlaced one)."""
     chapters = title.chapters
+
+    def frame(seconds: float) -> int:
+        return round(Fraction(seconds) / target.speedup * target.fps)
+
     if chapters == "none":
         starts = [0]
     elif chapters == "from-source":
-        starts = [round(c.start * src_fps) for c in info.chapters]
+        starts = [frame(c.start) for c in info.chapters]
     elif isinstance(chapters, ChapterEvery):
         step = max(1, round(chapters.every * 60 * target.fps))
         starts = list(range(0, frames, step))
     else:
-        starts = [round(parse_timecode(t) * src_fps) for t in chapters]
+        starts = [frame(parse_timecode(t)) for t in chapters]
     return sorted({0, *(f for f in starts if 0 <= f < frames)})[:MAX_CHAPTERS]
 
 
@@ -225,6 +229,7 @@ def build(
             aspect=p.target.aspect,
             standard=project.disc.standard,
             pulldown=p.target.pulldown,
+            interlaced=p.target.interlaced,
             chapters=chapters,
         )
         clip = disc_clip(project, p)

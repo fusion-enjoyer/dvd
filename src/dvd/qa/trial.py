@@ -80,6 +80,7 @@ def trial_encode(
         aspect=p.target.aspect,
         standard=project.disc.standard,
         pulldown=p.target.pulldown,
+        interlaced=p.target.interlaced,
     )
     report = (lambda stage: lambda f: progress(stage, f)) if progress else (lambda _s: None)
     wanted = resolve_profiles(project.disc.profiles, p.title.video.overrides)["encoder"]

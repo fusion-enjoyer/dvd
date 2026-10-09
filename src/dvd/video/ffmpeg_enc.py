@@ -38,14 +38,17 @@ def ffmpeg_args(settings: EncodeSettings, fps: float, passlog: Path, pass_no: in
         "-g", "15" if pal else "12" if s.pulldown else "18", "-bf", "2",
         "-mpv_flags", "+strict_gop", "-sc_threshold", "1000000000",
         # +ildct clears progressive_sequence; pulldown streams stay progressive until inject.
-        "-flags", "+cgop" if s.pulldown else "+ildct+cgop",
+        "-flags", "+cgop" if s.pulldown else "+ildct+ilme+cgop" if s.interlaced else "+ildct+cgop",
         "-dc", "10", "-intra_vlc", "1", "-non_linear_quant", "1",
         "-mbd", "rd", "-trellis", "2", "-cmp", "2", "-subcmp", "2", "-qmin", "1", "-qmax", "28",
         "-aspect", s.aspect, "-seq_disp_ext", "1", "-video_format", "1" if pal else "2",
         # -color_primaries/-color_trc are ignored for y4m input; setparams tags the frames.
-        "-vf", f"setparams=color_primaries={sd}:color_trc={sd}:colorspace={sd}",
+        "-vf", f"setparams=field_mode={'tff' if s.interlaced else 'prog'}"
+               f":color_primaries={sd}:color_trc={sd}:colorspace={sd}",
         "-pass", str(pass_no), "-passlogfile", str(passlog),
     ]  # fmt: skip
+    if s.interlaced:
+        args += ["-alternate_scan", "1"]  # field order comes from setparams
     chapters = sorted({c for c in s.chapters if c > 0})
     if chapters:
         args += ["-force_key_frames", ",".join(f"{c / fps:.6f}" for c in chapters)]

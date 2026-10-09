@@ -2,6 +2,7 @@ import subprocess
 from fractions import Fraction
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from dvd import toolchain
@@ -142,3 +143,39 @@ def test_build_clip_from_scope_hd_film(tmp_path: Path):
         middle = memoryview(f[0])[288, 360]
     assert top_left == 16  # black bar
     assert middle != 16
+
+
+@pytest.mark.parametrize(
+    ("fps", "standard", "speedup"),
+    [(Fraction(50), "pal", 1), (Fraction(60000, 1001), "ntsc", 1),
+     (Fraction(60), "ntsc", Fraction(1000, 1001))],
+)  # fmt: skip
+def test_50_and_60_fps_become_interlaced(fps, standard, speedup):
+    t = plan_target(track(1920, 1080, fps), standard, Video())
+    assert t.interlaced and not t.pulldown
+    assert t.fps == (25 if standard == "pal" else Fraction(30000, 1001))
+    assert t.speedup == speedup
+
+
+def test_30_fps_plays_at_29_97_on_ntsc():
+    t = plan_target(track(1920, 1080, Fraction(30)), "ntsc", Video())
+    assert not t.interlaced and t.fps == Fraction(30000, 1001)
+    assert t.speedup == Fraction(1000, 1001)
+
+
+def test_interlace_puts_even_frames_on_top_fields():
+    import vapoursynth as vs
+
+    from dvd.video.pipeline import interlace
+
+    core = vs.core
+    white = core.std.BlankClip(format=vs.YUV444P16, width=64, height=32, length=1,
+                               color=[60000, 32768, 32768])  # fmt: skip
+    black = core.std.BlankClip(white, color=[4096, 32768, 32768])
+    clip = core.std.Interleave([white, black] * 1)  # frame 0 white, frame 1 black
+    out = interlace(clip * 2, "none")
+    assert out.num_frames == 2 and out.format.id == vs.YUV420P8
+    with out.get_frame(0) as f:
+        luma = np.asarray(f[0])
+        assert f.props["_FieldBased"] == 2
+    assert luma[0::2].min() > 200 and luma[1::2].max() < 40  # top lines white, bottom black

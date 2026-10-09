@@ -55,3 +55,9 @@ def test_encode_into_non_ascii_folders_with_chapter_keyframes(tmp_path: Path, fo
     types = _frame_types(out)
     assert len(types) == 60
     assert types[0] == "I" and types[37] == "I"
+
+
+def test_ini_for_interlaced_is_tff_not_progressive():
+    s = EncodeSettings(bitrate=6000, maxrate=9000, aspect="16:9", standard="pal", interlaced=True)
+    text = ini_text(Path("a.avs"), Path("a.m2v"), Path("a.log"), Path("w"), s)
+    assert "*TFF" in text and "*PROGRESSIVE" not in text

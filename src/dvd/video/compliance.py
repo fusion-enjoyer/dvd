@@ -41,6 +41,7 @@ class Picture:
     bits: int
     fields: int  # display duration in fields: 2, or 3 with repeat_first_field
     progressive: bool = True  # progressive_frame
+    tff: bool = False  # top_field_first
 
 
 @dataclass
@@ -117,7 +118,8 @@ def parse(path: Path) -> StreamInfo:
                 elif ext == 8 and current is not None:  # picture coding extension
                     b.read(16 + 2)  # f_codes, intra_dc_precision
                     structure = b.read(2)
-                    b.read(1 + 1 + 1 + 1 + 1 + 1)  # tff .. alternate_scan
+                    current.tff = bool(b.read(1))
+                    b.read(1 + 1 + 1 + 1 + 1)  # frame_pred_frame_dct .. alternate_scan
                     rff = b.read(1)
                     b.read(1)  # chroma_420_type
                     current.progressive = bool(b.read(1))

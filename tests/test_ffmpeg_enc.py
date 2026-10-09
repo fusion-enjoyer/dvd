@@ -74,3 +74,10 @@ def test_ntsc_film_gets_soft_pulldown(tmp_path: Path):
     # 96 film frames play as 240 fields = 120 video frames, 2:3 cadence.
     assert len(info.pictures) == 96 and sum(p.fields for p in info.pictures) == 240
     assert max(info.gop_fields) <= 36
+
+
+def test_interlaced_args_use_field_coding_and_tff():
+    s = EncodeSettings(6000, 9000, "16:9", "pal", interlaced=True)
+    args = ffmpeg_args(s, 25.0, Path("log"), 2)
+    assert args[args.index("-flags") + 1] == "+ildct+ilme+cgop"
+    assert "field_mode=tff" in args[args.index("-vf") + 1]

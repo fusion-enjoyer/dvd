@@ -10,6 +10,7 @@ from dvd.build import build, chapter_frames, safe_name
 from dvd.probe import probe
 from dvd.project import load, new_project, save
 from dvd.project.model import ChapterEvery
+from dvd.video.compliance import check as check_video
 
 DIRS = toolchain.tool_dirs()
 FFMPEG = toolchain.find_executable(["ffmpeg.exe", "ffmpeg"], DIRS)
@@ -231,3 +232,31 @@ def test_build_ntsc_film_disc_with_ffmpeg_soft_pulldown(tmp_path: Path):
     assert (v.codec, v.width, v.height) == ("mpeg2video", 720, 480)
     # Soft pulldown keeps the original running time: 23.976 film frames, 29.97 playback.
     assert vob.duration == pytest.approx(6, abs=0.2)
+
+
+@pytest.mark.skipif(not READY, reason="toolchain not installed")
+@pytest.mark.parametrize("encoder", ["hcenc", "ffmpeg"])
+def test_build_50p_source_as_interlaced_pal(tmp_path: Path, encoder: str):
+    src = tmp_path / "telefon.mkv"
+    subprocess.run(
+        [str(FFMPEG), "-v", "error", "-y",
+         "-f", "lavfi", "-i", "testsrc2=size=1280x720:rate=50:duration=4",
+         "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000:duration=4",
+         "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", str(src)],
+        check=True,
+    )  # fmt: skip
+    project = new_project(probe(src), tmp_path)
+    assert project.disc.standard == "pal"
+    project.titles[0].video.overrides = {"encoder": encoder}
+    project_file = tmp_path / "telefon.dvd.yaml"
+    save(project, project_file)
+
+    result = build(project_file, make_iso=False)
+
+    m2v = next(tmp_path.rglob("t01.m2v"))
+    info = check_video(m2v, "pal").info
+    assert len(info.pictures) == 100  # 200 source frames, two per DVD frame
+    assert all(not p.progressive and p.tff for p in info.pictures)
+    vob = probe(result.video_ts / "VTS_01_1.VOB")
+    assert vob.main_video.fps == 25 and vob.main_video.field_order == "tt"
+    assert vob.duration == pytest.approx(4, abs=0.2)
