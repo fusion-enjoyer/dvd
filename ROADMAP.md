@@ -109,7 +109,7 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 ## Faz 3 — Ses, altyazı, bölümler
 
 - [x] Çoklu ses izi, AC-3 passthrough, HD ses → 5.1 AC-3, stereo downmix, DRC/gece modu, delay: DVD'ye uyan AC-3 bit bit kopyalanır; stereo downmix Dolby Pro Logic II matrisiyle; gece modu sıkıştırıcı; gecikme iz başına (ms) ve dosyanın kendi ses/görüntü kayması otomatik korunur
-- [ ] Altyazı render motoru: istenen font, anamorfik düzeltme, akıllı kenar yumuşatma (4 renk), Türkçe kodlama tespiti, stil editörü ve stil şablonları
+- [x] Altyazı render motoru: istenen font, anamorfik düzeltme, akıllı kenar yumuşatma (4 renk), Türkçe kodlama tespiti, stil editörü ve stil şablonları: hazır stiller (Varsayılan, Büyük, Sarı, İnce, Kalın), kendi stillerim (`%APPDATA%\DVD Studyo\styles`), iz başına stil seçimi, canlı önizlemeli düzenleyici
 - [ ] ASS, PGS, VobSub girişi; forced altyazılar; letterbox bandına altyazı
   - [x] ASS/SSA/WebVTT dosyaları (metin olarak, kendi stilimizle çizilir); Blu-ray PGS: kendi .sup okuyucumuz, resim görüntüyle aynı crop/ölçekle DVD karesine taşınır, 4 renge indirilir; PGS'teki tek tek forced işaretleri diske geçer; PGS'te letterbox bandındaki altyazı bantta kalır
   - [ ] VobSub (DVD) ve DVB resim altyazıları; renkli PGS'te rengi koruma; metin altyazıyı letterbox bandına yerleştirme seçeneği
