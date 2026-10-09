@@ -127,7 +127,8 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 - [x] Menü modeli: sayfalar, öğeler, butonlar, eylemler, navigasyon: proje dosyasında `menus` (sayfa türleri main / chapters / languages / audio / subtitles / custom; eylemler play / page / audio / subtitle); `menu/layout.py` standart sayfaları projeden doldurur (bölümler 6'şar sayfalanır)
 - [ ] Render: arka plan + 3 durumlu highlight subpicture'ları (4 renk sınırı)
   - [x] `menu/render.py`: etiketler, başlık ve bölüm kareleri arka plan videosunda; vurgu (amber) ve seçim (beyaz) katmanları en çok 3 renk + saydam; kare piksel çizim, 720'ye anamorfik sıkıştırma; buton alanları çift sayılı ve çakışmasız; arka plan film karesi / resim / düz renk
-  - [ ] Diske yazma: menü VOB'u (spumux + dvdauthor), menü önizlemesi arayüzde
+  - [x] Diske yazma: sayfa başına 1 sn MPEG-2 durağan video + sessiz AC-3, spumux ile buton katmanı, dvdauthor titleset menüleri; root / ptt / audio giriş noktaları, film sonunda menüye dönüş, ses/altyazı seçince imleç aynı butonda kalır
+  - [ ] Menü önizlemesi ve açma/kapama arayüzde
 - [ ] Otomatik navigasyon grafiği + elle düzenleme
   - [x] Otomatik: her yön için o yöndeki en yakın buton (yan sapma iki kat sayılır), kenarda vurgu yerinde kalır; elle verilen yönler korunur (proje dosyasında up/down/left/right)
   - [ ] Editörde elle düzenleme (menü editörüyle)
