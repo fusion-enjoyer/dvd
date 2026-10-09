@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -23,11 +24,13 @@ from PySide6.QtWidgets import (
 
 from dvd.gui import tasks
 from dvd.gui.i18n import t
+from dvd.gui.menu_canvas import MenuCanvas
 from dvd.gui.widgets import ModeSwitch, VideoWell
+from dvd.menu.layout import overlapping
 from dvd.probe import SourceInfo
 from dvd.project import edit
 from dvd.project.create import default_menus
-from dvd.project.model import MenuBackground, MenuPage, Project
+from dvd.project.model import ButtonEdit, MenuBackground, MenuPage, Project
 
 OPTIONAL = ("chapters", "languages")  # pages the user can leave out; main is always there
 
@@ -124,7 +127,8 @@ class MenuEditorPage(QWidget):
         self.page_list.setMinimumWidth(200)
         self.page_list.currentIndexChanged.connect(self._show_preview)
         self.lit = ModeSwitch({"plain": t("menu.view.plain"), "lit": t("menu.view.lit"),
-                               "try": t("menu.view.try")}, "lit")  # fmt: skip
+                               "try": t("menu.view.try"), "edit": t("menu.view.edit")},
+                              "lit")  # fmt: skip
         self.view = "lit"
         self.lit.changed.connect(self._set_view)
         row.addWidget(self.page_list)
@@ -133,6 +137,36 @@ class MenuEditorPage(QWidget):
         box.addLayout(row)
         self.well = VideoWell()
         box.addWidget(self.well, 1)
+        self.editor = QWidget()
+        ed = QHBoxLayout(self.editor)
+        ed.setContentsMargins(0, 0, 0, 0)
+        self.canvas = MenuCanvas()
+        self.canvas.selected.connect(self._button_selected)
+        self.canvas.edited.connect(self._button_moved)
+        ed.addWidget(self.canvas, 1)
+        side = QVBoxLayout()
+        side.addWidget(QLabel(t("menu.edit.label")))
+        self.label_edit = QLineEdit()
+        self.label_edit.setMaxLength(60)
+        self.label_edit.editingFinished.connect(self._label_changed)
+        side.addWidget(self.label_edit)
+        self.reset = QPushButton(t("menu.edit.reset"))
+        self.reset.clicked.connect(self._reset_button)
+        side.addWidget(self.reset)
+        self.nav_check = QCheckBox(t("menu.edit.arrows"))
+        self.nav_check.toggled.connect(self._show_arrows)
+        side.addWidget(self.nav_check)
+        self.edit_note = QLabel(t("menu.edit.hint"))
+        self.edit_note.setObjectName("muted")
+        self.edit_note.setWordWrap(True)
+        side.addWidget(self.edit_note)
+        side.addStretch()
+        holder = QWidget()
+        holder.setFixedWidth(230)
+        holder.setLayout(side)
+        ed.addWidget(holder)
+        self.editor.hide()
+        box.addWidget(self.editor, 1)
         self.status = QLabel("")
         self.status.setObjectName("muted")
         box.addWidget(self.status)
@@ -211,6 +245,8 @@ class MenuEditorPage(QWidget):
 
     def _set_view(self, view: str) -> None:
         self.view = view
+        self.well.setVisible(view != "edit")
+        self.editor.setVisible(view == "edit")
         self.page_list.setEnabled(view != "try")
         if view == "try":
             self._new_simulator()
@@ -238,9 +274,64 @@ class MenuEditorPage(QWidget):
             self.status.setText(self._sim_status())
             return
         i = self.page_list.currentIndex()
-        if 0 <= i < len(self.previews):
-            rendered = self.previews[i][1]
-            self.well.set_image(compose(rendered, 0 if self.view == "lit" else None), aspect)
+        if not 0 <= i < len(self.previews):
+            return
+        page, rendered = self.previews[i]
+        if self.view == "edit":
+            self.canvas.set_page(page.buttons, compose(rendered, None), aspect)
+            self._button_selected(self.canvas.current)
+            return
+        self.well.set_image(compose(rendered, 0 if self.view == "lit" else None), aspect)
+
+    # ------------------------------------------------------------------ editor
+
+    def _spec(self) -> MenuPage | None:
+        """The project page a shown page comes from ("chapters-2" comes from "chapters")."""
+        i = self.page_list.currentIndex()
+        if self.project is None or self.project.menus is None or not 0 <= i < len(self.previews):
+            return None
+        page_id = self.previews[i][0].id
+        for spec in self.project.menus.pages:
+            if page_id == spec.id or page_id.startswith(spec.id + "-"):
+                return spec
+        return None
+
+    def _edit_button(self, bid: str, **change) -> None:
+        spec = self._spec()
+        if spec is None:
+            return
+        edits = dict(spec.edits)
+        current = edits.get(bid, ButtonEdit()).model_dump()
+        current.update(change)
+        edits[bid] = ButtonEdit(**current)
+        spec.edits = edits
+        self._changed()
+
+    def _button_selected(self, bid: str | None) -> None:
+        button = next((b for b in self.canvas.buttons if b.id == bid), None)
+        self.label_edit.setEnabled(button is not None)
+        self.label_edit.setText(button.label if button else "")
+        clash = overlapping(self.canvas.rects)
+        self.edit_note.setText(t("menu.edit.overlap") if clash else t("menu.edit.hint"))
+
+    def _button_moved(self, bid: str, rect: tuple) -> None:
+        self._edit_button(bid, rect=rect)
+
+    def _label_changed(self) -> None:
+        bid, text = self.canvas.current, self.label_edit.text().strip()
+        button = next((b for b in self.canvas.buttons if b.id == bid), None)
+        if button is not None and text and text != button.label:
+            self._edit_button(bid, label=text)
+
+    def _reset_button(self) -> None:
+        spec, bid = self._spec(), self.canvas.current
+        if spec is not None and bid in spec.edits:
+            spec.edits = {k: v for k, v in spec.edits.items() if k != bid}
+            self._changed()
+
+    def _show_arrows(self, on: bool) -> None:
+        self.canvas.show_nav = on
+        self.canvas.update()
 
     def _sim_status(self) -> str:
         from dvd.lang import name_tr

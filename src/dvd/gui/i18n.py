@@ -145,6 +145,15 @@ TEXTS: dict[str, dict[str, str]] = {
         "menu.view.lit": "Seçili buton",
         "menu.rendering": "Menü sayfaları çiziliyor…",
         "menu.view.try": "Klavyeyle dene",
+        "menu.view.edit": "Düzenle",
+        "menu.edit.label": "Buton yazısı",
+        "menu.edit.reset": "Bu butonu varsayılana döndür",
+        "menu.edit.arrows": "Kumanda yönlerini göster",
+        "menu.edit.hint": "Butonu sürükleyerek taşıyın, sağ alt köşesinden boyutlandırın; "
+        "yön tuşları seçili butonu biraz kaydırır (Shift ile daha çok). Kesikli çizgiler "
+        "TV'nin güvenli alanları: yazılar içteki çizginin içinde kalsın.",
+        "menu.edit.overlap": "Kırmızı butonlar üst üste biniyor; oynatıcı yanlış butonu "
+        "vurgulayabilir.",
         "menu.sim.audio": "Ses: {lang}",
         "menu.sim.subs": "Altyazı: {lang}",
         "menu.sim.off": "kapalı",
@@ -213,6 +222,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "build.stage.iso": "Disk imajı yazılıyor",
         "build.stage.done": "Disk hazır",
         "warning.no_hcenc": "HCEnc kurulu değil; görüntü FFmpeg ile kodlandı.",
+        "warning.menu_overlap": "Menü sayfası {value}: iki buton üst üste biniyor.",
         "warning.crop": "Siyah bantlar bulunamadı; görüntünün tamamı kodlandı.",
         "warning.low_dvd5": "Ortalama görüntü bitrate'i {value} Mbps, düşük. DVD-9 önerilir.",
         "warning.low_dvd9": (

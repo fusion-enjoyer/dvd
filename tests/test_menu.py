@@ -233,3 +233,19 @@ def test_uppercase_labels_keep_turkish_letters():
 
     assert _case("Dil ayarları", template("sinematik")) == "DİL AYARLARI"
     assert _case("Dil ayarları", template("minimal")) == "Dil ayarları"
+
+
+def test_editor_changes_override_the_generated_buttons():
+    menus = {"pages": [{"id": "main", "kind": "main", "edits": {
+        "play": {"rect": [0.6, 0.7, 0.3, 0.06], "label": "Başlat"},
+        "languages": {"up": "play"},
+    }}, "chapters", "languages"]}  # fmt: skip
+    p, info = project(menus=menus)
+    main = expand(p, info)[0]
+    play = main.buttons[0]
+    assert play.label == "Başlat" and play.rect == (0.6, 0.7, 0.3, 0.06)
+    langs = next(b for b in main.buttons if b.id == "languages")
+    assert langs.nav["up"] == "play"  # hand-set, although "chapters" is nearer
+    with pytest.raises(ValidationError, match="inside the frame"):
+        outside = {"play": {"rect": [0.9, 0.5, 0.3, 0.1]}}
+        Menus.model_validate({"pages": [{"id": "main", "kind": "main", "edits": outside}]})

@@ -217,12 +217,34 @@ class MenuButton(Strict):
     right: str | None = None
 
 
+class ButtonEdit(Strict):
+    """A hand change to a generated button (menu editor): place, text, arrow targets."""
+
+    rect: tuple[float, float, float, float] | None = None
+    label: str | None = Field(None, min_length=1, max_length=60)
+    up: str | None = None
+    down: str | None = None
+    left: str | None = None
+    right: str | None = None
+
+    @field_validator("rect")
+    @classmethod
+    def _inside(cls, v):
+        if v is not None:
+            x, y, w, h = v
+            if w <= 0 or h <= 0 or x < 0 or y < 0 or x + w > 1.0001 or y + h > 1.0001:
+                raise ValueError("a button must lie inside the frame")
+        return v
+
+
 class MenuPage(Strict):
     id: str = Field(pattern=r"^[a-z0-9_-]{1,32}$")
     kind: PageKind = "custom"
     title: str | None = Field(None, max_length=80)
     # Standard kinds fill their buttons from the project; custom pages list them here.
     buttons: list[MenuButton] = Field(default_factory=list, max_length=MAX_MENU_BUTTONS)
+    # Menu editor changes to generated buttons, by button id (also for every chapter page).
+    edits: dict[str, ButtonEdit] = Field(default_factory=dict)
 
 
 class MenuBackground(Strict):

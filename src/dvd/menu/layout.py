@@ -98,16 +98,48 @@ def expand(project: Project, info: SourceInfo) -> list[Page]:
     pages: list[Page] = []
     for page in shown:
         if page.kind == "main":
-            pages.append(_main(page, shown, project, tpl))
+            made = [_main(page, shown, project, tpl)]
         elif page.kind == "chapters":
-            pages += _chapters(page, times, first, tpl)
+            made = _chapters(page, times, first, tpl)
         elif page.kind in ("languages", "audio", "subtitles"):
-            pages.append(_languages(page, project, first, tpl))
+            made = [_languages(page, project, first, tpl)]
         else:
-            pages.append(_custom(page))
+            made = [_custom(page)]
+        for p in made:
+            apply_edits(p, page.edits)
+        pages += made
     for p in pages:
         auto_nav(p.buttons)
     return pages
+
+
+def overlapping(rects: dict[str, Rect]) -> list[tuple[str, str]]:
+    """Pairs of buttons whose areas overlap: a player may light the wrong one."""
+    items = list(rects.items())
+    out = []
+    for i, (a, (ax, ay, aw, ah)) in enumerate(items):
+        for b, (bx, by, bw, bh) in items[i + 1 :]:
+            if ax < bx + bw and bx < ax + aw and ay < by + bh and by < ay + ah:
+                out.append((a, b))
+    return out
+
+
+def apply_edits(page: Page, edits: dict) -> None:
+    """Hand changes from the menu editor over the generated buttons; arrow targets that point
+    to a button missing on this page (another chapter page) are left to auto_nav."""
+    ids = {b.id for b in page.buttons}
+    for b in page.buttons:
+        e = edits.get(b.id)
+        if e is None:
+            continue
+        if e.rect is not None:
+            b.rect = tuple(e.rect)
+        if e.label:
+            b.label = e.label
+        for d in DIRECTIONS:
+            target = getattr(e, d)
+            if target in ids:
+                b.nav[d] = target
 
 
 def _main(page: MenuPage, all_pages: list[MenuPage], project: Project, tpl: Template) -> Page:

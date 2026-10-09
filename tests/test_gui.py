@@ -292,3 +292,43 @@ def test_disc_page_edits_disc_settings_and_intros(app, tmp_path: Path):
     page._remove(0)
     assert load(project_file).first_play == []
     assert w.name_label.text() == "Yaz Tatili 2026"
+
+
+@pytest.mark.skipif(FFMPEG is None, reason="ffmpeg not installed")
+def test_menu_editor_moves_relabels_and_resets_buttons(app, tmp_path: Path):
+    from dvd.gui.menu_canvas import overlapping
+
+    assert overlapping({"a": (0, 0, 0.2, 0.1), "b": (0.1, 0.05, 0.2, 0.1),
+                        "c": (0.5, 0.5, 0.1, 0.1)}) == [("a", "b")]  # fmt: skip
+    src = tmp_path / "duzen.mkv"
+    subprocess.run(
+        [str(FFMPEG), "-v", "error", "-y", "-f", "lavfi",
+         "-i", "testsrc2=size=1280x720:rate=25:duration=3",
+         "-f", "lavfi", "-i", "sine=duration=3", "-f", "lavfi", "-i", "sine=duration=3",
+         "-map", "0", "-map", "1", "-map", "2", "-c:v", "libx264", "-preset", "ultrafast",
+         "-c:a", "ac3", str(src)],
+        check=True,
+    )  # fmt: skip
+    w = MainWindow(mode="pro")
+    w.show()
+    w._loaded(w._load(src))
+    QThreadPool.globalInstance().waitForDone(60000)
+    w.show_page("menu")
+    app.processEvents()
+    QThreadPool.globalInstance().waitForDone(60000)
+    app.processEvents()
+    page, project_file = w.menu_page, tmp_path / "duzen.dvd.yaml"
+    page.lit.changed.emit("edit")
+    assert page.canvas.isVisible() and page.canvas.current == "play"
+    page.canvas.edited.emit("play", (0.55, 0.7, 0.3, 0.06))
+    page.label_edit.setText("Başlat")
+    page.label_edit.editingFinished.emit()
+    edit = load(project_file).menus.pages[0].edits["play"]
+    assert edit.rect == (0.55, 0.7, 0.3, 0.06) and edit.label == "Başlat"
+    QThreadPool.globalInstance().waitForDone(60000)
+    app.processEvents()
+    assert page.canvas.rects["play"] == (0.55, 0.7, 0.3, 0.06)  # re-rendered with the edit
+    page._reset_button()
+    assert load(project_file).menus.pages[0].edits == {}
+    QThreadPool.globalInstance().waitForDone(60000)
+    w.close()

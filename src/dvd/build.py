@@ -185,10 +185,11 @@ def _prepare(project: Project, project_file: Path, warnings: list[str]) -> list[
     ]
 
 
-def _menus(project: Project, p: _Prepared, project_dir: Path, work_dir: Path) -> list:
+def _menus(project: Project, p: _Prepared, project_dir: Path, work_dir: Path,
+           warnings: list[str]) -> list:  # fmt: skip
     """Render the menu pages from the first title's picture and author them."""
     from dvd.menu.author import author_menus
-    from dvd.menu.layout import expand
+    from dvd.menu.layout import expand, overlapping
     from dvd.menu.pictures import background_image, frame_images
     from dvd.menu.render import render_page
     from dvd.menu.templates import template
@@ -196,6 +197,9 @@ def _menus(project: Project, p: _Prepared, project_dir: Path, work_dir: Path) ->
     frame = (p.target.width, p.target.height, p.target.dar)
     display = (round(p.target.height * p.target.dar), p.target.height)
     pages = expand(project, p.info)
+    for page in pages:
+        for a, b in overlapping({btn.id: btn.rect for btn in page.buttons}):
+            warnings.append(f"menu page {page.id}: buttons {a} and {b} overlap")
     try:
         backdrop = background_image(project.menus.background, p.source, p.info, project_dir,
                                     display)  # fmt: skip
@@ -391,7 +395,7 @@ def build(
     menus = None
     if project.menus is not None:
         report("menus", 0.0)
-        menus = _menus(project, prepared[0], project_file.parent, work_dir)
+        menus = _menus(project, prepared[0], project_file.parent, work_dir, warnings)
     intros = [
         _intro_vob(project, info, prepared[0], budget, work_dir, k, report)
         for k, info in enumerate(intro_infos, start=1)

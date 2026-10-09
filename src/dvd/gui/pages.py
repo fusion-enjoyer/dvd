@@ -290,6 +290,7 @@ WARNINGS = [
     (r"black bars could not be detected", "warning.crop", None),
     (r"average video bitrate ([\d.]+) Mbps is low; consider DVD-9", "warning.low_dvd5", 1),
     (r"average video bitrate ([\d.]+) Mbps is low; use fewer", "warning.low_dvd9", 1),
+    (r"menu page (\S+): buttons \S+ and \S+ overlap", "warning.menu_overlap", 1),
 ]
 
 
