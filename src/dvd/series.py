@@ -135,3 +135,35 @@ def plan_set(
     return DiscSet(
         media, discs, [_video_kbps(media, d, audio_kbps, subtitle_tracks) for d in discs]
     )
+
+
+def name_from_folder(folder: Path) -> tuple[str, int | None]:
+    """Series name and season from a folder name: 'Dizi S01', 'Dizi Sezon 2', 'Dizi Season 3'."""
+    text = re.sub(r"[._]+", " ", folder.name)
+    m = re.search(r"\b(?:S|Sezon\s*|Season\s*)(\d{1,2})\b", text, re.I)
+    if m is None:
+        return text.strip(), None
+    return text[: m.start()].strip(" -") or text.strip(), int(m.group(1))
+
+
+@dataclass
+class SeriesInfo:
+    """What TMDB knows about the season: names and pictures for the discs' menus."""
+
+    name: str
+    episode_names: dict[int, str]
+    backdrop: Path | None = None
+    logo: Path | None = None
+
+
+def from_tmdb(client, name: str, season: int) -> SeriesInfo | None:
+    """The best TMDB match for the series, its season's episode names, and a backdrop and
+    logo (downloaded to the cache). None when TMDB does not know the series."""
+    matches = client.search_tv(name)
+    if not matches:
+        return None
+    show = client.show(matches[0].id)
+    key = f"tv-{show.id}"
+    backdrop = client.image(key, show.backdrops[0], "w1280") if show.backdrops else None
+    logo = client.image(key, show.logos[0], "w500") if show.logos else None
+    return SeriesInfo(show.title, client.season(show.id, season), backdrop, logo)

@@ -155,6 +155,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "menu.template.minimal": "Minimal",
         "menu.template.sinematik": "Sinematik",
         "menu.template.2000ler": "2000'ler DVD'si",
+        "menu.template.dizi": "Dizi kutusu",
         "menu.bg.frame": "Filmden kare",
         "menu.bg.image": "Resim dosyası",
         "menu.bg.color": "Düz renk",

@@ -30,7 +30,7 @@ from PySide6.QtGui import (
 )
 
 from dvd.menu.layout import Button, Page
-from dvd.menu.templates import Template
+from dvd.menu.templates import PANEL_WIDTH, Template
 from dvd.menu.templates import template as get_template
 from dvd.subs.render import _qt
 
@@ -91,15 +91,20 @@ def _text(p: QPainter, rect: QRectF, flags, text: str, rgb, shadow: bool) -> Non
     p.drawText(rect, flags, text)
 
 
-def _shade(p: QPainter, t: Template, w: int, h: int) -> None:
+def _shade(p: QPainter, t: Template, w: int, h: int, kind: str = "main") -> None:
     """Darken where the text goes, so light text reads on any picture."""
     a = t.shade_strength
-    if t.shade == "bottom":
+    if t.shade == "panel" and kind != "main":  # grids span the frame: darken it evenly
+        p.fillRect(0, 0, w, h, QColor(10, 10, 12, round(255 * a * 0.85)))
+    elif t.shade == "bottom":
         g = QLinearGradient(0, 0, 0, h)
         g.setColorAt(0, QColor(0, 0, 0, round(255 * a * 0.15)))
         g.setColorAt(0.45, QColor(0, 0, 0, round(255 * a * 0.25)))
         g.setColorAt(1, QColor(0, 0, 0, round(255 * a)))
         p.fillRect(0, 0, w, h, g)
+    elif t.shade == "panel":
+        p.fillRect(QRectF(0, 0, PANEL_WIDTH * w, h), QColor(10, 10, 12, round(255 * a)))
+        p.fillRect(QRectF(PANEL_WIDTH * w, 0, max(2.0, w * 0.003), h), QColor(*t.highlight, 200))
     elif t.shade == "vignette":
         g = QRadialGradient(QPointF(w / 2, h / 2), max(w, h) * 0.75)
         g.setColorAt(0, QColor(0, 0, 0, round(255 * a * 0.35)))
@@ -157,7 +162,7 @@ def render_page(
         p.drawImage(QPointF((dw - scaled.width()) / 2, (fh - scaled.height()) / 2), scaled)
     if t.tint is not None:
         p.fillRect(canvas.rect(), QColor(*t.tint, 90))
-    _shade(p, t, dw, fh)
+    _shade(p, t, dw, fh, page.kind)
 
     title_font = _font(t.title_font, t.title_size * fh, 600)
     label_font = _font(t.label_font, t.label_size * fh, 600)
@@ -165,19 +170,19 @@ def render_page(
     align = Qt.AlignmentFlag.AlignHCenter if centred else Qt.AlignmentFlag.AlignLeft
     if page.kind == "main" and logo is not None and not logo.isNull():
         # The film's logo in place of the title: up to half the width, 18 % of the height.
-        box = QRectF(0.10 * dw, t.title_y * fh, 0.80 * dw, 0.18 * fh)
+        box = QRectF(t.title_x * dw, t.title_y * fh, t.title_width * dw, 0.18 * fh)
         keep = Qt.AspectRatioMode.KeepAspectRatio
-        scaled = logo.scaled(round(0.5 * dw), round(box.height()), keep,
+        scaled = logo.scaled(round(min(0.5, t.title_width) * dw), round(box.height()), keep,
                              Qt.TransformationMode.SmoothTransformation)  # fmt: skip
         x = box.center().x() - scaled.width() / 2 if centred else box.left()
         p.drawImage(QPointF(x, box.top()), scaled)
     elif page.title:
         p.setFont(title_font)
-        title_rect = QRectF(0.10 * dw, t.title_y * fh, 0.80 * dw, 0.11 * fh)
+        title_rect = QRectF(t.title_x * dw, t.title_y * fh, t.title_width * dw, 0.11 * fh)
         _text(p, title_rect, align | Qt.AlignmentFlag.AlignVCenter, page.title, t.title, t.shadow)
     if page.subtitle:  # under the title (or the logo)
         p.setFont(label_font)
-        sub_rect = QRectF(0.10 * dw, (t.title_y + 0.11) * fh, 0.80 * dw, 0.06 * fh)
+        sub_rect = QRectF(t.title_x * dw, (t.title_y + 0.11) * fh, t.title_width * dw, 0.06 * fh)
         _text(p, sub_rect, align | Qt.AlignmentFlag.AlignVCenter, page.subtitle, t.muted,
               t.shadow)  # fmt: skip
     p.setFont(label_font)

@@ -407,15 +407,29 @@ def series_new(
     media: str = typer.Option("dvd9", help="dvd5 or dvd9"),
     quality: str = typer.Option("iyi", help="standart, iyi or yuksek"),
     name: str = typer.Option("", help="Series name on the discs (default: the folder name)"),
+    tmdb: bool = typer.Option(True, help="Episode names and pictures from TMDB (needs a key)"),
 ) -> None:
     """Write one project file per disc into the season folder."""
+    from dvd import settings
+    from dvd.meta.tmdb import Client, TmdbError
     from dvd.project import new_series_project, save
-    from dvd.project.model import MenuPage, SeriesDisc
+    from dvd.project.model import MenuBackground, MenuPage, SeriesDisc
+    from dvd.series import from_tmdb, name_from_folder
 
     episodes, infos = _episodes(folder)
     s = _plan(episodes, infos, media, quality)
     by_path = {i.path: i for i in infos}
-    name = name or folder.resolve().name
+    guessed, season = name_from_folder(folder.resolve())
+    season = season or episodes[0].season or 1
+    meta = None
+    if tmdb and settings.tmdb_key():
+        try:
+            meta = from_tmdb(Client(settings.tmdb_key()), guessed, season)
+        except TmdbError as exc:
+            typer.echo(f"TMDB: {exc}; going on without it", err=True)
+        if meta is None:
+            typer.echo(f"TMDB does not know {guessed!r}; episode numbers are used", err=True)
+    name = name or (f"{meta.name} {season}. Sezon" if meta else folder.resolve().name)
     for n, disc in enumerate(s.discs, start=1):
         label = f"{name} - Disk {n}" if s.count > 1 else name
         try:
@@ -426,10 +440,16 @@ def series_new(
         project.disc.media = media
         project.series = SeriesDisc(name=name[:64], disc=n, discs=s.count)
         for title, episode in zip(project.titles, disc, strict=True):
-            title.name = f"{episode.number}. bölüm"
+            known = meta.episode_names.get(episode.number) if meta else None
+            title.name = (f"{episode.number}. {known}" if known else
+                          f"{episode.number}. bölüm")[:80]  # fmt: skip
+        if project.menus is not None and meta is not None:
+            if meta.backdrop is not None:
+                project.menus.background = MenuBackground(image=meta.backdrop.as_posix())
+            project.menus.logo = meta.logo.as_posix() if meta.logo else None
         if project.menus is not None:
             project.menus = project.menus.model_copy(
-                update={"pages": [MenuPage(id="main", kind="main"),
+                update={"template": "dizi", "pages": [MenuPage(id="main", kind="main"),
                                   MenuPage(id="episodes", kind="episodes"),
                                   MenuPage(id="languages", kind="languages")]})  # fmt: skip
         out = folder / f"{label}.dvd.yaml"

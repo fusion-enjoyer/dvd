@@ -108,7 +108,7 @@ class MenuEditorPage(QWidget):
         opts.addSpacing(16)
         opts.addWidget(QLabel(t("menu.template")))
         self.template = QComboBox()
-        for name in ("minimal", "sinematik", "2000ler"):
+        for name in ("minimal", "sinematik", "2000ler", "dizi"):
             self.template.addItem(t(f"menu.template.{name}"), name)
         self.template.currentIndexChanged.connect(self._template_changed)
         opts.addWidget(self.template)

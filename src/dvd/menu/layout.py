@@ -64,6 +64,8 @@ def main_rects(count: int, tpl: Template) -> list[Rect]:
         return _row(count, 0.80, 0.19, 0.025, centred=True)
     if tpl.main == "column-center":
         return _column(0.5 - 0.18, 0.42, count, 0.36)
+    if tpl.main == "panel-left":
+        return _column(tpl.title_x, 0.40, count, 0.34)
     return _column(LIST_X, LIST_Y, count)
 
 

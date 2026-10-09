@@ -97,7 +97,7 @@ def test_custom_pages_and_validation():
     assert chapter_page_ids("chapters", 13) == ["chapters", "chapters-2", "chapters-3"]
 
 
-@pytest.mark.parametrize("name", ["minimal", "sinematik", "2000ler"])
+@pytest.mark.parametrize("name", ["minimal", "sinematik", "2000ler", "dizi"])
 @pytest.mark.parametrize(("standard_h", "aspect"), [(576, (16, 9)), (480, (4, 3))])
 def test_rendered_pages_fit_dvd_limits(standard_h, aspect, name):
     from fractions import Fraction

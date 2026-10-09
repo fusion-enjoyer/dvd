@@ -94,7 +94,31 @@ class Client:
                       r.get("overview") or "") for r in results]  # fmt: skip
 
     def film(self, film_id: int) -> Film:
-        d = self._get(f"/movie/{film_id}", append_to_response="images",
+        return self._details("movie", film_id)
+
+    def search_tv(self, name: str, year: int | None = None) -> list[Match]:
+        params = {"query": name, "include_adult": "false"}
+        if year:
+            params["first_air_date_year"] = str(year)
+        results = self._get("/search/tv", **params).get("results") or []
+        if not results and year:
+            results = self._get("/search/tv", query=name).get("results") or []
+        return [Match(r["id"], r.get("name") or r.get("original_name", ""),
+                      r.get("original_name", ""), _year(r.get("first_air_date")),
+                      r.get("overview") or "") for r in results]  # fmt: skip
+
+    def show(self, tv_id: int) -> Film:
+        """A TV series with its pictures (title = the series name)."""
+        return self._details("tv", tv_id)
+
+    def season(self, tv_id: int, number: int) -> dict[int, str]:
+        """Episode number -> episode name (Turkish when TMDB has it; empty names left out)."""
+        d = self._get(f"/tv/{tv_id}/season/{number}")
+        return {e["episode_number"]: e["name"].strip() for e in d.get("episodes") or []
+                if e.get("name") and "episode_number" in e}  # fmt: skip
+
+    def _details(self, kind: str, item_id: int) -> Film:
+        d = self._get(f"/{kind}/{item_id}", append_to_response="images",
                       include_image_language="tr,en,null")  # fmt: skip
         images = d.get("images") or {}
 
@@ -105,17 +129,20 @@ class Client:
                                                  -(i.get("vote_average") or 0)))  # fmt: skip
             return [i["file_path"] for i in items if i.get("file_path")]
 
+        title = d.get("title") or d.get("name") or d.get("original_title") or d.get("original_name")
+        original = d.get("original_title") or d.get("original_name") or ""
         return Film(
-            d["id"], d.get("title") or d.get("original_title", ""), d.get("original_title", ""),
-            _year(d.get("release_date")), d.get("overview") or "",
+            d["id"], title or "", original,
+            _year(d.get("release_date") or d.get("first_air_date")), d.get("overview") or "",
             # Backdrops without text suit a menu best; logos and posters in Turkish first.
             backdrops=paths("backdrops", (None, "tr", "en")),
             logos=paths("logos", ("tr", "en", None)),
             posters=paths("posters", ("tr", "en", None)),
         )  # fmt: skip
 
-    def image(self, film_id: int, path: str, size: str = "original") -> Path:
-        """Download one image into the cache (once) and return the local file."""
+    def image(self, film_id: int | str, path: str, size: str = "original") -> Path:
+        """Download one image into the cache (once) and return the local file. `film_id`
+        names the cache folder: the film's id, or "tv-<id>" for a series."""
         if not re.fullmatch(r"/[\w-]+\.(?:jpg|png|svg)", path):
             raise TmdbError(f"unexpected TMDB image path {path!r}")
         local = cache_folder() / str(film_id) / f"{size}{path.replace('/', '_')}"

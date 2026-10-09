@@ -122,3 +122,38 @@ def test_series_disc_builds_with_episode_menu(tmp_path: Path):
     assert "<post>if (g1 == 1) jump title 2; call menu;</post>" in xml
     assert "g1 = 1; jump title 1;" in xml and "g1 = 0; jump title 2;" in xml
     assert (result.video_ts / "VTS_01_0.VOB").is_file()
+
+
+@pytest.mark.skipif(FFMPEG is None, reason="ffmpeg not installed")
+def test_series_new_takes_names_and_pictures_from_tmdb(tmp_path: Path, monkeypatch):
+    from typer.testing import CliRunner
+
+    from dvd import series
+    from dvd.cli import app
+    from dvd.project import load
+
+    season = tmp_path / "Dizi S02"
+    season.mkdir()
+    for n in (1, 2):
+        subprocess.run(
+            [str(FFMPEG), "-v", "error", "-y", "-f", "lavfi",
+             "-i", "testsrc2=size=640x360:rate=25:duration=2",
+             "-c:v", "libx264", "-preset", "ultrafast", str(season / f"Dizi.S02E0{n}.mkv")],
+            check=True,
+        )  # fmt: skip
+    bg = tmp_path / "bg.jpg"
+    bg.write_bytes(b"")
+    asked = []
+
+    def fake(client, name, number):
+        asked.append((name, number))
+        return series.SeriesInfo("Dizi Adı", {1: "Başlangıç"}, bg, None)
+
+    monkeypatch.setattr(series, "from_tmdb", fake)
+    monkeypatch.setenv("DVD_TMDB_KEY", "anahtar")
+    result = CliRunner().invoke(app, ["series", "new", str(season)])
+    assert result.exit_code == 0, result.output
+    assert asked == [("Dizi", 2)]
+    project = load(season / "Dizi Adı 2. Sezon.dvd.yaml")
+    assert [t.name for t in project.titles] == ["1. Başlangıç", "2. bölüm"]
+    assert project.menus.background.image == bg.as_posix() and project.menus.logo is None

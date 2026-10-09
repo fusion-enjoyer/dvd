@@ -128,3 +128,39 @@ def test_logo_replaces_the_title_on_the_main_page():
     assert all(c.red() > 150 and c.green() < 80 for c in logo_px)
     plain_px = [plain.background.pixelColor(x, 70) for x in range(80, 200, 4)]
     assert not any(c.red() > 150 and c.green() < 80 for c in plain_px)
+
+
+class FakeTv(FakeTmdb):
+    def __call__(self, url: str) -> bytes:
+        if "/search/tv" in url:
+            self.urls.append(url)
+            return json.dumps({"results": [{"id": 1399, "name": "Taht Oyunları",
+                                            "original_name": "Game of Thrones",
+                                            "first_air_date": "2011-04-17"}]}).encode()  # fmt: skip
+        if "/tv/1399/season/1" in url:
+            self.urls.append(url)
+            episodes = [{"episode_number": 1, "name": "Kış Geliyor"},
+                        {"episode_number": 2, "name": "Kral Yolu"},
+                        {"episode_number": 3, "name": ""}]  # fmt: skip
+            return json.dumps({"episodes": episodes}).encode()
+        if "/tv/1399" in url:
+            self.urls.append(url)
+            return json.dumps({"id": 1399, "name": "Taht Oyunları",
+                               "original_name": "Game of Thrones", "first_air_date": "2011-04-17",
+                               "images": {"backdrops": [{"file_path": "/bg.jpg"}],
+                                          "logos": [{"file_path": "/logo.png",
+                                                     "iso_639_1": "en"}]}}).encode()  # fmt: skip
+        return super().__call__(url)
+
+
+def test_series_info_from_tmdb(tmp_path, monkeypatch):
+    from dvd.series import from_tmdb, name_from_folder
+
+    monkeypatch.setenv("DVD_CACHE_DIR", str(tmp_path))
+    assert name_from_folder(Path("Game.of.Thrones.S01")) == ("Game of Thrones", 1)
+    assert name_from_folder(Path("Yalı Çapkını Sezon 2")) == ("Yalı Çapkını", 2)
+    assert name_from_folder(Path("Belgesel")) == ("Belgesel", None)
+    info = from_tmdb(Client("k", fetch=FakeTv()), "Game of Thrones", 1)
+    assert info.name == "Taht Oyunları"
+    assert info.episode_names == {1: "Kış Geliyor", 2: "Kral Yolu"}  # empty name left out
+    assert info.backdrop.parent.name == "tv-1399" and info.logo.name == "w500_logo.png"

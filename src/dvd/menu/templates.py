@@ -13,11 +13,13 @@ RGB = tuple[int, int, int]
 class Template:
     name: str
     # Layout
-    main: Literal["column-left", "row-bottom", "column-center"] = "column-left"
+    main: Literal["column-left", "row-bottom", "column-center", "panel-left"] = "column-left"
     title_align: Literal["left", "center"] = "left"
     title_y: float = 0.08  # top of the title box, fraction of the frame height
+    title_x: float = 0.10
+    title_width: float = 0.80  # the title (or logo) box, fraction of the frame width
     # Drawing
-    shade: Literal["left", "bottom", "vignette"] = "left"
+    shade: Literal["left", "bottom", "vignette", "panel"] = "left"
     shade_strength: float = 0.62
     tint: RGB | None = None  # colour wash over the background
     title_font: str = "Bricolage Grotesque"
@@ -51,7 +53,15 @@ TEMPLATES = {
         text=(214, 226, 240), title=(240, 244, 250), muted=(150, 170, 196),
         highlight=(110, 205, 255), marker="arrow", shadow=True, title_size=0.075,
     ),
+    # Series box set: a dark panel on the left holds the title or logo, the disc number and
+    # the buttons; the series picture stays bright on the right.
+    "dizi": Template(
+        "dizi", main="panel-left", title_x=0.07, title_y=0.10, title_width=0.34,
+        shade="panel", shade_strength=0.80, highlight=(236, 120, 72), title_size=0.062,
+    ),
 }  # fmt: skip
+
+PANEL_WIDTH = 0.46  # of the frame, the "dizi" template's left panel
 
 
 def template(name: str) -> Template:

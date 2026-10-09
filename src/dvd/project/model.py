@@ -283,7 +283,7 @@ def _standard_pages() -> list[MenuPage]:
 
 
 class Menus(Strict):
-    template: Literal["minimal", "sinematik", "2000ler"] = "minimal"
+    template: Literal["minimal", "sinematik", "2000ler", "dizi"] = "minimal"
     background: MenuBackground = Field(default_factory=MenuBackground)
     logo: str | None = None  # picture drawn on the main page instead of the title text
     tmdb_id: int | None = None  # the film on themoviedb.org the pictures came from
