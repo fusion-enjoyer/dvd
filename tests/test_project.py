@@ -65,7 +65,12 @@ def test_architecture_example_loads(tmp_path: Path):
     assert title.video.overrides == {"deband": 3}
     assert [a.bitrate for a in title.audio] == [448, 448]
     assert title.subtitles[0].default
-    assert project.menus["template"] == "sinematik"
+    assert project.menus.template == "sinematik"
+    assert [(p.id, p.kind) for p in project.menus.pages] == [
+        ("main", "main"),
+        ("chapters", "chapters"),
+        ("settings", "languages"),
+    ]
 
 
 def test_round_trip_keeps_everything(tmp_path: Path):

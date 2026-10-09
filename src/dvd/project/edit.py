@@ -150,3 +150,14 @@ def set_manual_chapters(title: Title, seconds: list[float]) -> None:
     """Store chapter starts as a manual list (sorted, without repeats, 0 always first)."""
     times = sorted({round(s, 3) for s in seconds if s >= 0} | {0.0})[:MAX_CHAPTERS]
     title.chapters = [format_time(s) for s in times]
+
+
+def disc_audio(title: Title) -> list[Audio]:
+    """Audio tracks in disc stream order. DVD has no default-track flag; players start with
+    the first stream unless their language setting says otherwise, so the default goes first."""
+    return sorted(title.audio, key=lambda a: not a.default)
+
+
+def disc_subtitles(title: Title) -> list[Subtitle]:
+    """Subtitle tracks in disc stream order, the default first."""
+    return sorted(title.subtitles, key=lambda s: not s.default)

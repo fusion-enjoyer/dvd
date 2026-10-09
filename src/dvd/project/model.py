@@ -181,10 +181,113 @@ class Title(Strict):
         return self
 
 
+MAX_MENU_BUTTONS = 36  # per menu page (DVD-Video)
+PageKind = Literal["main", "chapters", "languages", "audio", "subtitles", "custom"]
+
+
+class MenuAction(Strict):
+    """What a button does: play a title (from a chapter), open a menu page, or pick an audio /
+    subtitle stream (and return to the page). `stream: null` with `do: subtitle` turns
+    subtitles off."""
+
+    do: Literal["play", "page", "audio", "subtitle"]
+    title: int = Field(1, ge=1, le=MAX_TITLES)
+    chapter: int = Field(1, ge=1, le=MAX_CHAPTERS)
+    page: str | None = None
+    stream: int | None = Field(None, ge=0, le=MAX_SUBTITLE_TRACKS - 1)
+
+    @model_validator(mode="after")
+    def _needed_fields(self) -> MenuAction:
+        if self.do == "page" and not self.page:
+            raise ValueError("a 'page' action needs the page id")
+        if self.do == "audio" and self.stream is None:
+            raise ValueError("an 'audio' action needs the stream number")
+        return self
+
+
+class MenuButton(Strict):
+    id: str = Field(pattern=r"^[a-z0-9_-]{1,32}$")
+    label: str = Field(min_length=1, max_length=60)
+    action: MenuAction
+    # Position as fractions of the frame (0..1); left out, the template places the button.
+    rect: tuple[float, float, float, float] | None = None
+    up: str | None = None
+    down: str | None = None
+    left: str | None = None
+    right: str | None = None
+
+
+class MenuPage(Strict):
+    id: str = Field(pattern=r"^[a-z0-9_-]{1,32}$")
+    kind: PageKind = "custom"
+    title: str | None = Field(None, max_length=80)
+    # Standard kinds fill their buttons from the project; custom pages list them here.
+    buttons: list[MenuButton] = Field(default_factory=list, max_length=MAX_MENU_BUTTONS)
+
+
+class MenuBackground(Strict):
+    frame: str | None = None  # timecode of a film frame, else...
+    image: str | None = None  # ...a picture file, else a plain colour
+    color: str = Field("#141414", pattern=r"^#[0-9a-fA-F]{6}$")
+
+    @field_validator("frame")
+    @classmethod
+    def _frame(cls, v: str | None) -> str | None:
+        if v is not None:
+            parse_timecode(v)
+        return v
+
+
+PAGE_ALIASES = {"settings": "languages", "ayarlar": "languages", "ana": "main",
+                "bolumler": "chapters"}  # fmt: skip
+
+
+def _page(value: Any) -> Any:
+    """A page may be written as just its kind: `pages: [main, chapters, settings]`."""
+    if isinstance(value, str):
+        kind = PAGE_ALIASES.get(value, value)
+        if kind not in PageKind.__args__ or kind == "custom":
+            raise ValueError(f"{value!r} is not a standard page; write custom pages in full")
+        return {"id": value, "kind": kind}
+    return value
+
+
+def _standard_pages() -> list[MenuPage]:
+    return [MenuPage(id="main", kind="main"), MenuPage(id="chapters", kind="chapters"),
+            MenuPage(id="languages", kind="languages")]  # fmt: skip
+
+
+class Menus(Strict):
+    template: str = "minimal"
+    background: MenuBackground = Field(default_factory=MenuBackground)
+    pages: list[Annotated[MenuPage, BeforeValidator(_page)]] = Field(
+        default_factory=_standard_pages, min_length=1
+    )
+    first: str = "main"  # the page the disc opens on (and the remote's Menu key)
+
+    @model_validator(mode="after")
+    def _links(self) -> Menus:
+        ids = [p.id for p in self.pages]
+        if len(set(ids)) != len(ids):
+            raise ValueError("menu page ids must be unique")
+        if self.first not in ids:
+            raise ValueError(f"first page {self.first!r} is not one of the pages")
+        for page in self.pages:
+            buttons = [b.id for b in page.buttons]
+            if len(set(buttons)) != len(buttons):
+                raise ValueError(f"button ids on page {page.id!r} must be unique")
+            for b in page.buttons:
+                if b.action.do == "page" and b.action.page not in ids:
+                    raise ValueError(f"button {b.id!r} opens unknown page {b.action.page!r}")
+                for direction in (b.up, b.down, b.left, b.right):
+                    if direction is not None and direction not in buttons:
+                        raise ValueError(f"button {b.id!r} points to unknown button {direction!r}")
+        return self
+
+
 class Project(Strict):
     version: Literal[1] = 1
     disc: Disc
     titles: list[Title] = Field(min_length=1, max_length=MAX_TITLES)
-    # Not modelled until Phase 4; kept so hand-written files round-trip.
-    menus: dict[str, Any] | None = None
-    first_play: list[Any] | None = None
+    menus: Menus | None = None  # None: the disc starts playing, no menus
+    first_play: list[Any] | None = None  # intro clips before the menu: Phase 4

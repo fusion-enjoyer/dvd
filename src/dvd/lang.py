@@ -27,3 +27,18 @@ def to_dvd_code(code: str | None) -> str | None:
     if len(code) == 2 and code.isalpha():
         return code
     return _ISO639_2_TO_1.get(code)
+
+
+# Names shown on disc menus (the menus are in Turkish).
+NAMES_TR = {
+    "tr": "Türkçe", "en": "İngilizce", "de": "Almanca", "fr": "Fransızca", "es": "İspanyolca",
+    "it": "İtalyanca", "ru": "Rusça", "ja": "Japonca", "ko": "Korece", "zh": "Çince",
+    "ar": "Arapça", "nl": "Felemenkçe", "sv": "İsveççe", "pl": "Lehçe", "pt": "Portekizce",
+    "el": "Yunanca", "da": "Danca", "fi": "Fince", "no": "Norveççe", "hu": "Macarca",
+    "cs": "Çekçe", "ro": "Romence", "bg": "Bulgarca", "uk": "Ukraynaca", "he": "İbranice",
+    "fa": "Farsça", "hi": "Hintçe", "az": "Azerice",
+}  # fmt: skip
+
+
+def name_tr(code: str) -> str:
+    return NAMES_TR.get(code, code.upper())

@@ -18,6 +18,7 @@ from dvd.output.iso import write_iso
 from dvd.probe import SourceInfo, probe
 from dvd.profiles import resolve as resolve_profiles
 from dvd.project import load, source_path
+from dvd.project.edit import disc_audio, disc_subtitles
 from dvd.project.model import (
     MAX_CHAPTERS,
     ChapterEvery,
@@ -229,9 +230,7 @@ def build(
     author_titles = []
     for n, p in enumerate(prepared, start=1):
         tag = f"t{n:02}"
-        # DVD has no default-track flag; players start with the first stream unless their
-        # language setting says otherwise, so the default track goes first.
-        tracks = sorted(p.title.audio, key=lambda a: not a.default)
+        tracks = disc_audio(p.title)
         audio_files = []
         night = disc_settings["audio_night"]
         for i, a in enumerate(tracks):
@@ -288,7 +287,7 @@ def build(
         warnings += [f"title {n}: {w}" for w in compliance.warnings]
         report(f"title {n} mux", 0.0)
         mpg = mux(m2v, audio_files, work_dir / f"{tag}.mpg")
-        subs = sorted(p.title.subtitles, key=lambda s: not s.default)
+        subs = disc_subtitles(p.title)
         for i, sub in enumerate(subs):
             cues = retime(_subtitle_cues(sub, p, project_file, work_dir / f"{tag}_s{i}.srt"),
                           float(p.target.speedup))  # fmt: skip
