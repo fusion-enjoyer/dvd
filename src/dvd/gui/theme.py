@@ -10,6 +10,7 @@ from PySide6.QtGui import QColor, QFontDatabase
 ASSETS = Path(__file__).resolve().parents[1] / "assets"
 FONT_DIR = ASSETS / "fonts"
 CHEVRON = (ASSETS / "icons" / "chevron-down.svg").as_posix()
+CHEVRON_UP = (ASSETS / "icons" / "chevron-up.svg").as_posix()
 
 COLORS = {
     "zemin": "#161513",
@@ -117,7 +118,10 @@ QComboBox, QLineEdit, QSpinBox {{
     background: {c["girdi"]}; border: 1px solid {c["cizgi"]}; border-radius: 3px;
     min-height: {d.control - 2}px; padding: 0 8px;
 }}
-QComboBox:focus, QLineEdit:focus {{ border-color: {c["amber"]}; }}
+QComboBox:focus, QLineEdit:focus, QSpinBox:focus {{ border-color: {c["amber"]}; }}
+QSpinBox::up-button, QSpinBox::down-button {{ border: none; width: 20px; }}
+QSpinBox::up-arrow {{ image: url({CHEVRON_UP}); width: 10px; height: 10px; }}
+QSpinBox::down-arrow {{ image: url({CHEVRON}); width: 10px; height: 10px; }}
 QComboBox::drop-down {{ border: none; width: 24px; }}
 QComboBox::down-arrow {{ image: url({CHEVRON}); width: 12px; height: 12px; }}
 QComboBox QAbstractItemView {{ background: {c["panel"]}; border: 1px solid {c["cizgi"]};

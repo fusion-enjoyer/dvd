@@ -88,3 +88,40 @@ def test_preview_source_and_disc_share_geometry(app, tmp_path: Path):
         assert image.pixelColor(512, 30).value() < 20  # top bar
         assert image.pixelColor(512, 300).value() > 40  # picture
     assert f.frame == 25 and f.seconds == pytest.approx(1.0)
+
+
+@pytest.mark.skipif(FFMPEG is None, reason="ffmpeg not installed")
+def test_pro_editor_changes_crop_and_preprocessing(app, tmp_path: Path):
+    from dvd.project.model import Crop
+
+    src = tmp_path / "duzen.mkv"
+    subprocess.run(
+        [str(FFMPEG), "-v", "error", "-y", "-f", "lavfi",
+         "-i", "testsrc2=size=1920x804:rate=25:duration=2", "-vf", "pad=1920:1080:0:138:black",
+         "-c:v", "libx264", "-preset", "ultrafast", str(src)],
+        check=True,
+    )  # fmt: skip
+    w = MainWindow(mode="pro")
+    w._loaded(w._load(src))
+    QThreadPool.globalInstance().waitForDone(60000)
+    app.processEvents()
+    editor, project_file = w.picture_page.editor, tmp_path / "duzen.dvd.yaml"
+    assert "138" in editor.crop_hint.text()  # detected bars shown under "Otomatik"
+
+    editor.crop_mode.setCurrentIndex(editor.crop_mode.findData("manual"))
+    assert load(project_file).titles[0].video.crop == Crop(top=138, bottom=138)
+    editor.spins["left"].setValue(20)
+    editor.timer.timeout.emit()  # skip the debounce
+    assert load(project_file).titles[0].video.crop == Crop(top=138, bottom=138, left=20)
+
+    kernel = editor.combos["kernel"]
+    kernel.setCurrentIndex(kernel.findData("lanczos"))
+    deband = editor.combos["deband"]
+    deband.setCurrentIndex(deband.findData(3))
+    assert load(project_file).titles[0].video.overrides == {"kernel": "lanczos", "deband": 3}
+    kernel.setCurrentIndex(0)  # back to the profile value
+    assert load(project_file).titles[0].video.overrides == {"deband": 3}
+    assert deband.itemText(0) == t("pro.from_profile_value", value="1")
+    QThreadPool.globalInstance().waitForDone(60000)
+    app.processEvents()
+    assert w.picture_page.well.image is not None

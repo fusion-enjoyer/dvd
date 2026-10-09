@@ -29,10 +29,11 @@ from dvd.gui import tasks
 from dvd.gui.i18n import t
 from dvd.gui.pages import BuildPage, TracksPage
 from dvd.gui.theme import DENSITY, stylesheet
+from dvd.gui.video_editor import VideoEditor
 from dvd.gui.widgets import BudgetBar, CompareWell, ModeSwitch
 from dvd.probe import SourceInfo, probe
 from dvd.probe.report import fps_text, size_text, timecode
-from dvd.project.model import AudioProfile, ContentProfile, Crop, Project, ViewingProfile
+from dvd.project.model import AudioProfile, ContentProfile, Project, ViewingProfile
 
 VIDEO_SUFFIXES = {".mkv", ".m2ts", ".mts", ".mp4", ".m4v", ".ts", ".mov", ".avi", ".mpg"}
 
@@ -212,7 +213,16 @@ class PicturePage(QWidget):
         self.combos: dict[str, QComboBox] = {}
         self.simple = self._simple_panel()
         self.pro = QWidget()
-        self.pro_grid = QGridLayout(self.pro)
+        pro_box = QVBoxLayout(self.pro)
+        pro_box.setContentsMargins(0, 0, 0, 0)
+        info, rates = QWidget(), QWidget()
+        self.pro_grid, self.rate_grid = QGridLayout(info), QGridLayout(rates)
+        for g in (self.pro_grid, self.rate_grid):
+            g.setContentsMargins(0, 0, 0, 0)
+        self.editor = VideoEditor()
+        pro_box.addWidget(info)
+        pro_box.addWidget(self.editor)
+        pro_box.addWidget(rates)
         self.side_box.addWidget(self.simple)
         self.side_box.addWidget(self.pro)
         self.side_box.addStretch()
@@ -286,11 +296,12 @@ class PicturePage(QWidget):
         return t("pro.from_profile", profile=t(f"{layer}.{value}"))
 
     def _fill_pro(self, project: Project, info: SourceInfo, plan: Plan | None, detected) -> None:
-        while self.pro_grid.count():
-            w = self.pro_grid.takeAt(0).widget()
-            w.hide()
-            w.setParent(None)
-            w.deleteLater()
+        for grid in (self.pro_grid, self.rate_grid):
+            while grid.count():
+                w = grid.takeAt(0).widget()
+                w.hide()
+                w.setParent(None)
+                w.deleteLater()
         v = info.main_video
         rows = [(label(t("pro.video"), "sectionLabel"), None)]
         if v:
@@ -305,50 +316,37 @@ class PicturePage(QWidget):
                 rows.append((t("pro.active"), f"{tg.active_width}×{tg.active_height}"))
             except UnsupportedSource as exc:
                 rows.append((t("pro.target"), str(exc)))
-        crop = project.titles[0].video.crop
-        if crop == "auto" and detected == Crop():
-            crop_text = t("pro.crop_none")
-        elif crop == "auto" and detected is not None:
-            crop_text = t("pro.crop_found", top=detected.top, bottom=detected.bottom,
-                          left=detected.left, right=detected.right)  # fmt: skip
-        elif crop == "auto":
-            crop_text = t("pro.crop_auto")
-        else:
-            crop_text = str(crop)
-        rows.append((t("pro.crop"), crop_text))
-        from dvd.video.preprocess import resolve
-
-        try:
-            pre = resolve(project.disc.profiles, project.titles[0].video.overrides)
-        except ValueError as exc:
-            rows.append((t("pro.preprocess"), str(exc)))
-        else:
-            rows.append((label(t("pro.preprocess_section"), "sectionLabel"), None))
-            for key, value in (("kernel", pre.kernel), ("deband", str(pre.deband)),
-                               ("dither", t(f"pro.dither.{pre.dither}"))):  # fmt: skip
-                rows.append((t(f"pro.{key}"), value))
-                origin = (pre.source or {}).get(key, "default")
-                if origin != "default":
-                    rows.append(("", self._origin_text(origin)))
+        self.editor.show_title(project.titles[0], v, project.disc.profiles, detected)
+        self._fill_grid(self.pro_grid, rows)
+        rows = []
         try:
             from dvd.profiles import resolve as resolve_profiles
+            from dvd.video.encoders import choose
 
             wanted = resolve_profiles(project.disc.profiles, project.titles[0].video.overrides)
-            name = {"hcenc": "HCEnc", "ffmpeg": "FFmpeg"}[wanted["encoder"]]
+            name = {"hcenc": "HCEnc", "ffmpeg": "FFmpeg"}[choose(wanted["encoder"])[0]]
         except ValueError:
             name = "?"
-        rows.append((t("pro.encoder"), f"{name} · 2 pass"))
+        rows.append((t("pro.encoder_used"), f"{name} · 2 pass"))
         if plan:
             rows.append((t("pro.bitrate"), f"{plan.video_kbps / 1000:.2f} Mbps"))
             rows.append((t("pro.peak"), f"{plan.peak_kbps / 1000:.1f} Mbps"))
             viewing = t(f"viewing.{project.disc.profiles.viewing}")
             rows.append(("", t("pro.from_profile", profile=viewing)))
+        self._fill_grid(self.rate_grid, rows)
+
+    @staticmethod
+    def _fill_grid(grid: QGridLayout, rows: list) -> None:
+        # Widgets added to a parent that is already on screen stay hidden until shown.
         for r, (key, value) in enumerate(rows):
             if value is None:
-                self.pro_grid.addWidget(key, r, 0, 1, 2)
+                grid.addWidget(key, r, 0, 1, 2)
+                key.show()
                 continue
-            self.pro_grid.addWidget(label(key, "muted"), r, 0)
-            self.pro_grid.addWidget(label(value, "hint" if not key else "value", True), r, 1)
+            value_label = label(value, "hint" if not key else "value", True)
+            for c, w in enumerate((label(key, "muted"), value_label)):
+                grid.addWidget(w, r, c)
+                w.show()
 
 
 class MainWindow(QMainWindow):
@@ -396,6 +394,7 @@ class MainWindow(QMainWindow):
         self.picture_page.switch_to_pro.connect(lambda: self.set_mode("pro"))
         self.picture_page.position_changed.connect(self._load_preview)
         self.picture_page.trial_requested.connect(self.run_trial)
+        self.picture_page.editor.changed.connect(self._video_changed)
         self.pages["video"] = self.video_page
         self.pages["picture"] = self.picture_page
         self.audio_page = TracksPage("both")
@@ -619,6 +618,12 @@ class MainWindow(QMainWindow):
                 apply_audio_profile(title, info, settings)
         proj.save(self.project, self.project_file)
         self._refresh()
+
+    def _video_changed(self) -> None:
+        """Crop or pre-processing edited: the plan, the panel and the preview all change."""
+        proj.save(self.project, self.project_file)
+        self._refresh()
+        self._load_preview(self.picture_page.slider.value() / 1000)
 
     def _refresh(self) -> None:
         p = self.project
