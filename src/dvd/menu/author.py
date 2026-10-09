@@ -9,6 +9,8 @@ from fractions import Fraction
 from pathlib import Path
 from xml.sax.saxutils import quoteattr
 
+from PySide6.QtGui import QImage
+
 from dvd import toolchain
 from dvd.author.dvdauthor import AuthorError, AuthorMenu
 from dvd.menu.layout import DIRECTIONS, Page
@@ -70,6 +72,33 @@ def spumux_menu_xml(rendered: RenderedPage, standard: str) -> str:
     return "\n".join(lines) + "\n"
 
 
+def still_mpg(image: QImage, standard: str, aspect: Fraction, out: Path) -> Path:
+    """A one-second program stream of `image` (disc frame size) with silent AC-3."""
+    ffmpeg = toolchain.find_executable(["ffmpeg.exe", "ffmpeg"], toolchain.tool_dirs())
+    if ffmpeg is None:
+        raise AuthorError("ffmpeg not found; run `dvd doctor`")
+    png = out.with_suffix(".png")
+    image.save(str(png))
+    pal = standard == "pal"
+    rate = "25" if pal else "30000/1001"
+    sd = "bt470bg" if pal else "smpte170m"
+    proc = subprocess.run(
+        [str(ffmpeg), "-v", "error", "-y", "-loop", "1", "-framerate", rate,
+         "-i", str(png), "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo",
+         "-t", str(SECONDS),
+         "-vf", f"scale=out_color_matrix=bt601:out_range=tv,format=yuv420p,"
+                f"setparams=field_mode=prog:color_primaries={sd}:color_trc={sd}:colorspace={sd}",
+         "-c:v", "mpeg2video", "-q:v", "2", "-maxrate", "8000k", "-bufsize", "1835k",
+         "-g", "15" if pal else "18", "-bf", "0", "-flags", "+ildct+cgop",
+         "-sc_threshold", "1000000000", "-aspect", "16:9" if aspect > Fraction(3, 2) else "4:3",
+         "-c:a", "ac3", "-b:a", "192k", "-muxrate", "10080000", "-f", "dvd", str(out)],
+        capture_output=True, creationflags=_NO_WINDOW,
+    )  # fmt: skip
+    if proc.returncode != 0:
+        raise AuthorError("menu video failed: " + proc.stderr.decode("utf-8", "replace")[-1500:])
+    return out
+
+
 def menu_vob(
     rendered: RenderedPage,
     standard: str,
@@ -79,34 +108,14 @@ def menu_vob(
 ) -> Path:
     """Write `name`.mpg in `folder`: the background as a short still, silent AC-3, and the
     highlight subpicture with the buttons."""
-    dirs = toolchain.tool_dirs()
-    ffmpeg = toolchain.find_executable(["ffmpeg.exe", "ffmpeg"], dirs)
-    spumux = toolchain.find_executable(["spumux.exe", "spumux"], dirs)
-    if ffmpeg is None or spumux is None:
-        raise AuthorError("ffmpeg or spumux not found; run `dvd doctor`")
+    spumux = toolchain.find_executable(["spumux.exe", "spumux"], toolchain.tool_dirs())
+    if spumux is None:
+        raise AuthorError("spumux not found; run `dvd doctor`")
     work = folder / name
     work.mkdir(parents=True, exist_ok=True)
-    rendered.background.save(str(work / "bg.png"))
     save_rgba(rendered.highlight, work / "hl.png")
     save_rgba(rendered.select, work / "sel.png")
-    pal = standard == "pal"
-    rate = "25" if pal else "30000/1001"
-    sd = "bt470bg" if pal else "smpte170m"
-    still = work / "still.mpg"
-    proc = subprocess.run(
-        [str(ffmpeg), "-v", "error", "-y", "-loop", "1", "-framerate", rate,
-         "-i", str(work / "bg.png"), "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo",
-         "-t", str(SECONDS),
-         "-vf", f"scale=out_color_matrix=bt601:out_range=tv,format=yuv420p,"
-                f"setparams=field_mode=prog:color_primaries={sd}:color_trc={sd}:colorspace={sd}",
-         "-c:v", "mpeg2video", "-q:v", "2", "-maxrate", "8000k", "-bufsize", "1835k",
-         "-g", "15" if pal else "18", "-bf", "0", "-flags", "+ildct+cgop",
-         "-sc_threshold", "1000000000", "-aspect", "16:9" if aspect > Fraction(3, 2) else "4:3",
-         "-c:a", "ac3", "-b:a", "192k", "-muxrate", "10080000", "-f", "dvd", str(still)],
-        capture_output=True, creationflags=_NO_WINDOW,
-    )  # fmt: skip
-    if proc.returncode != 0:
-        raise AuthorError("menu video failed: " + proc.stderr.decode("utf-8", "replace")[-1500:])
+    still = still_mpg(rendered.background, standard, aspect, work / "still.mpg")
     (work / "spumux.xml").write_text(spumux_menu_xml(rendered, standard), encoding="utf-8")
     out = folder / f"{name}.mpg"
     env = {**os.environ, "VIDEO_FORMAT": standard.upper()}

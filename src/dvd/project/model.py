@@ -285,9 +285,33 @@ class Menus(Strict):
         return self
 
 
+class Intro(Strict):
+    """A clip played once when the disc starts, before the menu (a logo, a warning)."""
+
+    file: str = Field(min_length=1)
+
+
+def _intro(value: Any) -> Any:
+    """`first_play` may be written as in the docs: `[{intro: logo.mkv}, main_menu]`."""
+    if isinstance(value, dict) and "intro" in value:
+        return {"file": value["intro"]}
+    return value
+
+
+def _first_play(value: Any) -> Any:
+    if isinstance(value, list):  # the menu always follows the intros; its marker is optional
+        return [v for v in value if v not in ("main_menu", "menu")]
+    return value
+
+
+FirstPlay = Annotated[list[Annotated[Intro, BeforeValidator(_intro)]], BeforeValidator(_first_play)]
+
+
 class Project(Strict):
     version: Literal[1] = 1
     disc: Disc
     titles: list[Title] = Field(min_length=1, max_length=MAX_TITLES)
     menus: Menus | None = None  # None: the disc starts playing, no menus
-    first_play: list[Any] | None = None  # intro clips before the menu: Phase 4
+    first_play: FirstPlay = Field(default_factory=list, max_length=8)
+    # After the last title: back to the menu (or stop without menus), stop, or play again.
+    at_end: Literal["menu", "stop", "repeat"] = "menu"

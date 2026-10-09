@@ -28,6 +28,7 @@ from dvd.budget.planner import Plan
 from dvd.build import estimate
 from dvd.gui import tasks
 from dvd.gui.chapters import ChaptersPage
+from dvd.gui.disc_page import DiscPage
 from dvd.gui.i18n import t
 from dvd.gui.menu_page import MenuEditorPage
 from dvd.gui.pages import BuildPage, TracksPage
@@ -442,13 +443,9 @@ class MainWindow(QMainWindow):
         self.menu_page = MenuEditorPage(lambda: self._source_position())
         self.menu_page.changed.connect(self._tracks_changed)
         self.pages["menu"] = self.menu_page
-        for key in ("disc",):
-            page = QWidget()
-            later = QVBoxLayout(page)
-            later.setContentsMargins(24, 20, 24, 20)
-            later.addWidget(label(t("page.later"), "muted"))
-            later.addStretch()
-            self.pages[key] = page
+        self.disc_page = DiscPage()
+        self.disc_page.changed.connect(self._tracks_changed)
+        self.pages["disc"] = self.disc_page
         for page in self.pages.values():
             self.stack.addWidget(page)
         self.current = "empty"
@@ -708,6 +705,7 @@ class MainWindow(QMainWindow):
         self.picture_page.show_project(p, self.infos[0], self.plan, self.detected)
         for page in (self.audio_page, self.subs_page):
             page.show_project(p, self.infos[0], self.project_file.parent, self.mode)
+        self.disc_page.show_project(p, self.project_file.parent)
         self.menu_page.show_project(p, self.infos[0],
                                     proj.source_path(self.project_file, p.titles[0]),
                                     self.project_file.parent, self._menu_frame())  # fmt: skip

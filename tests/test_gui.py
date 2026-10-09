@@ -264,3 +264,31 @@ def test_menu_page_try_mode_follows_the_keyboard(app, tmp_path: Path):
     QTest.keyClick(page, Qt.Key.Key_Escape)
     assert page.sim.page.id == "main"
     w.close()
+
+
+@pytest.mark.skipif(FFMPEG is None, reason="ffmpeg not installed")
+def test_disc_page_edits_disc_settings_and_intros(app, tmp_path: Path):
+    from dvd.project.model import Intro
+
+    src = tmp_path / "disk.mkv"
+    subprocess.run(
+        [str(FFMPEG), "-v", "error", "-y", "-f", "lavfi",
+         "-i", "testsrc2=size=1280x720:rate=25:duration=2",
+         "-c:v", "libx264", "-preset", "ultrafast", str(src)],
+        check=True,
+    )  # fmt: skip
+    w = MainWindow(mode="pro")
+    w._loaded(w._load(src))
+    QThreadPool.globalInstance().waitForDone(60000)
+    page, project_file = w.disc_page, tmp_path / "disk.dvd.yaml"
+    page.name.setText("Yaz Tatili 2026")
+    page.name.editingFinished.emit()
+    page.at_end.setCurrentIndex(page.at_end.findData("repeat"))
+    page.media.setCurrentIndex(page.media.findData("dvd9"))
+    page.add_intro(tmp_path / "logo.mkv")
+    saved = load(project_file)
+    assert saved.disc.name == "Yaz Tatili 2026" and saved.disc.media == "dvd9"
+    assert saved.at_end == "repeat" and saved.first_play == [Intro(file="logo.mkv")]
+    page._remove(0)
+    assert load(project_file).first_play == []
+    assert w.name_label.text() == "Yaz Tatili 2026"

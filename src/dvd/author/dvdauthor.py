@@ -14,6 +14,9 @@ from dvd import toolchain
 _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
+VMGM_STILL = "vmgm.mpg"  # black still for the forwarding VMG menu (with intros)
+
+
 class AuthorError(Exception):
     pass
 
@@ -67,23 +70,36 @@ def dvdauthor_xml(
     standard: str,
     dest: str = "disc",
     menus: list[AuthorMenu] | None = None,
+    intros: list[AuthorTitle] | None = None,
+    at_end: str = "menu",
 ) -> str:
     """Without menus the disc plays the titles in a row. With menus it opens on the root
-    menu; each title returns to it at the end. The default subtitle is switched on once,
-    the first time the root menu runs (g0 marks that), so a choice made in the menu is
-    not undone when the film starts."""
+    menu. The default subtitle is switched on once, the first time the root menu runs (g0
+    marks that), so a choice made in the menu is not undone when the film starts.
+
+    `intros` play first, from a second titleset (their own picture and sound settings, the
+    film's title numbers unchanged); the last one goes through a VMG menu that only jumps
+    on to the menu or the film. `at_end`: after the last title, "menu" (stop if there are
+    no menus), "stop" or "repeat"."""
     if len({t.aspect for t in titles}) > 1:
         raise AuthorError("titles with different aspect ratios on one disc are not supported yet")
     aspect = titles[0].aspect
     video = f'<video format="{standard}" aspect="{aspect}"'
     video += ' widescreen="nopanscan"/>' if aspect == "16:9" else "/>"
     langs, sub_langs = titles[0].audio_langs, titles[0].subtitle_langs
-    first = "jump titleset 1 menu;" if menus else "jump title 1;"
-    lines = [
-        f"<dvdauthor dest={quoteattr(dest)}>",
-        f"  <vmgm><fpc>{first}</fpc></vmgm>",
-        "  <titleset>",
-    ]
+    start = "jump titleset 1 menu;" if menus else "jump title 1;"
+    lines = [f"<dvdauthor dest={quoteattr(dest)}>"]
+    if intros:
+        # Intro titles are numbered after the film titles across the disc.
+        # The VMG menu only forwards; its black still never shows, but a menu without a
+        # video cell would leave the IFO pointing at a VIDEO_TS.VOB that is not written.
+        lines += [f"  <vmgm><fpc>jump title {len(titles) + 1};</fpc>",
+                  f"    <menus>{video}<pgc entry=\"title\"><pre>{start}</pre>"
+                  f"<vob file={quoteattr(VMGM_STILL)}/></pgc></menus>",
+                  "  </vmgm>"]  # fmt: skip
+    else:
+        lines.append(f"  <vmgm><fpc>{start}</fpc></vmgm>")
+    lines.append("  <titleset>")
     if menus:
         lines += ["    <menus>", f"      {video}"]
         subs_on = titles[0].subtitles_on and bool(sub_langs)
@@ -114,10 +130,22 @@ def dvdauthor_xml(
         lines.append(f"        <vob file={quoteattr(t.vob)} chapters={quoteattr(chapters)}/>")
         if n < len(titles):
             lines.append(f"        <post>jump title {n + 1};</post>")
-        elif menus:
+        elif at_end == "repeat":
+            lines.append("        <post>jump title 1;</post>")
+        elif at_end == "menu" and menus:
             lines.append("        <post>call menu;</post>")
+        elif at_end == "stop":
+            lines.append("        <post>exit;</post>")  # no menus and "menu": playback just ends
         lines.append("      </pgc>")
-    lines += ["    </titles>", "  </titleset>", "</dvdauthor>"]
+    lines += ["    </titles>", "  </titleset>"]
+    if intros:
+        lines += ["  <titleset>", "    <titles>", f"      {video}"]
+        for k, t in enumerate(intros, start=1):
+            nxt = f"jump title {k + 1};" if k < len(intros) else "call vmgm menu entry title;"
+            lines += ["      <pgc>", f"        <vob file={quoteattr(t.vob)}/>",
+                      f"        <post>{nxt}</post>", "      </pgc>"]  # fmt: skip
+        lines += ["    </titles>", "  </titleset>"]
+    lines.append("</dvdauthor>")
     return "\n".join(lines) + "\n"
 
 
@@ -128,6 +156,8 @@ def author(
     out_dir: Path,
     dvdauthor: Path | None = None,
     menus: list[AuthorMenu] | None = None,
+    intros: list[AuthorTitle] | None = None,
+    at_end: str = "menu",
 ) -> Path:
     """Write VIDEO_TS into out_dir; the vob files must already be in workdir."""
     dvdauthor = dvdauthor or toolchain.find_executable(
@@ -138,7 +168,8 @@ def author(
     staging = workdir / "disc"
     shutil.rmtree(staging, ignore_errors=True)
     (workdir / "dvdauthor.xml").write_text(
-        dvdauthor_xml(titles, standard, menus=menus), encoding="utf-8"
+        dvdauthor_xml(titles, standard, menus=menus, intros=intros, at_end=at_end),
+        encoding="utf-8",
     )
     env = {**os.environ, "VIDEO_FORMAT": standard.upper()}
     proc = subprocess.run(

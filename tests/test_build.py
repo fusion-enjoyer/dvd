@@ -362,3 +362,38 @@ def test_build_disc_with_menus(tmp_path: Path):
         capture_output=True, text=True, check=True,
     ).stdout  # fmt: skip
     assert float(duration) == pytest.approx(12 * 24000 / 1001 / 25, abs=0.4)
+
+
+@pytest.mark.skipif(not READY, reason="toolchain not installed")
+def test_intro_plays_before_the_menu(tmp_path: Path):
+    from dvd.project.model import Intro
+
+    src = _sample(tmp_path, seconds=6)
+    intro = tmp_path / "logo.mkv"
+    subprocess.run(
+        [str(FFMPEG), "-v", "error", "-y", "-f", "lavfi",
+         "-i", "testsrc=size=640x360:rate=25:duration=2",
+         "-f", "lavfi", "-i", "sine=frequency=880:sample_rate=48000:duration=2",
+         "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", str(intro)],
+        check=True,
+    )  # fmt: skip
+    project = new_project(probe(src), tmp_path)
+    project.first_play = [Intro(file="logo.mkv")]
+    project.at_end = "repeat"
+    project.titles[0].video.overrides = {"encoder": "ffmpeg"}
+    project_file = tmp_path / "giris.dvd.yaml"
+    save(project, project_file)
+    assert load(project_file).first_play == [Intro(file="logo.mkv")]
+
+    result = build(project_file)
+
+    names = sorted(p.name for p in result.video_ts.iterdir())
+    assert "VTS_02_1.VOB" in names  # the intro titleset
+    xml = next(tmp_path.rglob("dvdauthor.xml")).read_text(encoding="utf-8")
+    assert "<fpc>jump title 2;</fpc>" in xml  # the intro is title 2 on the disc
+    assert '<pgc entry="title"><pre>jump titleset 1 menu;</pre>' in xml
+    assert "call vmgm menu entry title;" in xml
+    assert "<post>jump title 1;</post>" in xml  # at_end: repeat
+    intro_vob = probe(result.video_ts / "VTS_02_1.VOB")
+    assert intro_vob.duration == pytest.approx(2, abs=0.3)
+    assert intro_vob.main_video.width == 720

@@ -25,6 +25,7 @@ from dvd.project.model import (
     Project,
     Subtitle,
     Title,
+    Video,
     parse_timecode,
 )
 from dvd.subs.extract import extract_text_track
@@ -209,6 +210,48 @@ def _menus(project: Project, p: _Prepared, project_dir: Path, work_dir: Path) ->
                         p.target.dar, work_dir)  # fmt: skip
 
 
+def _intro_path(project_file: Path, intro) -> Path:
+    path = Path(intro.file)
+    return path if path.is_absolute() else project_file.parent / path
+
+
+def _intro_vob(project: Project, info: SourceInfo, film: _Prepared, budget: Plan,
+               work_dir: Path, k: int, report: Progress) -> AuthorTitle:  # fmt: skip
+    """An intro clip as a disc title: no crop, the film's aspect, first audio track as
+    stereo AC-3."""
+    v = info.main_video
+    if v is None:
+        raise BuildError(f"intro {info.path.name} has no video track")
+    video = Video(crop="none", aspect=film.target.aspect)
+    try:
+        target = plan_target(v, project.disc.standard, video)
+    except UnsupportedSource as exc:
+        raise BuildError(f"intro {info.path.name}: {exc}") from None
+    tag = f"i{k:02}"
+    report(f"intro {k}", 0.0)
+    clip = build_clip(info.path, v, target, video)
+    settings = EncodeSettings(
+        bitrate=budget.video_kbps, maxrate=budget.peak_kbps, aspect=target.aspect,
+        standard=project.disc.standard, pulldown=target.pulldown, interlaced=target.interlaced,
+    )  # fmt: skip
+    wanted = resolve_profiles(project.disc.profiles)["encoder"]
+    encoder, _note = encoders.choose(wanted)
+    m2v = encoders.encode(encoder, clip, work_dir / f"{tag}.m2v", settings,
+                          work_dir / f"{tag}_{encoder}")  # fmt: skip
+    compliance = check_video(m2v, project.disc.standard)
+    if not compliance.ok:
+        raise BuildError(f"intro {k} video is not DVD compliant: " + "; ".join(compliance.errors))
+    audio = []
+    if info.audio:
+        a = info.audio[0]
+        offset = (a.start_time - v.start_time) * 1000
+        out = work_dir / f"{tag}_a0.ac3"
+        audio.append(encode_ac3(info.path, a.index, out, "2.0", 192, target.speedup,
+                                delay_ms=offset, source_channels=a.channels))  # fmt: skip
+    mpg = mux(m2v, audio, work_dir / f"{tag}.mpg")
+    return AuthorTitle(vob=mpg.name, aspect=target.aspect)
+
+
 def build(
     project_file: Path,
     out_dir: Path | None = None,
@@ -230,7 +273,9 @@ def build(
     warnings = []
 
     prepared = _prepare(project, project_file, warnings)
-    total = sum(p.duration for p in prepared)
+    intro_infos = [probe(_intro_path(project_file, i)) for i in project.first_play]
+    # Intros are short; they share the films' bit rate, so the plan counts their time too.
+    total = sum(p.duration for p in prepared) + sum(i.duration or 0 for i in intro_infos)
     audio_avg = sum(p.duration * sum(a.bitrate for a in p.title.audio) for p in prepared) / total
     budget = plan(
         project.disc.media,
@@ -347,8 +392,25 @@ def build(
     if project.menus is not None:
         report("menus", 0.0)
         menus = _menus(project, prepared[0], project_file.parent, work_dir)
+    intros = [
+        _intro_vob(project, info, prepared[0], budget, work_dir, k, report)
+        for k, info in enumerate(intro_infos, start=1)
+    ]
+    if intros:
+        from PySide6.QtGui import QColor, QImage
+
+        from dvd.author.dvdauthor import VMGM_STILL
+        from dvd.menu.author import still_mpg
+        from dvd.subs.render import _qt
+
+        _qt()
+        t = prepared[0].target
+        black = QImage(t.width, t.height, QImage.Format.Format_RGB888)
+        black.fill(QColor(16, 16, 16))
+        still_mpg(black, project.disc.standard, t.dar, work_dir / VMGM_STILL)
     report("authoring", 0.0)
-    video_ts = author(author_titles, project.disc.standard, work_dir, out_dir, menus=menus)
+    video_ts = author(author_titles, project.disc.standard, work_dir, out_dir, menus=menus,
+                      intros=intros, at_end=project.at_end)  # fmt: skip
     iso = None
     if make_iso:
         iso = write_iso(
