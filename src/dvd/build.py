@@ -27,7 +27,8 @@ from dvd.project.model import (
     parse_timecode,
 )
 from dvd.subs.extract import extract_text_track
-from dvd.subs.render import style_for
+from dvd.subs.pgs import BitmapCue, extract_pgs
+from dvd.subs.render import Placement, style_for
 from dvd.subs.spumux import add_subtitle_stream
 from dvd.subs.srt import Cue, read_srt, retime
 from dvd.video import encoders
@@ -96,17 +97,32 @@ def chapter_frames(title: Title, info: SourceInfo, target: Target, frames: int) 
     return sorted({0, *(f for f in starts if 0 <= f < frames)})[:MAX_CHAPTERS]
 
 
-def _subtitle_cues(sub: Subtitle, p: _Prepared, project_file: Path, srt_out: Path) -> list[Cue]:
+def placement(target: Target) -> Placement:
+    c = target.crop
+    return Placement((c.left, c.right, c.top, c.bottom), (target.active_width,
+                     target.active_height), (target.pad_left, target.pad_top),
+                     (target.width, target.height))  # fmt: skip
+
+
+def _subtitle_cues(
+    sub: Subtitle, p: _Prepared, project_file: Path, srt_out: Path
+) -> list[Cue | BitmapCue]:
     if sub.file is not None:
         path = Path(sub.file)
-        return read_srt(path if path.is_absolute() else project_file.parent / path)
+        path = path if path.is_absolute() else project_file.parent / path
+        if path.suffix.lower() == ".srt":
+            return read_srt(path)
+        return read_srt(extract_text_track(path, 0, srt_out))  # ASS, SSA, WebVTT: text only
     track = next((s for s in p.info.subtitles if s.index == sub.track), None)
     if track is None:
         raise BuildError(f"{p.source.name} has no subtitle stream {sub.track}")
+    if track.codec == "hdmv_pgs_subtitle":
+        cues = extract_pgs(p.source, sub.track, srt_out.with_suffix(".sup"))
+        if not cues:
+            raise BuildError(f"PGS stream {sub.track} has no captions")
+        return cues
     if track.kind != "text":
-        raise BuildError(
-            f"subtitle stream {sub.track} is {track.codec}; bitmap subtitles come in Phase 3"
-        )
+        raise BuildError(f"subtitle stream {sub.track} is {track.codec}, which is not supported")
     return read_srt(extract_text_track(p.source, sub.track, srt_out))
 
 
@@ -279,6 +295,7 @@ def build(
                 forced=sub.forced,
                 style=sub_style,
                 progress=lambda f, n=n, i=i: report(f"title {n} subtitles {i + 1}", f),
+                placement=placement(p.target),
             )
         muxed = check_mux(mpg)
         if not muxed.ok:

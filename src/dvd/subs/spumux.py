@@ -11,7 +11,15 @@ from pathlib import Path
 from xml.sax.saxutils import quoteattr
 
 from dvd import toolchain
-from dvd.subs.render import DEFAULT_STYLE, SubStyle, render_cue, save_png
+from dvd.subs.pgs import BitmapCue
+from dvd.subs.render import (
+    DEFAULT_STYLE,
+    Placement,
+    SubStyle,
+    place_bitmap,
+    render_cue,
+    save_png,
+)
 from dvd.subs.srt import Cue, SubtitleError
 
 _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
@@ -29,7 +37,7 @@ def spumux_xml(entries: list[tuple[Cue, str, int, int]], standard: str, forced: 
             f'start="{_time(cue.start)}" end="{_time(cue.end)}" image={quoteattr(image)} '
             f'xoffset="{x}" yoffset="{y}"'
         )
-        if forced:
+        if forced or getattr(cue, "forced", False):  # PGS marks single captions as forced
             attrs += ' force="yes"'
         lines.append(f"    <spu {attrs}/>")
     lines += ["  </stream>", "</subpictures>"]
@@ -39,7 +47,7 @@ def spumux_xml(entries: list[tuple[Cue, str, int, int]], standard: str, forced: 
 def add_subtitle_stream(
     mpg_in: Path,
     mpg_out: Path,
-    cues: list[Cue],
+    cues: list[Cue | BitmapCue],
     stream: int,
     frame: tuple[int, int, Fraction],
     standard: str,
@@ -48,8 +56,10 @@ def add_subtitle_stream(
     style: SubStyle = DEFAULT_STYLE,
     progress: Callable[[float], None] | None = None,
     spumux: Path | None = None,
+    placement: Placement | None = None,
 ) -> Path:
-    """Render `cues` and mux them as subpicture stream `stream` (0-31).
+    """Render `cues` and mux them as subpicture stream `stream` (0-31). Text cues are drawn
+    with `style`; PGS bitmap cues are moved onto the disc frame with `placement`.
 
     Cue times are relative to the start of the film: spumux finds the first video timestamp of
     the program stream itself and adds it.
@@ -63,7 +73,13 @@ def add_subtitle_stream(
     width, height, aspect = frame
     entries = []
     for i, cue in enumerate(cues):
-        bitmap = render_cue(cue, width, height, aspect, style)
+        if isinstance(cue, BitmapCue):
+            if placement is None:
+                raise SubtitleError("bitmap subtitles need the video placement")
+            bitmap = place_bitmap(cue.rgba, cue.x, cue.y, (cue.frame_width, cue.frame_height),
+                                  placement, style)  # fmt: skip
+        else:
+            bitmap = render_cue(cue, width, height, aspect, style)
         name = f"s{i:05}.png"
         save_png(bitmap, folder / name)
         entries.append((cue, name, bitmap.x, bitmap.y))

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 
@@ -75,8 +75,9 @@ def read_srt(path: Path) -> list[Cue]:
     return cues
 
 
-def retime(cues: list[Cue], speedup: float) -> list[Cue]:
-    """PAL speedup shortens the film; subtitle times shrink by the same factor."""
+def retime(cues: list, speedup: float) -> list:
+    """PAL speedup shortens the film; subtitle times shrink by the same factor. Works for any
+    cue dataclass with `start` and `end` (text cues, PGS bitmaps)."""
     if speedup == 1:
         return cues
-    return [Cue(c.start / speedup, c.end / speedup, c.lines, c.italic) for c in cues]
+    return [replace(c, start=c.start / speedup, end=c.end / speedup) for c in cues]

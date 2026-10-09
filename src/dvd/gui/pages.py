@@ -28,6 +28,7 @@ from dvd.probe import SourceInfo
 from dvd.project import edit
 from dvd.project.model import AC3_BITRATES, Project
 
+SUB_FILES = "SRT, ASS, SSA, WebVTT (*.srt *.ass *.ssa *.vtt)"
 LANGS = ["tr", "en", "de", "fr", "es", "it", "ru", "ja", "ko", "zh", "ar", "nl", "sv", "pl"]
 
 
@@ -189,7 +190,7 @@ class TracksPage(QWidget):
             s = by_track.get(src.index)
             check = QCheckBox(_track_text(src.language, src.codec, src.title))
             check.setChecked(s is not None)
-            if src.kind != "text":
+            if not src.usable:
                 check.setEnabled(False)
                 check.setToolTip(t("tracks.bitmap_later"))
                 grid.addWidget(check, row, 0)
@@ -230,7 +231,7 @@ class TracksPage(QWidget):
 
     def _add_srt(self) -> None:
         path, _ = QFileDialog.getOpenFileName(self, t("tracks.add_srt"), str(self.project_dir),
-                                              "SRT (*.srt)")  # fmt: skip
+                                              SUB_FILES)  # fmt: skip
         if path:
             self._edit(lambda: edit.add_subtitle_file(self.project.titles[0], Path(path),
                                                       self.project_dir))  # fmt: skip

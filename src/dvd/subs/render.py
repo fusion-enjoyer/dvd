@@ -177,13 +177,66 @@ def quantize(fill_a: np.ndarray, outline_a: np.ndarray, style: SubStyle) -> Bitm
     rgba[rim] = (*rim_rgb, 128)
     rgba[solid] = (*style.outline, 255)
     rgba[text] = (*style.fill, 255)
+    return _trim(rgba, 0, 0)
+
+
+def _trim(rgba: np.ndarray, x: int, y: int) -> Bitmap:
+    """Cut to the visible pixels. `x`, `y`: where `rgba` sits on the frame (even)."""
+    h, w = rgba.shape[:2]
     ys, xs = np.nonzero(rgba[:, :, 3])
     if len(ys) == 0:
         return Bitmap(np.zeros((2, 2, 4), np.uint8), 0, 0)
     # Even origin and size: subpicture lines are interlaced, odd offsets shift the field order.
     y0, x0 = ys.min() // 2 * 2, xs.min() // 2 * 2
     y1, x1 = min(h, (ys.max() + 2) // 2 * 2), min(w, (xs.max() + 2) // 2 * 2)
-    return Bitmap(np.ascontiguousarray(rgba[y0:y1, x0:x1]), int(x0), int(y0))
+    return Bitmap(np.ascontiguousarray(rgba[y0:y1, x0:x1]), int(x + x0), int(y + y0))
+
+
+@dataclass(frozen=True)
+class Placement:
+    """How the source frame maps onto the disc frame: the video's crop, scale and bars."""
+
+    crop: tuple[int, int, int, int]  # left, right, top, bottom, in source pixels
+    active: tuple[int, int]  # picture size on the disc frame
+    pad: tuple[int, int]  # left, top bars
+    frame: tuple[int, int]  # disc frame size
+
+
+def place_bitmap(rgba: np.ndarray, x: int, y: int, source: tuple[int, int], where: Placement,
+                 style: SubStyle = DEFAULT_STYLE) -> Bitmap:  # fmt: skip
+    """A source-frame bitmap (Blu-ray PGS) on the disc frame in the 4 subtitle colours.
+
+    Scaled and moved exactly like the video, so a caption keeps its place on the picture (also
+    in the letterbox band); kept inside the frame if the crop cut its area away. Pixels are
+    sorted by alpha and brightness into fill, outline and the half-transparent rim, so the
+    disc palette stays the same 4 colours whatever colours the source used."""
+    _qt()
+    left, right, top, bottom = where.crop
+    sx = where.active[0] / (source[0] - left - right)
+    sy = where.active[1] / (source[1] - top - bottom)
+    h, w = rgba.shape[:2]
+    new_w, new_h = max(2, round(w * sx)), max(2, round(h * sy))
+    pixels = np.ascontiguousarray(rgba)  # QImage borrows this buffer; keep it alive
+    img = QImage(pixels.data, w, h, w * 4, QImage.Format.Format_RGBA8888)
+    # Premultiplied while scaling, so transparent pixels do not bleed dark into the edges.
+    img = img.convertToFormat(QImage.Format.Format_RGBA8888_Premultiplied)
+    img = img.scaled(new_w, new_h, Qt.AspectRatioMode.IgnoreAspectRatio,
+                     Qt.TransformationMode.SmoothTransformation)  # fmt: skip
+    img = img.convertToFormat(QImage.Format.Format_RGBA8888)
+    view = np.frombuffer(img.constBits(), np.uint8).reshape(new_h, img.bytesPerLine())
+    scaled = view[:, : new_w * 4].reshape(new_h, new_w, 4)
+    fw, fh = where.frame
+    nx = min(max(0, round((x - left) * sx) + where.pad[0]), max(0, fw - new_w)) // 2 * 2
+    ny = min(max(0, round((y - top) * sy) + where.pad[1]), max(0, fh - new_h)) // 2 * 2
+    scaled = scaled[: fh - ny, : fw - nx]
+    alpha = scaled[:, :, 3].astype(np.int32)
+    luma = scaled[:, :, :3].astype(np.float32) @ np.array([0.299, 0.587, 0.114], np.float32)
+    out = np.zeros(scaled.shape, np.uint8)
+    rim_rgb = tuple(min(255, c + 1) for c in style.outline)
+    out[alpha >= 64] = (*rim_rgb, 128)
+    out[(alpha >= 170) & (luma < 128)] = (*style.outline, 255)
+    out[(alpha >= 128) & (luma >= 128)] = (*style.fill, 255)
+    return _trim(out, nx, ny)
 
 
 def save_png(bitmap: Bitmap, path: Path) -> None:

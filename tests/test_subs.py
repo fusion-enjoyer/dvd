@@ -131,3 +131,26 @@ def test_extract_embedded_text_track(tmp_path: Path):
     )  # fmt: skip
     cues = read_srt(extract_text_track(mkv, 1, tmp_path / "out.srt"))
     assert cues[0].lines == ("Gömülü ğüş",)
+
+
+def test_ass_file_becomes_text_cues(tmp_path: Path):
+    from dvd import toolchain
+    from dvd.subs.extract import extract_text_track
+    from dvd.subs.srt import read_srt
+
+    if toolchain.find_executable(["ffmpeg.exe", "ffmpeg"], toolchain.tool_dirs()) is None:
+        pytest.skip("ffmpeg not installed")
+
+    ass = tmp_path / "film.tr.ass"
+    ass.write_text(
+        "[Script Info]\nScriptType: v4.00+\n\n[V4+ Styles]\n"
+        "Format: Name, Fontname, Fontsize, PrimaryColour, Bold, Italic\n"
+        "Style: Default,Arial,20,&H00FFFFFF,0,0\n\n[Events]\n"
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+        r"Dialogue: 0,0:00:01.00,0:00:02.50,Default,,0,0,0,,Merhaba {\i1}dünya{\i0}\Nikinci satır"
+        "\n",
+        encoding="utf-8",
+    )
+    cues = read_srt(extract_text_track(ass, 0, tmp_path / "out.srt"))
+    assert len(cues) == 1 and cues[0].start == 1.0 and cues[0].end == 2.5
+    assert cues[0].lines == ("Merhaba dünya", "ikinci satır")

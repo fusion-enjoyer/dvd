@@ -58,7 +58,7 @@ def _subtitle_tracks(info: SourceInfo) -> list[Subtitle]:
     return [
         Subtitle(track=s.index, lang=to_dvd_code(s.language) or "tr", forced=s.forced)
         for s in info.subtitles
-        if s.kind == "text"
+        if s.usable
     ][:32]
 
 

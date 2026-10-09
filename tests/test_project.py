@@ -200,8 +200,8 @@ def test_new_project_from_bluray_source(tmp_path: Path):
         (1, "en", "5.1", 448, False),
         (2, "tr", "2.0", 192, True),
     ]
-    # PGS needs Phase 3 (bitmap re-scaling); only text subtitles are taken for now.
-    assert [(s.track, s.lang) for s in title.subtitles] == [(3, "tr")]
+    # Text and Blu-ray PGS subtitles are both taken.
+    assert [(s.track, s.lang) for s in title.subtitles] == [(3, "tr"), (4, "en")]
     assert title.chapters == "from-source"
     assert source_path(tmp_path / "film.dvd.yaml", title) == source.resolve()
 
@@ -260,4 +260,4 @@ def test_estimate_uses_pal_playback_duration(tmp_path: Path):
     project = new_project(info, tmp_path)
     p = estimate(project, [info])
     assert p.duration == pytest.approx(10140 / (25 / (24000 / 1001)), rel=1e-6)
-    assert p.video_kbps == plan("dvd9", p.duration, [448 + 192], 1).video_kbps
+    assert p.video_kbps == plan("dvd9", p.duration, [448 + 192], 2).video_kbps

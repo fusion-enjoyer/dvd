@@ -40,6 +40,8 @@ def test_removing_the_default_audio_moves_default(setup):
 def test_subtitle_include_and_default(setup):
     title, _, _ = setup
     set_subtitle_included(title, 3, "tur", False)
+    assert [s.track for s in title.subtitles] == [4]  # the PGS track stays
+    set_subtitle_included(title, 4, "eng", False)
     assert title.subtitles == []
     set_subtitle_included(title, 3, "tur", True)
     set_default_subtitle(title, 3)
