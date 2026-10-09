@@ -83,7 +83,7 @@ Uygulama kaynağın kare hızına bakıp **önerilen standardı** gösterir, kar
 
 Katmanlar `src/dvd/profiles.py`'de. Şu an uygulanan ayarlar: deband kademesi, dither, küçültme yöntemi,
 tepe bitrate, altyazı boyutu, güvenli alan (altyazı kenar payı), ses düzeni (5.1 / stereo / ikisi),
-PAL speedup'ta ses tonu (`audio_pitch`).
+PAL speedup'ta ses tonu (`audio_pitch`), dar görüntüde yan bant dolgusu (`side_fill`).
 Henüz uygulanmayanlar tablolarda kalır, ilgili özellik gelince eklenir: dikey low-pass (menü/altyazı, Faz 3–4),
 gren yönetimi ve denoise (Faz 2), gece modu sıkıştırması (Faz 3), menü karmaşıklığı (Faz 4).
 `dvd profile show film.dvd.yaml` her ayarın değerini ve hangi katmandan geldiğini gösterir.

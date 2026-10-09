@@ -69,7 +69,9 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 - [ ] Denoise / gren yönetimi, deinterlace (QTGMC), HDR → SDR tonemapping
 - [ ] Kişisel videolar: değişken kare hızı, 50/60 fps → interlaced encode, dikey video yerleşimi, telefon HDR'ı
   - [x] 50p → PAL 25i, 59.94/60p → NTSC 29.97i (iki kaynak karesi bir DVD karesinin iki alanı, üst alan önce; renk alan başına 4:2:0); 30p → NTSC 29.97 (%0.1 yavaşlatma, ses eşlenir); HCEnc ve FFmpeg
-  - [ ] Değişken kare hızı, dikey video, telefon HDR'ı; 30/60 fps → PAL kare hızı dönüşümü
+  - [x] Değişken kare hızı: ortalama hız en yakın standart hıza oturtulur, kaynak zaman damgalarına göre sabit hıza çevrilir (BestSource), ses senkronu korunur
+  - [x] Dikey video: döndürme bilgisi okunur, 4:3 karede yan bantlar; bantlar siyah ya da bulanık görüntü (`side_fill`, telefon profilinde varsayılan bulanık); dikey videoda proje telefon profiliyle açılır
+  - [ ] Telefon HDR'ı (HLG/Dolby Vision), 30/60 fps → PAL kare hızı dönüşümü
 
 **Encode**
 - [ ] Encoder sürücüleri: HCEnc, FFmpeg (ayarlı parametre seti), x262 (deneysel)
