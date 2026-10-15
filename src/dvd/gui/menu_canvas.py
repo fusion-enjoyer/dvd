@@ -1,5 +1,5 @@
-"""Menu editor canvas: the page picture with its buttons as boxes that can be moved and
-resized, the TV safe areas, and the remote's arrow paths between buttons."""
+"""Menu editor canvas: the page picture with its buttons and layers as boxes that can be
+moved and resized, the TV safe areas, and the remote's arrow paths between buttons."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from dvd.menu.layout import overlapping
 
 GRID = 0.005  # positions snap to half a percent of the frame
 HANDLE = 10  # px, the resize corner
+LAYER = "layer-"  # id prefix of layer boxes ("layer-0" is the page's first layer)
 
 
 class MenuCanvas(QWidget):
@@ -26,14 +27,19 @@ class MenuCanvas(QWidget):
         self.image: QImage | None = None
         self.aspect = 16 / 9
         self.buttons: list = []  # menu.layout.Button
+        self.layer_ids: list[str] = []
         self.rects: dict[str, tuple[float, float, float, float]] = {}
         self.current: str | None = None
         self.show_nav = False
         self._drag: tuple[str, str, QPointF, tuple] | None = None  # id, move|resize, start, rect
 
-    def set_page(self, buttons: list, image: QImage | None, aspect: float) -> None:
+    def set_page(self, buttons: list, image: QImage | None, aspect: float,
+                 layers: list | None = None) -> None:  # fmt: skip
+        """`layers`: the page's MenuLayer list; their boxes are "layer-0", "layer-1", ..."""
         self.buttons, self.image, self.aspect = buttons, image, aspect
+        self.layer_ids = [f"{LAYER}{i}" for i in range(len(layers or []))]
         self.rects = {b.id: tuple(b.rect) for b in buttons}
+        self.rects.update({f"{LAYER}{i}": tuple(x.rect) for i, x in enumerate(layers or [])})
         if self.current not in self.rects:
             self.current = buttons[0].id if buttons else None
         self.update()
@@ -54,14 +60,18 @@ class MenuCanvas(QWidget):
                       h * f.height())  # fmt: skip
 
     def _hit(self, pos: QPointF) -> tuple[str | None, str]:
-        for b in reversed(self.buttons):
-            r = self._px(self.rects[b.id])
+        """Buttons lie over the layers; the last layer over the earlier ones."""
+        for bid in [*(b.id for b in reversed(self.buttons)), *reversed(self.layer_ids)]:
+            r = self._px(self.rects[bid])
             corner = QRectF(r.right() - HANDLE, r.bottom() - HANDLE, 2 * HANDLE, 2 * HANDLE)
-            if b.id == self.current and corner.contains(pos):
-                return b.id, "resize"
+            if bid == self.current and corner.contains(pos):
+                return bid, "resize"
             if r.contains(pos):
-                return b.id, "move"
+                return bid, "move"
         return None, ""
+
+    def button_rects(self) -> dict[str, tuple]:
+        return {k: v for k, v in self.rects.items() if not k.startswith(LAYER)}
 
     @staticmethod
     def _snap(v: float) -> float:
@@ -138,7 +148,17 @@ class MenuCanvas(QWidget):
             p.setPen(pen)
             p.setBrush(Qt.BrushStyle.NoBrush)
             p.drawRect(guide)
-        clash = {i for pair in overlapping(self.rects) for i in pair}
+        for lid in self.layer_ids:
+            r = self._px(self.rects[lid])
+            chosen = lid == self.current
+            p.setPen(QPen(color("amber") if chosen else color("bilgi"), 2 if chosen else 1,
+                          Qt.PenStyle.DashLine))  # fmt: skip
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            p.drawRect(r)
+            if chosen:
+                p.setBrush(color("amber"))
+                p.drawRect(QRectF(r.right() - HANDLE / 2, r.bottom() - HANDLE / 2, HANDLE, HANDLE))
+        clash = {i for pair in overlapping(self.button_rects()) for i in pair}
         for b in self.buttons:
             r = self._px(self.rects[b.id])
             chosen = b.id == self.current

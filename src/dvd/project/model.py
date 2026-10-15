@@ -254,6 +254,39 @@ class ButtonEdit(Strict):
         return v
 
 
+MAX_MENU_LAYERS = 20
+
+
+class MenuLayer(Strict):
+    """Free text, a picture or a coloured box drawn into the page picture (menu editor).
+    Layers are part of the still video, not buttons: full colour, no highlight."""
+
+    kind: Literal["text", "image", "shape"]
+    rect: tuple[float, float, float, float]  # x, y, width, height as fractions of the frame
+    text: str | None = Field(None, min_length=1, max_length=120)
+    image: str | None = None  # picture file (PNG with transparency works)
+    color: str = Field("#ebebeb", pattern=r"^#[0-9a-fA-F]{6}$")  # text or box colour
+    opacity: float = Field(1.0, ge=0.05, le=1.0)
+    size: float = Field(0.05, ge=0.02, le=0.2)  # text height, fraction of the frame height
+    align: Literal["left", "center", "right"] = "left"
+
+    @field_validator("rect")
+    @classmethod
+    def _inside(cls, v):
+        x, y, w, h = v
+        if w <= 0 or h <= 0 or x < 0 or y < 0 or x + w > 1.0001 or y + h > 1.0001:
+            raise ValueError("a layer must lie inside the frame")
+        return v
+
+    @model_validator(mode="after")
+    def _content(self) -> MenuLayer:
+        if self.kind == "text" and not self.text:
+            raise ValueError("a text layer needs 'text'")
+        if self.kind == "image" and not self.image:
+            raise ValueError("an image layer needs 'image'")
+        return self
+
+
 class MenuPage(Strict):
     id: str = Field(pattern=r"^[a-z0-9_-]{1,32}$")
     kind: PageKind = "custom"
@@ -262,6 +295,8 @@ class MenuPage(Strict):
     buttons: list[MenuButton] = Field(default_factory=list, max_length=MAX_MENU_BUTTONS)
     # Menu editor changes to generated buttons, by button id (also for every chapter page).
     edits: dict[str, ButtonEdit] = Field(default_factory=dict)
+    # Drawn in order over the backdrop, under the title and the buttons.
+    layers: list[MenuLayer] = Field(default_factory=list, max_length=MAX_MENU_LAYERS)
 
 
 class MenuBackground(Strict):

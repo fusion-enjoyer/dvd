@@ -190,6 +190,13 @@ TEXTS: dict[str, dict[str, str]] = {
         "menu.edit.reset": "Bu butonu varsayılana döndür",
         "menu.edit.arrows": "Kumanda yönlerini göster",
         "menu.edit.nav": "Kumandada bu butondan",
+        "menu.layer.add_text": "+ Yazı",
+        "menu.layer.add_image": "+ Resim",
+        "menu.layer.add_shape": "+ Kutu",
+        "menu.layer.text": "Yazı",
+        "menu.layer.label": "Katman yazısı",
+        "menu.layer.colour": "Katman rengi",
+        "menu.layer.remove": "Katmanı sil",
         "menu.edit.up": "Yukarı",
         "menu.edit.down": "Aşağı",
         "menu.edit.left": "Sol",
@@ -198,7 +205,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "menu.edit.stay": "yerinde kalır",
         "menu.edit.hint": "Butonu sürükleyerek taşıyın, sağ alt köşesinden boyutlandırın; "
         "yön tuşları seçili butonu biraz kaydırır (Shift ile daha çok). Kesikli çizgiler "
-        "TV'nin güvenli alanları: yazılar içteki çizginin içinde kalsın.",
+        "TV'nin güvenli alanları: yazılar içteki çizginin içinde kalsın. Mavi kesikli "
+        "kutular katmanlar (yazı, resim, kutu): butonların altında, görüntünün parçası.",
         "menu.edit.overlap": "Kırmızı butonlar üst üste biniyor; oynatıcı yanlış butonu "
         "vurgulayabilir.",
         "menu.sim.audio": "Ses: {lang}",

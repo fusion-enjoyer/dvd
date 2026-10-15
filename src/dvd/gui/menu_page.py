@@ -20,19 +20,27 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
 
 from dvd.gui import tasks
 from dvd.gui.i18n import t
-from dvd.gui.menu_canvas import MenuCanvas
+from dvd.gui.menu_canvas import LAYER, MenuCanvas
 from dvd.gui.widgets import ModeSwitch, VideoWell
 from dvd.menu.layout import DIRECTIONS, auto_nav, overlapping
 from dvd.probe import SourceInfo
 from dvd.project import edit
 from dvd.project.create import default_menus
-from dvd.project.model import ButtonEdit, MenuBackground, MenuPage, Project
+from dvd.project.model import (
+    MAX_MENU_LAYERS,
+    ButtonEdit,
+    MenuBackground,
+    MenuLayer,
+    MenuPage,
+    Project,
+)
 
 OPTIONAL = ("chapters", "languages")  # pages the user can leave out; main is always there
 
@@ -41,7 +49,7 @@ def render_preview(project: Project, infos: list[SourceInfo], sources: list[Path
                    project_dir: Path, frame: tuple, display: tuple[int, int]) -> list:  # fmt: skip
     """(page, rendered page) for every disc menu page, drawn as the build draws them."""
     from dvd.menu.layout import expand
-    from dvd.menu.pictures import background_image, button_pictures, logo_image
+    from dvd.menu.pictures import background_image, button_pictures, layer_images, logo_image
     from dvd.menu.render import render_page
     from dvd.menu.templates import template
 
@@ -51,7 +59,9 @@ def render_preview(project: Project, infos: list[SourceInfo], sources: list[Path
     thumbs = button_pictures(pages, sources, infos, display)
     tpl = template(project.menus.template)
     logo = logo_image(project.menus.logo, project_dir)
-    return [(page, render_page(page, frame, backdrop, thumbs, tpl, logo)) for page in pages]
+    pictures = layer_images(pages, project_dir)
+    return [(page, render_page(page, frame, backdrop, thumbs, tpl, logo, pictures))
+            for page in pages]  # fmt: skip
 
 
 def compose(rendered, button: int | None, layer: str = "highlight") -> QImage:
@@ -153,7 +163,8 @@ class MenuEditorPage(QWidget):
         self.canvas.edited.connect(self._button_moved)
         ed.addWidget(self.canvas, 1)
         side = QVBoxLayout()
-        side.addWidget(QLabel(t("menu.edit.label")))
+        self.label_title = QLabel(t("menu.edit.label"))
+        side.addWidget(self.label_title)
         self.label_edit = QLineEdit()
         self.label_edit.setMaxLength(60)
         self.label_edit.editingFinished.connect(self._label_changed)
@@ -161,6 +172,15 @@ class MenuEditorPage(QWidget):
         self.reset = QPushButton(t("menu.edit.reset"))
         self.reset.clicked.connect(self._reset_button)
         side.addWidget(self.reset)
+        self.colour = QPushButton(t("menu.layer.colour"))
+        self.colour.clicked.connect(self._layer_colour)
+        side.addWidget(self.colour)
+        adds = QHBoxLayout()
+        for kind in ("text", "image", "shape"):
+            add = QPushButton(t(f"menu.layer.add_{kind}"))
+            add.clicked.connect(lambda _=False, k=kind: self._add_layer(k))
+            adds.addWidget(add)
+        side.addLayout(adds)
         self.nav_check = QCheckBox(t("menu.edit.arrows"))
         self.nav_check.toggled.connect(self._show_arrows)
         side.addWidget(self.nav_check)
@@ -179,9 +199,14 @@ class MenuEditorPage(QWidget):
         side.addWidget(self.edit_note)
         side.addStretch()
         holder = QWidget()
-        holder.setFixedWidth(230)
         holder.setLayout(side)
-        ed.addWidget(holder)
+        scroll = QScrollArea()  # the panel outgrows short windows
+        scroll.setWidget(holder)
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setFixedWidth(250)
+        ed.addWidget(scroll)
         self.editor.hide()
         box.addWidget(self.editor, 1)
         self.status = QLabel("")
@@ -296,7 +321,7 @@ class MenuEditorPage(QWidget):
             return
         page, rendered = self.previews[i]
         if self.view == "edit":
-            self.canvas.set_page(page.buttons, compose(rendered, None), aspect)
+            self.canvas.set_page(page.buttons, compose(rendered, None), aspect, page.layers)
             self._button_selected(self.canvas.current)
             return
         self.well.set_image(compose(rendered, 0 if self.view == "lit" else None), aspect)
@@ -325,12 +350,27 @@ class MenuEditorPage(QWidget):
         spec.edits = edits
         self._changed()
 
+    def _layer(self, item: str | None) -> tuple[MenuPage, int] | None:
+        """The project page and index of a canvas layer box ("layer-2")."""
+        spec = self._spec()
+        if spec is None or not item or not item.startswith(LAYER):
+            return None
+        n = int(item[len(LAYER) :])
+        return (spec, n) if n < len(spec.layers) else None
+
     def _button_selected(self, bid: str | None) -> None:
         button = next((b for b in self.canvas.buttons if b.id == bid), None)
-        self.label_edit.setEnabled(button is not None)
-        self.label_edit.setText(button.label if button else "")
+        found = self._layer(bid)
+        layer = found[0].layers[found[1]] if found else None
+        self.label_edit.setEnabled(
+            button is not None or (layer is not None and layer.kind == "text")
+        )
+        self.label_edit.setText(button.label if button else layer.text or "" if layer else "")
+        self.reset.setText(t("menu.layer.remove") if layer else t("menu.edit.reset"))
+        self.label_title.setText(t("menu.layer.label") if layer else t("menu.edit.label"))
+        self.colour.setEnabled(layer is not None and layer.kind != "image")
         self._fill_nav(button)
-        clash = overlapping(self.canvas.rects)
+        clash = overlapping(self.canvas.button_rects())
         self.edit_note.setText(t("menu.edit.overlap") if clash else t("menu.edit.hint"))
 
     def _fill_nav(self, button) -> None:
@@ -365,15 +405,69 @@ class MenuEditorPage(QWidget):
             self._edit_button(bid, **{direction: self.nav_combos[direction].currentData()})
 
     def _button_moved(self, bid: str, rect: tuple) -> None:
-        self._edit_button(bid, rect=rect)
+        if bid.startswith(LAYER):
+            self._edit_layer(bid, rect=rect)
+        else:
+            self._edit_button(bid, rect=rect)
+
+    def _edit_layer(self, item: str, **change) -> None:
+        found = self._layer(item)
+        if found is None:
+            return
+        spec, n = found
+        layers = list(spec.layers)
+        layers[n] = MenuLayer(**{**layers[n].model_dump(), **change})
+        spec.layers = layers
+        self._changed()
+
+    def _add_layer(self, kind: str) -> None:
+        spec = self._spec()
+        if spec is None or len(spec.layers) >= MAX_MENU_LAYERS:
+            return
+        if kind == "text":
+            layer = MenuLayer(kind="text", rect=(0.30, 0.40, 0.40, 0.10), text=t("menu.layer.text"))
+        elif kind == "shape":
+            layer = MenuLayer(kind="shape", rect=(0.0, 0.78, 1.0, 0.14), color="#000000",
+                              opacity=0.5)  # fmt: skip
+        else:
+            path, _ = QFileDialog.getOpenFileName(self, t("menu.layer.add_image"), "",
+                                                  "PNG, JPEG (*.png *.jpg *.jpeg)")  # fmt: skip
+            if not path:
+                return
+            layer = MenuLayer(kind="image", rect=(0.65, 0.08, 0.25, 0.18), image=path)
+        spec.layers = [*spec.layers, layer]
+        self.canvas.current = f"{LAYER}{len(spec.layers) - 1}"
+        self._changed()
+
+    def _layer_colour(self) -> None:
+        found = self._layer(self.canvas.current)
+        if found is None:
+            return
+        spec, n = found
+        chosen = QColorDialog.getColor(QColor(spec.layers[n].color), self, t("menu.layer.colour"))
+        if chosen.isValid():
+            self._edit_layer(self.canvas.current, color=chosen.name())
 
     def _label_changed(self) -> None:
+        if self._layer(self.canvas.current) is not None:
+            text = self.label_edit.text().strip()
+            if text:
+                self._edit_layer(self.canvas.current, text=text)
+            return
         bid, text = self.canvas.current, self.label_edit.text().strip()
         button = next((b for b in self.canvas.buttons if b.id == bid), None)
         if button is not None and text and text != button.label:
             self._edit_button(bid, label=text)
 
     def _reset_button(self) -> None:
+        """Back to the generated button; for a layer: remove it."""
+        found = self._layer(self.canvas.current)
+        if found is not None:
+            spec, n = found
+            spec.layers = [x for i, x in enumerate(spec.layers) if i != n]
+            self.canvas.current = None
+            self._changed()
+            return
         spec, bid = self._spec(), self.canvas.current
         if spec is not None and bid in spec.edits:
             spec.edits = {k: v for k, v in spec.edits.items() if k != bid}

@@ -94,6 +94,20 @@ def logo_image(path: str | None, project_dir: Path) -> QImage | None:
     return image
 
 
+def layer_images(pages: list, project_dir: Path) -> dict[str, QImage]:
+    """The pictures of the pages' image layers, by the path written in the project."""
+    out = {}
+    for page in pages:
+        for layer in page.layers:
+            if layer.kind == "image" and layer.image not in out:
+                path = Path(layer.image)
+                image = QImage(str(path if path.is_absolute() else project_dir / path))
+                if image.isNull():
+                    raise ValueError(f"cannot read menu picture {layer.image}")
+                out[layer.image] = image
+    return out
+
+
 def button_pictures(pages: list, sources: list[Path], infos: list[SourceInfo],
                     display: tuple[int, int]) -> dict[tuple[int, float], QImage]:  # fmt: skip
     """The frames the chapter and episode buttons show, keyed by (title index, time)."""

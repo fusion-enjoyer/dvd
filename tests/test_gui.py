@@ -357,6 +357,23 @@ def test_menu_editor_moves_relabels_and_resets_buttons(app, tmp_path: Path):
     page.nav_combos["up"].setCurrentIndex(0)
     assert load(project_file).menus.pages[0].edits["play"].up is None
     QThreadPool.globalInstance().waitForDone(60000)
+    app.processEvents()
+    # A text layer: added, moved, retyped, removed.
+    page._add_layer("text")
+    QThreadPool.globalInstance().waitForDone(60000)
+    app.processEvents()
+    assert page.canvas.current == "layer-0" and "layer-0" in page.canvas.rects
+    page.canvas.edited.emit("layer-0", (0.1, 0.1, 0.5, 0.1))
+    page.label_edit.setText("Yönetmen kurgusu")
+    page.label_edit.editingFinished.emit()
+    layer = load(project_file).menus.pages[0].layers[0]
+    assert layer.rect == (0.1, 0.1, 0.5, 0.1) and layer.text == "Yönetmen kurgusu"
+    QThreadPool.globalInstance().waitForDone(60000)
+    app.processEvents()
+    assert page.reset.text() == t("menu.layer.remove")
+    page._reset_button()
+    assert load(project_file).menus.pages[0].layers == []
+    QThreadPool.globalInstance().waitForDone(60000)
     w.close()
 
 

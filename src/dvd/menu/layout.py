@@ -44,6 +44,7 @@ class Page:
     buttons: list[Button]
     headings: list[tuple[str, Rect]] = field(default_factory=list)  # text that is not a button
     subtitle: str = ""  # small line under the title ("Disk 2 / 4")
+    layers: list = field(default_factory=list)  # project.model.MenuLayer, drawn first
 
 
 LIST_X, LIST_Y, LIST_W, ROW_H, ROW_GAP = 0.10, 0.50, 0.42, 0.060, 0.012
@@ -127,6 +128,7 @@ def expand(project: Project, infos: SourceInfo | list[SourceInfo]) -> list[Page]
             made = [_custom(page)]
         for p in made:
             apply_edits(p, page.edits)
+            p.layers = list(page.layers)
         pages += made
     for p in pages:
         auto_nav(p.buttons)

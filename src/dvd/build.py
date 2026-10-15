@@ -202,7 +202,7 @@ def _menus(project: Project, prepared: list[_Prepared], project_dir: Path, work_
     """Render the menu pages (the first title sets the picture size) and author them."""
     from dvd.menu.author import author_menus
     from dvd.menu.layout import expand, overlapping
-    from dvd.menu.pictures import background_image, button_pictures, logo_image
+    from dvd.menu.pictures import background_image, button_pictures, layer_images, logo_image
     from dvd.menu.render import render_page
     from dvd.menu.templates import template
 
@@ -223,9 +223,11 @@ def _menus(project: Project, prepared: list[_Prepared], project_dir: Path, work_
     tpl = template(project.menus.template)
     try:
         logo = logo_image(project.menus.logo, project_dir)
+        pictures = layer_images(pages, project_dir)
     except ValueError as exc:
         raise BuildError(str(exc)) from None
-    rendered = {page.id: render_page(page, frame, backdrop, thumbs, tpl, logo) for page in pages}
+    rendered = {page.id: render_page(page, frame, backdrop, thumbs, tpl, logo, pictures)
+                for page in pages}  # fmt: skip
     return author_menus(pages, rendered, project.menus.first, project.disc.standard,
                         p.target.dar, work_dir)  # fmt: skip
 

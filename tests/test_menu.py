@@ -330,3 +330,39 @@ def test_automatic_chapter_picture_skips_a_black_opening(tmp_path: Path):
     picked = pick_frames(src, info, {0.0: (0.0, 1.0, 2.5, 5.0), 3.0: ()}, (160, 90))
     assert lively(picked[0.0]) >= 18  # the black start was passed over for 2.5 s
     assert set(picked) == {0.0, 3.0}
+
+
+def test_layers_are_drawn_into_the_page_picture(tmp_path: Path):
+    from fractions import Fraction
+
+    from PySide6.QtGui import QColor, QImage
+
+    from dvd.menu.pictures import layer_images
+    from dvd.menu.render import render_page
+    from dvd.project.model import MenuLayer
+
+    green = QImage(40, 40, QImage.Format.Format_RGB32)
+    green.fill(QColor(0, 200, 0))
+    green.save(str(tmp_path / "logo.png"))
+    layers = [
+        {"kind": "shape", "rect": (0.0, 0.0, 0.5, 0.1), "color": "#ff0000"},
+        {"kind": "text", "rect": (0.5, 0.0, 0.5, 0.1), "text": "Merhaba", "color": "#ffff00"},
+        {"kind": "image", "rect": (0.7, 0.3, 0.2, 0.2), "image": "logo.png"},
+    ]
+    p, info = project(menus={"pages": [{"id": "main", "kind": "main", "layers": layers}]})
+    page = expand(p, info)[0]
+    assert [layer.kind for layer in page.layers] == ["shape", "text", "image"]
+    pictures = layer_images([page], tmp_path)
+    out = render_page(page, (720, 576, Fraction(16, 9)), layer_images=pictures).background
+    w = out.width()
+    assert out.pixelColor(20, 20).red() > 200 and out.pixelColor(20, 20).green() < 60
+    assert out.pixelColor(round(0.8 * w), round(0.4 * 576)).green() > 150
+    yellow = [out.pixelColor(x, y) for x in range(w // 2, w) for y in range(5, 55, 3)]
+    assert any(c.red() > 200 and c.green() > 200 and c.blue() < 80 for c in yellow)
+    with pytest.raises(ValidationError):
+        MenuLayer(kind="text", rect=(0.1, 0.1, 0.2, 0.1))  # no text
+    with pytest.raises(ValidationError):
+        MenuLayer(kind="shape", rect=(0.9, 0.1, 0.2, 0.1))  # outside the frame
+    page.layers = [MenuLayer(kind="image", rect=(0.1, 0.1, 0.2, 0.1), image="yok.png")]
+    with pytest.raises(ValueError, match="yok.png"):
+        layer_images([page], tmp_path)

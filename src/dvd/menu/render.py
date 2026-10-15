@@ -137,6 +137,32 @@ def _marker(t: Template, left: float, width: float, r: QRectF, dw: int, px: int)
     return path
 
 
+def _layer(p: QPainter, layer, dw: int, fh: int, images: dict[str, QImage], t: Template) -> None:
+    """One editor layer: free text (template font, shadow), a picture fitted into its box, or
+    a coloured box."""
+    r = _px(layer.rect, dw, fh)
+    p.save()
+    p.setOpacity(layer.opacity)
+    colour = QColor(layer.color)
+    if layer.kind == "shape":
+        p.fillRect(r, colour)
+    elif layer.kind == "image":
+        image = images.get(layer.image)
+        if image is not None and not image.isNull():
+            scaled = image.scaled(round(r.width()), round(r.height()),
+                                  Qt.AspectRatioMode.KeepAspectRatio,
+                                  Qt.TransformationMode.SmoothTransformation)  # fmt: skip
+            p.drawImage(QPointF(r.center().x() - scaled.width() / 2,
+                                r.center().y() - scaled.height() / 2), scaled)  # fmt: skip
+    else:
+        p.setFont(_font(t.label_font, layer.size * fh, 600))
+        align = {"left": Qt.AlignmentFlag.AlignLeft, "center": Qt.AlignmentFlag.AlignHCenter,
+                 "right": Qt.AlignmentFlag.AlignRight}[layer.align]  # fmt: skip
+        flags = align | Qt.AlignmentFlag.AlignVCenter | Qt.TextFlag.TextWordWrap
+        _text(p, r, flags, layer.text, (colour.red(), colour.green(), colour.blue()), t.shadow)
+    p.restore()
+
+
 def render_page(
     page: Page,
     frame: tuple[int, int, Fraction],
@@ -144,9 +170,11 @@ def render_page(
     thumbs: dict[float, QImage] | None = None,
     template: Template | None = None,
     logo: QImage | None = None,
+    layer_images: dict[str, QImage] | None = None,
 ) -> RenderedPage:
     """`frame`: disc frame width, height and display aspect. `background`: any size, it is
-    scaled to cover the frame; None draws the template's plain backdrop."""
+    scaled to cover the frame; None draws the template's plain backdrop. `layer_images`: the
+    pictures of image layers, by their `image` value."""
     _fonts()
     t = template or get_template("minimal")
     fw, fh, aspect = frame
@@ -163,6 +191,8 @@ def render_page(
     if t.tint is not None:
         p.fillRect(canvas.rect(), QColor(*t.tint, 90))
     _shade(p, t, dw, fh, page.kind)
+    for layer in page.layers:
+        _layer(p, layer, dw, fh, layer_images or {}, t)
 
     title_font = _font(t.title_font, t.title_size * fh, 600)
     label_font = _font(t.label_font, t.label_size * fh, 600)
