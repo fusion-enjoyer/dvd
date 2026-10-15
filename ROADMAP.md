@@ -167,7 +167,7 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 
 - [ ] Hareketli menüler (video arka plan, giriş + döngü), hareketli thumbnail'lar, geçiş videoları
 - [ ] Kaldığın yerden devam, rastgele bölüm, zaman aşımıyla otomatik oynat
-- [ ] Ses/altyazı menüsünde seçili olanı gösterme
+- [x] Ses/altyazı menüsünde seçili olanı gösterme: sayfa açılırken imleç o an çalan sesin (ses sütunu yoksa gösterilen altyazının) butonuna gelir (`pre` komutu, `audio`/`subtitle` kayıtlarına göre); sayfadaki seçimden sonra imleç yerinde kalır (g2); simülatör aynı komutları çalıştırır
 - [ ] Gizli içerik butonları, kumanda kısıtlamaları
 - [ ] **Disk haritası düzenleyicisi** (düğüm grafiği)
 - [ ] Şablon editörü, şablon dışa/içe aktarma
