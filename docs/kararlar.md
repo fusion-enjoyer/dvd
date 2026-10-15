@@ -66,6 +66,7 @@
 | 2026-10-09 | — | Altyazılar Qt ile çizilir, varsayılan font **Source Sans 3 SemiBold** (uygulamayla gelir); 4 renk: saydam, dolgu, kontur, yarı saydam kontur kenarı. Anamorfik düzeltme (K13) baştan var | Editörde görülenle diske yazılan aynı kod; 16:9'da harfler şişmez |
 | 2026-10-09 | — | SRT kodlaması: BOM'a, sonra UTF-8 geçerliliğine bakılır; değilse Windows-1254 | 1254, ISO-8859-9 Türkçe harflerini de doğru okur |
 | 2026-10-09 | — | `dvd new`: ana ses Türkçe değilse ve kaynakta Türkçe altyazı varsa altyazı açık başlar | Türk izleyicinin beklentisi |
+| 2026-10-15 | — | Arayüzde dizi: boş ekranda "Sezon klasörü" düğmesi ya da klasör sürükleme; bölümler arka planda okunur, diyalog ortam/kalite değiştikçe disk planını yeniden gösterir (hedefin altındaki disk işaretlenir), dizi adı ve TMDB anahtarı burada girilebilir. Projeler yazılınca 1. disk açılır; var olan proje dosyasının üzerine yazılacağı önceden söylenir. CLI ile arayüz aynı kodu kullanır (`project/season.py`) | Dizi işi komut satırı bilmeden yapılabilsin; TMDB'ye ulaşılamazsa uyarı diyalogda kalır, diskler yine yazılır |
 
 ## Açık kararlar
 
