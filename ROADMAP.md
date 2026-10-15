@@ -112,7 +112,8 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 - [x] Altyazı render motoru: istenen font, anamorfik düzeltme, akıllı kenar yumuşatma (4 renk), Türkçe kodlama tespiti, stil editörü ve stil şablonları: hazır stiller (Varsayılan, Büyük, Sarı, İnce, Kalın), kendi stillerim (`%APPDATA%\DVD Studyo\styles`), iz başına stil seçimi, canlı önizlemeli düzenleyici
 - [ ] ASS, PGS, VobSub girişi; forced altyazılar; letterbox bandına altyazı
   - [x] ASS/SSA/WebVTT dosyaları (metin olarak, kendi stilimizle çizilir); Blu-ray PGS: kendi .sup okuyucumuz, resim görüntüyle aynı crop/ölçekle DVD karesine taşınır, 4 renge indirilir; PGS'teki tek tek forced işaretleri diske geçer; PGS'te letterbox bandındaki altyazı bantta kalır
-  - [ ] VobSub (DVD) ve DVB resim altyazıları; renkli PGS'te rengi koruma; metin altyazıyı letterbox bandına yerleştirme seçeneği
+  - [x] VobSub (DVD) altyazıları: MKV/VOB içindeki `dvd_subtitle` izleri ve .idx/.sub dosyaları kendi SPU çözücümüzle; .sup dosyası da eklenebilir. Palet yoksa (VOB) dolgu ve kontur şekilden ayrılır
+  - [ ] DVB resim altyazıları; renkli PGS'te rengi koruma; metin altyazıyı letterbox bandına yerleştirme seçeneği
 - [ ] Bölüm zaman çizelgesi: elle düzenleme, otomatik öneri, thumbnail karesi seçimi
   - [x] Bölümler sayfası: kaynaktan / aralıkla / elle / yok; elle listede zaman düzenleme, silme, önizlemedeki kareye ekleme; her bölümün karesi; sahne geçişlerine göre öneri (her N dakikada bir nokta, ±15 sn içindeki en belirgin kesmeye kaydırılır)
   - [ ] Bölüm menüsü için ayrı thumbnail karesi seçimi (Faz 4 menüleriyle)
