@@ -244,6 +244,12 @@ TEXTS: dict[str, dict[str, str]] = {
         "tracks.subs_off": "Altyazı kapalı başlasın",
         "tracks.default": "Varsayılan",
         "tracks.remove": "Kaldır",
+        "chapters.thumb_here": "Menü karesi: önizlemedeki kare",
+        "chapters.thumb_hint": (
+            "Bölüm menüsünde bu bölümün butonunda önizlemede açık olan kare görünür. "
+            "Seçilmezse bölüm başından sonraki ilk canlı kare (karanlık ya da düz olmayan) alınır."
+        ),
+        "chapters.thumb_auto": "Otomatik",
         "tracks.band": "Siyah bantta",
         "tracks.keep_colour": "Rengi koru",
         "tracks.keep_colour_hint": (

@@ -7,7 +7,7 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import QThreadPool  # noqa: E402
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication, QPushButton  # noqa: E402
 
 from dvd import toolchain  # noqa: E402
 from dvd.gui.i18n import TEXTS, t  # noqa: E402
@@ -194,6 +194,18 @@ def test_chapters_page_edits_and_shows_frames(app, tmp_path: Path):
     assert load(project_file).titles[0].chapters == ["0:00:00.000", "0:00:06.000"]
     page.mode.setCurrentIndex(page.mode.findData("every"))
     assert load(project_file).titles[0].chapters == ChapterEvery(every=5)
+    w.preview_seconds = 3.0
+
+    def buttons(text):
+        return [b for b in page.card.findChildren(QPushButton) if b.text() == t(text)]
+
+    QThreadPool.globalInstance().waitForDone(60000)
+    app.processEvents()
+    buttons("chapters.thumb_here")[0].click()
+    assert load(project_file).titles[0].thumbs == {"0:00:00.000": "0:00:03.000"}
+    app.processEvents()
+    buttons("chapters.thumb_auto")[0].click()
+    assert load(project_file).titles[0].thumbs == {}
     QThreadPool.globalInstance().waitForDone(60000)
 
 

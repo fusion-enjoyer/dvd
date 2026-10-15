@@ -37,11 +37,17 @@ def _label(text: str, name: str | None = None, wrap: bool = False) -> QLabel:
     return w
 
 
-def thumbnails(source: Path, info: SourceInfo, times: list[float]) -> dict[float, QImage]:
-    """Small frames at chapter starts, in display aspect, tone mapped like the disc."""
-    from dvd.menu.pictures import frame_images
+Choices = tuple[float, ...]
 
-    return frame_images(source, info, times, THUMB)
+
+def thumbnails(
+    source: Path, info: SourceInfo, wanted: list[tuple[float, Choices]]
+) -> dict[tuple[float, Choices], QImage]:
+    """The chapters' menu pictures, small, picked the way the disc menu picks them."""
+    from dvd.menu.pictures import pick_frames
+
+    images = pick_frames(source, info, dict(wanted), THUMB)
+    return {(at, choices): images[at] for at, choices in wanted}
 
 
 class ChaptersPage(QWidget):
@@ -55,7 +61,7 @@ class ChaptersPage(QWidget):
         self.info: SourceInfo | None = None
         self.source = Path()
         self.speedup = 1.0
-        self.thumbs: dict[float, QImage] = {}
+        self.thumbs: dict[tuple[float, Choices], QImage] = {}
         self.suggesting = False
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -123,27 +129,37 @@ class ChaptersPage(QWidget):
         self.every.setVisible(key in ("every", "manual"))  # manual: the suggestion interval
         self.add.setVisible(key == "manual")
         self.suggest.setEnabled(not self.suggesting)
-        self._fill(edit.chapter_times(title, info, speedup), editable=key == "manual")
+        self._fill(edit.chapter_thumbs(title, info, speedup), editable=key == "manual")
 
-    def _fill(self, times: list[float], editable: bool) -> None:
+    def _fill(self, chapters: list[tuple[float, Choices]], editable: bool) -> None:
         while self.grid.count():
             w = self.grid.takeAt(0).widget()
             w.hide()
             w.setParent(None)
             w.deleteLater()
-        for row, at in enumerate(times):
+        title = self.project.titles[0]
+        for row, (at, choices) in enumerate(chapters):
             number = _label(f"{row + 1:02}", "mono")
             thumb = QLabel()
             thumb.setFixedSize(*THUMB)
             thumb.setObjectName("videoWell")
-            if at in self.thumbs:
-                thumb.setPixmap(QPixmap.fromImage(self.thumbs[at]))
+            if (at, choices) in self.thumbs:
+                thumb.setPixmap(QPixmap.fromImage(self.thumbs[(at, choices)]))
             when = QLineEdit(edit.format_time(at))
             when.setObjectName("mono")
             when.setReadOnly(not editable or row == 0)
             when.setMaximumWidth(140)
             when.editingFinished.connect(lambda w=when, i=row: self._moved(i, w.text()))
-            cells = [number, thumb, when]
+            picture = QPushButton(t("chapters.thumb_here"))
+            picture.setToolTip(t("chapters.thumb_hint"))
+            picture.clicked.connect(lambda _=False, a=at: self._thumb(a, self.position()))
+            cells = [number, thumb, when, picture]
+            if edit.format_time(at) in title.thumbs:
+                auto = QPushButton(t("chapters.thumb_auto"))
+                auto.clicked.connect(lambda _=False, a=at: self._thumb(a, None))
+                cells.append(auto)
+            else:
+                cells.append(_label("", "hint"))
             if editable and row > 0:
                 remove = QPushButton(t("tracks.remove"))
                 remove.clicked.connect(lambda _=False, i=row: self._remove(i))
@@ -151,13 +167,17 @@ class ChaptersPage(QWidget):
             for col, w in enumerate(cells):
                 self.grid.addWidget(w, row, col)
                 w.show()
-        self.grid.setColumnStretch(4, 1)
-        missing = [at for at in times if at not in self.thumbs]
+        self.grid.setColumnStretch(6, 1)
+        missing = [c for c in chapters if c not in self.thumbs]
         if missing and self.info is not None and self.info.main_video is not None:
             tasks.run(lambda: thumbnails(self.source, self.info, missing), self._thumbs_ready,
                       lambda _msg: None)  # fmt: skip
 
-    def _thumbs_ready(self, images: dict[float, QImage]) -> None:
+    def _thumb(self, start: float, frame: float | None) -> None:
+        title = self.project.titles[0]
+        self._set(lambda: edit.set_chapter_thumb(title, start, frame))
+
+    def _thumbs_ready(self, images: dict[tuple[float, Choices], QImage]) -> None:
         self.thumbs.update(images)
         if self.project is not None:
             self.show_project(self.project, self.info, self.source, self.speedup)

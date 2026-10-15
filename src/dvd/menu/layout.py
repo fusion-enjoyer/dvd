@@ -32,6 +32,8 @@ class Button:
     nav: dict[str, str] = field(default_factory=dict)  # direction -> button id
     thumb: float | None = None  # source time of the picture shown in the button (chapters)
     thumb_title: int = 0  # which title's source that picture comes from (episodes)
+    # Source times the picture may be taken from (the first lively one); empty: `thumb` itself.
+    thumb_choices: tuple[float, ...] = ()
 
 
 @dataclass
@@ -116,7 +118,7 @@ def expand(project: Project, infos: SourceInfo | list[SourceInfo]) -> list[Page]
         if page.kind == "main":
             made = [_main(page, shown, project, tpl)]
         elif page.kind == "chapters":
-            made = _chapters(page, times, first, tpl)
+            made = _chapters(page, edit.chapter_thumbs(title, infos[0]), first, tpl)
         elif page.kind == "episodes":
             made = _episodes(page, project, infos, first, tpl)
         elif page.kind in ("languages", "audio", "subtitles"):
@@ -224,18 +226,19 @@ def _episodes(page: MenuPage, project: Project, infos: list[SourceInfo], back: s
     return out
 
 
-def _chapters(page: MenuPage, times: list[float], back: str, tpl: Template) -> list[Page]:
-    ids = chapter_page_ids(page.id, len(times))
+def _chapters(page: MenuPage, thumbs: list[tuple[float, tuple[float, ...]]], back: str,
+              tpl: Template) -> list[Page]:  # fmt: skip
+    ids = chapter_page_ids(page.id, len(thumbs))
     out = []
     for n, page_id in enumerate(ids):
-        chunk = times[n * CHAPTERS_PER_PAGE : (n + 1) * CHAPTERS_PER_PAGE]
+        chunk = thumbs[n * CHAPTERS_PER_PAGE : (n + 1) * CHAPTERS_PER_PAGE]
         buttons = []
-        for i, at in enumerate(chunk):
+        for i, (at, choices) in enumerate(chunk):
             number = n * CHAPTERS_PER_PAGE + i + 1
             col, row = i % 3, i // 3
             rect = (0.10 + col * 0.28, 0.19 + row * 0.32, 0.22, 0.29)  # picture + label line
             buttons.append(Button(f"ch{number}", f"{number}  {timecode(at)}", _play(number),
-                                  rect, thumb=at))  # fmt: skip
+                                  rect, thumb=at, thumb_choices=choices))  # fmt: skip
         bottom = []
         if n > 0:
             bottom.append(("prev", "‹ Önceki", _page_action(ids[n - 1])))

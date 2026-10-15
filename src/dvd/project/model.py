@@ -165,6 +165,17 @@ class Title(Strict):
     audio: list[Audio] = Field(default_factory=list, max_length=MAX_AUDIO_TRACKS)
     subtitles: list[Subtitle] = Field(default_factory=list, max_length=MAX_SUBTITLE_TRACKS)
     chapters: Chapters = "from-source"
+    # Chapter start -> the frame its chapter-menu button shows (both 'h:mm:ss.mmm'); chapters
+    # not listed get a frame picked automatically.
+    thumbs: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("thumbs")
+    @classmethod
+    def _thumb_times(cls, v: dict[str, str]) -> dict[str, str]:
+        for start, frame in v.items():
+            parse_timecode(start)
+            parse_timecode(frame)
+        return v
 
     @field_validator("chapters")
     @classmethod

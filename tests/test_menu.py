@@ -295,3 +295,38 @@ def test_play_all_and_single_episode_commands():
     sim = Simulator(pages, "main")
     sim.press()
     assert sim.state.registers[1] == 1 and sim.state.playing == (1, 1)
+
+
+def test_chapter_buttons_carry_picture_choices():
+    p, info = project(chapters=3)
+    p.titles[0].thumbs = {"0:06:40.000": "0:07:30.000"}
+    buttons = {b.id: b for b in expand(p, info)[1].buttons}
+    assert buttons["ch1"].thumb == 0.0 and buttons["ch1"].thumb_choices == (0.0, 1.0, 2.5, 5.0)
+    assert buttons["ch2"].thumb == 400.0 and buttons["ch2"].thumb_choices == (450.0,)  # by hand
+    with pytest.raises(ValidationError):
+        Title(source="a.mkv", thumbs={"0:01:00": "bir dakika"})
+
+
+def test_automatic_chapter_picture_skips_a_black_opening(tmp_path: Path):
+    import subprocess
+
+    from dvd import toolchain
+    from dvd.menu.pictures import lively, pick_frames
+    from dvd.probe import probe
+
+    ffmpeg = toolchain.find_executable(["ffmpeg.exe", "ffmpeg"], toolchain.tool_dirs())
+    if ffmpeg is None:
+        pytest.skip("ffmpeg not installed")
+    src = tmp_path / "karanlik.mkv"
+    subprocess.run(
+        [str(ffmpeg), "-v", "error", "-y",
+         "-f", "lavfi", "-i", "color=black:size=640x360:rate=25:duration=2",
+         "-f", "lavfi", "-i", "testsrc2=size=640x360:rate=25:duration=6",
+         "-filter_complex", "[0][1]concat=n=2:v=1", "-c:v", "libx264", "-preset", "ultrafast",
+         str(src)],
+        check=True,
+    )  # fmt: skip
+    info = probe(src)
+    picked = pick_frames(src, info, {0.0: (0.0, 1.0, 2.5, 5.0), 3.0: ()}, (160, 90))
+    assert lively(picked[0.0]) >= 18  # the black start was passed over for 2.5 s
+    assert set(picked) == {0.0, 3.0}

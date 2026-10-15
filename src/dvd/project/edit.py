@@ -146,6 +146,40 @@ def format_time(seconds: float) -> str:
     return f"{ms // 3_600_000}:{ms // 60_000 % 60:02}:{ms // 1000 % 60:02}.{ms % 1000:03}"
 
 
+# Where an automatic chapter picture is looked for, after the chapter start (seconds): the
+# start itself first, so a chapter on a clean cut keeps its first frame.
+THUMB_OFFSETS = (0.0, 1.0, 2.5, 5.0)
+
+
+def chapter_thumbs(title: Title, info: SourceInfo, speedup: float = 1.0
+                   ) -> list[tuple[float, tuple[float, ...]]]:  # fmt: skip
+    """For each chapter: its start and the source times its menu picture may come from. A
+    frame chosen by hand is the only candidate; otherwise a few moments after the start,
+    inside the chapter (see `menu.pictures.pick_frames`)."""
+    times = chapter_times(title, info, speedup)
+    ends = [*times[1:], info.duration or times[-1] + max(THUMB_OFFSETS) + 1]
+    out = []
+    for start, end in zip(times, ends, strict=True):
+        chosen = title.thumbs.get(format_time(start))
+        if chosen is not None:
+            out.append((start, (parse_timecode(chosen),)))
+        else:
+            inside = (o for o in THUMB_OFFSETS if o == 0 or start + o < end - 0.5)
+            out.append((start, tuple(start + o for o in inside)))
+    return out
+
+
+def set_chapter_thumb(title: Title, start: float, frame: float | None) -> None:
+    """Choose the menu picture of the chapter starting at `start`; None goes back to auto."""
+    thumbs = dict(title.thumbs)
+    key = format_time(start)
+    if frame is None:
+        thumbs.pop(key, None)
+    else:
+        thumbs[key] = format_time(max(0.0, frame))
+    title.thumbs = thumbs
+
+
 def set_manual_chapters(title: Title, seconds: list[float]) -> None:
     """Store chapter starts as a manual list (sorted, without repeats, 0 always first)."""
     times = sorted({round(s, 3) for s in seconds if s >= 0} | {0.0})[:MAX_CHAPTERS]
