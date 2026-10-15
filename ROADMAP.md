@@ -132,16 +132,17 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
   - [x] `menu/render.py`: etiketler, başlık ve bölüm kareleri arka plan videosunda; vurgu (amber) ve seçim (beyaz) katmanları en çok 3 renk + saydam; kare piksel çizim, 720'ye anamorfik sıkıştırma; buton alanları çift sayılı ve çakışmasız; arka plan film karesi / resim / düz renk
   - [x] Diske yazma: sayfa başına 1 sn MPEG-2 durağan video + sessiz AC-3, spumux ile buton katmanı, dvdauthor titleset menüleri; root / ptt / audio giriş noktaları, film sonunda menüye dönüş, ses/altyazı seçince imleç aynı butonda kalır
   - [x] Menü sayfası (arayüz): menü açık/kapalı, Bölümler / Dil ayarları sayfaları, arka plan (filmden kare: önizlemedeki kare / resim / düz renk), her sayfanın diske gidecek hâliyle önizlemesi (normal ve ilk buton seçili)
-- [ ] Otomatik navigasyon grafiği + elle düzenleme
+- [x] Otomatik navigasyon grafiği + elle düzenleme
   - [x] Otomatik: her yön için o yöndeki en yakın buton (yan sapma iki kat sayılır), kenarda vurgu yerinde kalır; elle verilen yönler korunur (proje dosyasında up/down/left/right)
-  - [ ] Editörde elle düzenleme (menü editörüyle)
+  - [x] Editörde elle düzenleme: Düzenle görünümünde seçili butonun dört yönü için açılır liste; "Otomatik (hedef)" kuralın seçtiğini gösterir, başka buton seçilince `edits` alanına yazılır
 - [x] Standart menü seti: Ana, Bölümler (sayfalı), Ses, Altyazı, Ayarlar (Dil ayarları sayfası ses ve altyazıyı birlikte sunar; ayrı Ses / Altyazı sayfaları da tanımlanabilir)
 - [x] Şablon sistemi + ilk hazır şablonlar (Minimal, Sinematik, 2000'ler DVD'si): `menu/templates.py`, şablon hem yerleşimi (ana menü sütun / alt sıra / ortada sütun, başlık yeri) hem çizimi (karartma, renk tonu, büyük harf, gölge, imleç işareti: çubuk / alt çizgi / ok) belirler; Menü sayfasında seçilir
 - [x] First Play zinciri (intro → menü), başlık bitince davranışı: `first_play` giriş videoları ikinci titleset'te sırayla oynar, sonra VMG üzerinden menüye (ya da filme) geçer; `at_end`: menüye dön / dur / baştan oynat; Disk sayfası (ad, ortam, standart, giriş videoları, film sonu)
 - [x] **TMDB entegrasyonu**: otomatik eşleştirme, Türkçe başlık/özet, arka plan/afiş/saydam logo seçici, menü şablonlarına bağlama: dosya adından ad/yıl tahmini, Türkçe arama (yıl tutmazsa yılsız), yazısız arka planlar ve Türkçe logolar önce; seçilen arka plan menü arka planı, logo ana sayfada başlığın yerine; disk adı Türkçe ad olabilir. Anahtar kullanıcı ayarlarında, görseller yerel önbellekte
 - [ ] **Menü editörü v1**: tuval, katmanlar, özellikler paneli, güvenli alan kılavuzları, navigasyon okları görünümü
   - [x] Menü sayfasında "Düzenle": butonları sürükle / boyutlandır / yön tuşlarıyla kaydır, buton yazısını değiştir, varsayılana döndür; TV güvenli alan çizgileri (%90 / %80); kumanda yönleri okla gösterilir; çakışan butonlar kırmızı ve build uyarısı. Değişiklikler sayfanın `edits` alanına buton bazında yazılır
-  - [ ] Katmanlar (logo, serbest yazı, şekil), yönlerin editörde elle bağlanması
+  - [x] Yönlerin editörde elle bağlanması
+  - [ ] Katmanlar (logo, serbest yazı, şekil)
 - [x] **DVD VM simülatörü v1**: menüleri yakmadan klavyeyle gezme: diske giden buton komutlarını (jump title/menu, audio, subtitle, button) yorumlar; Menü sayfasında "Klavyeyle dene" (yön tuşları, Enter, Esc = Menü tuşu), ses/altyazı durumu ve oynatılacak bölüm gösterilir
 
 **Bitti kriteri:** Editörde tasarlanan statik menüler gerçek oynatıcıda doğru çalışıyor.
