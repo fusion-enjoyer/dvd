@@ -29,11 +29,12 @@ from dvd.project.model import (
     parse_timecode,
 )
 from dvd.subs.extract import extract_text_track
-from dvd.subs.pgs import BitmapCue, extract_pgs
+from dvd.subs.pgs import BitmapCue, extract_pgs, parse_sup
 from dvd.subs.render import Placement
 from dvd.subs.spumux import add_subtitle_stream
 from dvd.subs.srt import Cue, read_srt, retime
 from dvd.subs.styles import StyleError, for_viewing, load_style
+from dvd.subs.vobsub import extract_vobsub
 from dvd.video import encoders
 from dvd.video.compliance import check as check_video
 from dvd.video.crop import detect_crop
@@ -110,11 +111,17 @@ def placement(target: Target) -> Placement:
 def _subtitle_cues(
     sub: Subtitle, p: _Prepared, project_file: Path, srt_out: Path
 ) -> list[Cue | BitmapCue]:
+    v = p.info.main_video
     if sub.file is not None:
         path = Path(sub.file)
         path = path if path.is_absolute() else project_file.parent / path
-        if path.suffix.lower() == ".srt":
+        suffix = path.suffix.lower()
+        if suffix == ".srt":
             return read_srt(path)
+        if suffix == ".sup":
+            return parse_sup(path.read_bytes())
+        if suffix in (".idx", ".sub"):  # VobSub pair: ffmpeg opens the .idx
+            return extract_vobsub(path.with_suffix(".idx"), 0, (v.width, v.height))
         return read_srt(extract_text_track(path, 0, srt_out))  # ASS, SSA, WebVTT: text only
     track = next((s for s in p.info.subtitles if s.index == sub.track), None)
     if track is None:
@@ -123,6 +130,11 @@ def _subtitle_cues(
         cues = extract_pgs(p.source, sub.track, srt_out.with_suffix(".sup"))
         if not cues:
             raise BuildError(f"PGS stream {sub.track} has no captions")
+        return cues
+    if track.codec == "dvd_subtitle":
+        cues = extract_vobsub(p.source, sub.track, (v.width, v.height), v.start_time)
+        if not cues:
+            raise BuildError(f"DVD subtitle stream {sub.track} has no captions")
         return cues
     if track.kind != "text":
         raise BuildError(f"subtitle stream {sub.track} is {track.codec}, which is not supported")

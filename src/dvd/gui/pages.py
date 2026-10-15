@@ -34,7 +34,7 @@ def style_text(name: str) -> str:
     return t(f"style.name.{name}") if name in TEMPLATES else name
 
 
-SUB_FILES = "SRT, ASS, SSA, WebVTT (*.srt *.ass *.ssa *.vtt)"
+SUB_FILES = "SRT, ASS, SSA, WebVTT, PGS, VobSub (*.srt *.ass *.ssa *.vtt *.sup *.idx)"
 LANGS = ["tr", "en", "de", "fr", "es", "it", "ru", "ja", "ko", "zh", "ar", "nl", "sv", "pl"]
 
 

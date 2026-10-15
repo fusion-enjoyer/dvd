@@ -245,7 +245,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "tracks.default": "Varsayılan",
         "tracks.remove": "Kaldır",
         "tracks.add_srt": "Altyazı dosyası ekle",
-        "tracks.bitmap_later": "DVD/DVB resim altyazıları henüz desteklenmiyor",
+        "tracks.bitmap_later": "DVB resim altyazıları henüz desteklenmiyor",
         "build.title": "Diski oluştur",
         "build.start": "Oluşturmaya başla",
         "build.summary": "Çıktı: {folder}",

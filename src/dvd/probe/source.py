@@ -111,8 +111,8 @@ class SubtitleTrack:
 
     @property
     def usable(self) -> bool:
-        """Text tracks and Blu-ray PGS can be put on a disc; DVD/DVB bitmaps not yet."""
-        return self.kind == "text" or self.codec == "hdmv_pgs_subtitle"
+        """Text tracks, Blu-ray PGS and DVD (VobSub) can be put on a disc; DVB not yet."""
+        return self.kind == "text" or self.codec in ("hdmv_pgs_subtitle", "dvd_subtitle")
 
     @property
     def kind(self) -> str:
