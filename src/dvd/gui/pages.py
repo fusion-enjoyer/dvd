@@ -254,6 +254,13 @@ class TracksPage(QWidget):
                 band.setChecked(s.band)
                 band.toggled.connect(lambda on: self._edit(lambda: setattr(s, "band", on)))
                 grid.addWidget(band, row, 5)
+            else:
+                colour = QCheckBox(t("tracks.keep_colour"))
+                colour.setToolTip(t("tracks.keep_colour_hint"))
+                colour.setChecked(s.keep_colour)
+                colour.toggled.connect(lambda on: self._edit(
+                    lambda: setattr(s, "keep_colour", on)))  # fmt: skip
+                grid.addWidget(colour, row, 5)
 
     def _is_text(self, s) -> bool:
         """Text subtitles are drawn by us and can be moved; bitmaps keep their place."""

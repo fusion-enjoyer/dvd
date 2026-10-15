@@ -34,7 +34,7 @@ def encode_rle(indices: np.ndarray) -> bytes:
 def display_set(pts: float, comp: int, objects: list[tuple[np.ndarray, int, int, bool]],
                 width: int = 1920, height: int = 1080) -> bytes:  # fmt: skip
     """One display set; `objects`: (palette-index image, x, y, forced). Palette: 1 = white,
-    2 = black, both opaque; 0 transparent. No objects: clears the screen."""
+    2 = black, 3 = yellow, all opaque; 0 transparent. No objects: clears the screen."""
     placements = b""
     for i, (_img, x, y, forced) in enumerate(objects):
         placements += (i.to_bytes(2, "big") + b"\x00" + bytes([0x40 if forced else 0])
@@ -47,7 +47,8 @@ def display_set(pts: float, comp: int, objects: list[tuple[np.ndarray, int, int,
     if objects:
         data += _segment(0x17, pts, b"\x01\x00" + b"\x00\x00\x00\x00" + (width).to_bytes(2, "big")
                          + (height).to_bytes(2, "big"))  # fmt: skip
-        palette = b"\x00\x00" + bytes([1, 235, 128, 128, 255, 2, 16, 128, 128, 255])
+        palette = b"\x00\x00" + bytes([1, 235, 128, 128, 255, 2, 16, 128, 128, 255,
+                                        3, 210, 146, 16, 255])  # fmt: skip
         data += _segment(0x14, pts, palette)
         for i, (img, _x, _y, _f) in enumerate(objects):
             rle = encode_rle(img)
@@ -58,8 +59,8 @@ def display_set(pts: float, comp: int, objects: list[tuple[np.ndarray, int, int,
     return data + _segment(0x80, pts, b"")
 
 
-def caption(width: int = 400, height: int = 60) -> np.ndarray:
-    """A white bar with a 4-pixel black border, as palette indices."""
+def caption(width: int = 400, height: int = 60, fill: int = 1) -> np.ndarray:
+    """A white (or `fill`) bar with a 4-pixel black border, as palette indices."""
     img = np.full((height, width), 2, np.uint8)
-    img[4:-4, 4:-4] = 1
+    img[4:-4, 4:-4] = fill
     return img

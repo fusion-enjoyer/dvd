@@ -141,6 +141,8 @@ class Subtitle(Strict):
     forced: bool = False
     # Text subtitles sit just below the picture, in the letterbox band, when there is one.
     band: bool = False
+    # Bitmap subtitles (PGS, VobSub) keep a clearly coloured fill (yellow songs, signs).
+    keep_colour: bool = False
 
     @model_validator(mode="after")
     def _one_source(self) -> Subtitle:

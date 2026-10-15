@@ -245,6 +245,12 @@ TEXTS: dict[str, dict[str, str]] = {
         "tracks.default": "Varsayılan",
         "tracks.remove": "Kaldır",
         "tracks.band": "Siyah bantta",
+        "tracks.keep_colour": "Rengi koru",
+        "tracks.keep_colour_hint": (
+            "Renkli altyazılar (ör. sarı şarkı sözleri) rengini korur; renk sarı, camgöbeği, "
+            "yeşil, turuncu, pembe ya da kırmızıdan en yakınına yuvarlanır. Kapalıyken hepsi "
+            "stilin dolgu rengiyle çizilir."
+        ),
         "tracks.band_hint": (
             "Altyazı görüntünün altındaki siyah banda, görüntünün hemen altına yerleşir. "
             "Bant ince ise satırlar her zamanki yerinde kalır. TV'de yakınlaştırma (zoom) "

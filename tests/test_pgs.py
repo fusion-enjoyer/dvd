@@ -82,3 +82,60 @@ def test_pgs_track_from_mkv_reaches_the_disc(tmp_path: Path):
     assert [s.codec for s in vob.subtitles] == ["dvd_subtitle"]
     xml = next(tmp_path.rglob("sub00/spumux.xml")).read_text(encoding="utf-8")
     assert xml.count("<spu ") == 2 and xml.count('force="yes"') == 1
+
+
+@pytest.mark.parametrize(("fill", "kept"), [
+    ((250, 230, 20), (240, 220, 40)),  # yellow song lyrics
+    ((200, 30, 30), (235, 80, 70)),  # dark red still counts as fill
+    ((200, 200, 200), (235, 235, 235)),  # grey: the style's white
+])  # fmt: skip
+def test_coloured_captions_can_keep_their_colour(fill, kept):
+    where = Placement((0, 0, 0, 0), (720, 576), (0, 0), (720, 576))
+    rgba = np.zeros((40, 200, 4), np.uint8)
+    rgba[:, :] = (0, 0, 0, 255)  # outline box
+    rgba[8:-8, 8:-8] = (*fill, 255)
+    plain = place_bitmap(rgba, 100, 400, (720, 576), where)
+    coloured = place_bitmap(rgba, 100, 400, (720, 576), where, keep_colour=True)
+    centre = (coloured.height // 2, coloured.width // 2)
+    assert tuple(coloured.rgba[centre][:3]) == kept
+    assert tuple(coloured.rgba[1, 1][:3]) == (16, 16, 16)  # the outline stays black
+    if fill[0] > 128 and fill[1] > 128:
+        assert tuple(plain.rgba[centre][:3]) == (235, 235, 235)
+
+
+@pytest.mark.skipif(FFMPEG is None, reason="ffmpeg not installed")
+def test_yellow_pgs_keeps_its_colour_on_the_disc(tmp_path: Path):
+    from PySide6.QtGui import QImage
+
+    from dvd.build import build
+    from dvd.probe import probe
+    from dvd.project import new_project, save
+
+    sup = tmp_path / "subs.sup"
+    sup.write_bytes(display_set(1.0, 0, [(caption(), 760, 900, False)]) + display_set(2.5, 1, [])
+                    + display_set(3.0, 2, [(caption(fill=3), 760, 900, False)])
+                    + display_set(4.5, 3, []))  # fmt: skip
+    src = tmp_path / "film.mkv"
+    subprocess.run(
+        [str(FFMPEG), "-v", "error", "-y",
+         "-f", "lavfi", "-i", "testsrc2=size=1920x1080:rate=25:duration=6",
+         "-f", "lavfi", "-i", "sine=sample_rate=48000:duration=6", "-i", str(sup),
+         "-map", "0", "-map", "1", "-map", "2", "-c:v", "libx264", "-preset", "ultrafast",
+         "-c:a", "ac3", "-c:s", "copy", str(src)],
+        check=True,
+    )  # fmt: skip
+    project = new_project(probe(src), tmp_path)
+    project.titles[0].subtitles[0].keep_colour = True
+    project.titles[0].video.overrides = {"encoder": "ffmpeg"}
+    project_file = tmp_path / "film.dvd.yaml"
+    save(project, project_file)
+
+    build(project_file, make_iso=False)  # with the menu's highlight colours on the same disc
+
+    folder = next(tmp_path.rglob("sub00"))
+    colours = []
+    for png in sorted(folder.glob("s*.png")):
+        img = QImage(str(png))
+        c = img.pixelColor(img.width() // 2, img.height() // 2)
+        colours.append((c.red(), c.green(), c.blue()))
+    assert colours == [(235, 235, 235), (240, 220, 40)]

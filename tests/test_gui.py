@@ -416,3 +416,7 @@ def test_text_subtitles_can_go_into_the_band(app, tmp_path: Path):
     assert len(boxes) == 1  # the PGS file keeps its own place
     boxes[0].setChecked(True)
     assert title.subtitles[0].band and not title.subtitles[1].band
+    keep = [b for b in page.findChildren(QCheckBox) if b.text() == t("tracks.keep_colour")]
+    assert len(keep) == 1  # only the PGS file
+    keep[0].setChecked(True)
+    assert title.subtitles[1].keep_colour and not title.subtitles[0].keep_colour

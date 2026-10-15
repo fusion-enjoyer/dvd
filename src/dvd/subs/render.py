@@ -206,14 +206,35 @@ class Placement:
     frame: tuple[int, int]  # disc frame size
 
 
+# Fill colours a coloured bitmap caption can keep: few, so the disc's 16-colour subpicture
+# palette (shared by every track and the menus) never runs out.
+CAPTION_COLOURS: tuple[RGB, ...] = (
+    (240, 220, 40),  # yellow
+    (70, 215, 235),  # cyan
+    (100, 220, 100),  # green
+    (245, 150, 50),  # orange
+    (240, 120, 200),  # pink
+    (235, 80, 70),  # red
+)
+
+
+def caption_colour(rgb: np.ndarray) -> RGB | None:
+    """The caption colour nearest an average fill colour, or None for white/grey fills."""
+    r, g, b = (float(c) for c in rgb)
+    if max(r, g, b) - min(r, g, b) < 60:
+        return None
+    return min(CAPTION_COLOURS, key=lambda c: (c[0] - r) ** 2 + (c[1] - g) ** 2 + (c[2] - b) ** 2)
+
+
 def place_bitmap(rgba: np.ndarray, x: int, y: int, source: tuple[int, int], where: Placement,
-                 style: SubStyle = DEFAULT_STYLE) -> Bitmap:  # fmt: skip
+                 style: SubStyle = DEFAULT_STYLE, keep_colour: bool = False) -> Bitmap:  # fmt: skip
     """A source-frame bitmap (Blu-ray PGS) on the disc frame in the 4 subtitle colours.
 
     Scaled and moved exactly like the video, so a caption keeps its place on the picture (also
     in the letterbox band); kept inside the frame if the crop cut its area away. Pixels are
     sorted by alpha and brightness into fill, outline and the half-transparent rim, so the
-    disc palette stays the same 4 colours whatever colours the source used."""
+    disc palette stays the same 4 colours whatever colours the source used. With
+    `keep_colour` a clearly coloured fill keeps its colour, snapped to `CAPTION_COLOURS`."""
     _qt()
     left, right, top, bottom = where.crop
     sx = where.active[0] / (source[0] - left - right)
@@ -235,11 +256,20 @@ def place_bitmap(rgba: np.ndarray, x: int, y: int, source: tuple[int, int], wher
     scaled = scaled[: fh - ny, : fw - nx]
     alpha = scaled[:, :, 3].astype(np.int32)
     luma = scaled[:, :, :3].astype(np.float32) @ np.array([0.299, 0.587, 0.114], np.float32)
+    rgb = scaled[:, :, :3].astype(np.int32)
+    fill_px = luma >= 128
+    fill = style.fill
+    if keep_colour:
+        # A saturated colour counts as fill even when it is dark (red, blue).
+        fill_px |= (rgb.max(axis=2) - rgb.min(axis=2)) >= 90
+        solid = (alpha >= 128) & fill_px
+        if solid.any():
+            fill = caption_colour(rgb[solid].mean(axis=0)) or style.fill
     out = np.zeros(scaled.shape, np.uint8)
     rim_rgb = tuple(min(255, c + 1) for c in style.outline)
     out[alpha >= 64] = (*rim_rgb, 128)
-    out[(alpha >= 170) & (luma < 128)] = (*style.outline, 255)
-    out[(alpha >= 128) & (luma >= 128)] = (*style.fill, 255)
+    out[(alpha >= 170) & ~fill_px] = (*style.outline, 255)
+    out[(alpha >= 128) & fill_px] = (*fill, 255)
     return _trim(out, nx, ny)
 
 

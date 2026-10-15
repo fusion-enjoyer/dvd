@@ -58,6 +58,7 @@ def add_subtitle_stream(
     spumux: Path | None = None,
     placement: Placement | None = None,
     band: bool = False,
+    keep_colour: bool = False,
 ) -> Path:
     """Render `cues` and mux them as subpicture stream `stream` (0-31). Text cues are drawn
     with `style`; PGS bitmap cues are moved onto the disc frame with `placement`.
@@ -82,7 +83,7 @@ def add_subtitle_stream(
             if placement is None:
                 raise SubtitleError("bitmap subtitles need the video placement")
             bitmap = place_bitmap(cue.rgba, cue.x, cue.y, (cue.frame_width, cue.frame_height),
-                                  placement, style)  # fmt: skip
+                                  placement, style, keep_colour)  # fmt: skip
         else:
             bitmap = render_cue(cue, width, height, aspect, style, bottom)
         name = f"s{i:05}.png"
