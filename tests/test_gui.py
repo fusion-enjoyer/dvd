@@ -343,6 +343,20 @@ def test_menu_editor_moves_relabels_and_resets_buttons(app, tmp_path: Path):
     page._reset_button()
     assert load(project_file).menus.pages[0].edits == {}
     QThreadPool.globalInstance().waitForDone(60000)
+    app.processEvents()
+    # Arrow targets by hand: "up" from Play wraps round to the last button.
+    up = page.nav_combos["up"]
+    assert up.itemText(0) == t("menu.edit.nav_auto", target=t("menu.edit.stay"))
+    last = page.canvas.buttons[-1]
+    up.setCurrentIndex(up.findData(last.id))
+    assert load(project_file).menus.pages[0].edits["play"].up == last.id
+    QThreadPool.globalInstance().waitForDone(60000)
+    app.processEvents()
+    play = next(b for b in page.canvas.buttons if b.id == "play")
+    assert play.nav["up"] == last.id and page.nav_combos["up"].currentData() == last.id
+    page.nav_combos["up"].setCurrentIndex(0)
+    assert load(project_file).menus.pages[0].edits["play"].up is None
+    QThreadPool.globalInstance().waitForDone(60000)
     w.close()
 
 

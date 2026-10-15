@@ -4,6 +4,7 @@ it will be on the disc (the same render code the build uses)."""
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -14,6 +15,7 @@ from PySide6.QtWidgets import (
     QColorDialog,
     QComboBox,
     QFileDialog,
+    QFormLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -26,7 +28,7 @@ from dvd.gui import tasks
 from dvd.gui.i18n import t
 from dvd.gui.menu_canvas import MenuCanvas
 from dvd.gui.widgets import ModeSwitch, VideoWell
-from dvd.menu.layout import overlapping
+from dvd.menu.layout import DIRECTIONS, auto_nav, overlapping
 from dvd.probe import SourceInfo
 from dvd.project import edit
 from dvd.project.create import default_menus
@@ -162,6 +164,15 @@ class MenuEditorPage(QWidget):
         self.nav_check = QCheckBox(t("menu.edit.arrows"))
         self.nav_check.toggled.connect(self._show_arrows)
         side.addWidget(self.nav_check)
+        side.addWidget(QLabel(t("menu.edit.nav")))
+        nav_form = QFormLayout()
+        self.nav_combos: dict[str, QComboBox] = {}
+        for direction in DIRECTIONS:
+            combo = QComboBox()
+            combo.currentIndexChanged.connect(lambda _i, d=direction: self._nav_changed(d))
+            self.nav_combos[direction] = combo
+            nav_form.addRow(t(f"menu.edit.{direction}"), combo)
+        side.addLayout(nav_form)
         self.edit_note = QLabel(t("menu.edit.hint"))
         self.edit_note.setObjectName("muted")
         self.edit_note.setWordWrap(True)
@@ -318,8 +329,40 @@ class MenuEditorPage(QWidget):
         button = next((b for b in self.canvas.buttons if b.id == bid), None)
         self.label_edit.setEnabled(button is not None)
         self.label_edit.setText(button.label if button else "")
+        self._fill_nav(button)
         clash = overlapping(self.canvas.rects)
         self.edit_note.setText(t("menu.edit.overlap") if clash else t("menu.edit.hint"))
+
+    def _fill_nav(self, button) -> None:
+        """The arrow targets of the chosen button: "Otomatik" names the button the automatic
+        rule would pick; a target set by hand is selected."""
+        spec = self._spec()
+        chosen = spec.edits.get(button.id) if spec is not None and button is not None else None
+        others = [b for b in self.canvas.buttons if button is not None and b.id != button.id]
+        auto = {}
+        if button is not None:
+            plain = [replace(b, nav={}, rect=self.canvas.rects.get(b.id, b.rect))
+                     for b in self.canvas.buttons]  # fmt: skip
+            auto_nav(plain)
+            auto = next(b.nav for b in plain if b.id == button.id)
+        labels = {b.id: b.label for b in self.canvas.buttons}
+        for direction, combo in self.nav_combos.items():
+            combo.blockSignals(True)
+            combo.clear()
+            target = auto.get(direction)
+            combo.addItem(t("menu.edit.nav_auto", target=labels.get(target, t("menu.edit.stay"))),
+                          None)  # fmt: skip
+            for b in others:
+                combo.addItem(b.label, b.id)
+            manual = getattr(chosen, direction) if chosen is not None else None
+            combo.setCurrentIndex(max(0, combo.findData(manual)) if manual else 0)
+            combo.setEnabled(button is not None)
+            combo.blockSignals(False)
+
+    def _nav_changed(self, direction: str) -> None:
+        bid = self.canvas.current
+        if bid is not None:
+            self._edit_button(bid, **{direction: self.nav_combos[direction].currentData()})
 
     def _button_moved(self, bid: str, rect: tuple) -> None:
         self._edit_button(bid, rect=rect)

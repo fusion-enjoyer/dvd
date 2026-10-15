@@ -189,6 +189,13 @@ TEXTS: dict[str, dict[str, str]] = {
         "menu.edit.label": "Buton yazısı",
         "menu.edit.reset": "Bu butonu varsayılana döndür",
         "menu.edit.arrows": "Kumanda yönlerini göster",
+        "menu.edit.nav": "Kumandada bu butondan",
+        "menu.edit.up": "Yukarı",
+        "menu.edit.down": "Aşağı",
+        "menu.edit.left": "Sol",
+        "menu.edit.right": "Sağ",
+        "menu.edit.nav_auto": "Otomatik ({target})",
+        "menu.edit.stay": "yerinde kalır",
         "menu.edit.hint": "Butonu sürükleyerek taşıyın, sağ alt köşesinden boyutlandırın; "
         "yön tuşları seçili butonu biraz kaydırır (Shift ile daha çok). Kesikli çizgiler "
         "TV'nin güvenli alanları: yazılar içteki çizginin içinde kalsın.",
