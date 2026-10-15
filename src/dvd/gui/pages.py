@@ -248,6 +248,19 @@ class TracksPage(QWidget):
             style.currentIndexChanged.connect(lambda _n: self._edit(
                 lambda: setattr(s, "style", style.currentData())))  # fmt: skip
             grid.addWidget(style, row, 4)
+            if self._is_text(s):
+                band = QCheckBox(t("tracks.band"))
+                band.setToolTip(t("tracks.band_hint"))
+                band.setChecked(s.band)
+                band.toggled.connect(lambda on: self._edit(lambda: setattr(s, "band", on)))
+                grid.addWidget(band, row, 5)
+
+    def _is_text(self, s) -> bool:
+        """Text subtitles are drawn by us and can be moved; bitmaps keep their place."""
+        if s.file is not None:
+            return Path(s.file).suffix.lower() not in (".sup", ".idx", ".sub")
+        track = next((x for x in self.info.subtitles if x.index == s.track), None)
+        return track is not None and track.kind == "text"
 
     def _edit_styles(self) -> None:
         from dvd.gui.style_editor import StyleEditor

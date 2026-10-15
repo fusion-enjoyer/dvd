@@ -57,9 +57,13 @@ def add_subtitle_stream(
     progress: Callable[[float], None] | None = None,
     spumux: Path | None = None,
     placement: Placement | None = None,
+    band: bool = False,
 ) -> Path:
     """Render `cues` and mux them as subpicture stream `stream` (0-31). Text cues are drawn
     with `style`; PGS bitmap cues are moved onto the disc frame with `placement`.
+
+    With `band`, text cues go into the letterbox band below the picture (`placement` tells
+    where the picture ends).
 
     Cue times are relative to the start of the film: spumux finds the first video timestamp of
     the program stream itself and adds it.
@@ -71,6 +75,7 @@ def add_subtitle_stream(
     shutil.rmtree(folder, ignore_errors=True)
     folder.mkdir(parents=True)
     width, height, aspect = frame
+    bottom = placement.pad[1] + placement.active[1] if band and placement else None
     entries = []
     for i, cue in enumerate(cues):
         if isinstance(cue, BitmapCue):
@@ -79,7 +84,7 @@ def add_subtitle_stream(
             bitmap = place_bitmap(cue.rgba, cue.x, cue.y, (cue.frame_width, cue.frame_height),
                                   placement, style)  # fmt: skip
         else:
-            bitmap = render_cue(cue, width, height, aspect, style)
+            bitmap = render_cue(cue, width, height, aspect, style, bottom)
         name = f"s{i:05}.png"
         save_png(bitmap, folder / name)
         entries.append((cue, name, bitmap.x, bitmap.y))

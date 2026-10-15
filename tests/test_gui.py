@@ -385,3 +385,34 @@ def test_season_folder_becomes_disc_projects(app, tmp_path: Path, monkeypatch):
     again = SeriesDialog(season)  # the file is there now; the default name is the folder's
     again.name.setText("Dizi Adı 1. Sezon")
     assert again.note.text() == t("series.exists", count=1)
+
+
+@pytest.mark.skipif(FFMPEG is None, reason="ffmpeg not installed")
+def test_text_subtitles_can_go_into_the_band(app, tmp_path: Path):
+    from PySide6.QtWidgets import QCheckBox
+
+    from dvd.gui.pages import TracksPage
+    from dvd.probe import probe
+    from dvd.project import new_project
+    from dvd.project.edit import add_subtitle_file
+
+    src = tmp_path / "film.mkv"
+    subprocess.run(
+        [str(FFMPEG), "-v", "error", "-y", "-f", "lavfi",
+         "-i", "testsrc2=size=1920x800:rate=24:duration=1", "-c:v", "libx264",
+         "-preset", "ultrafast", str(src)],
+        check=True,
+    )  # fmt: skip
+    (tmp_path / "film.tr.srt").write_text("1\n00:00:00,000 --> 00:00:01,000\nA\n", "utf-8")
+    (tmp_path / "film.sup").write_bytes(b"")
+    info = probe(src)
+    project = new_project(info, tmp_path)
+    title = project.titles[0]
+    add_subtitle_file(title, tmp_path / "film.tr.srt", tmp_path)
+    add_subtitle_file(title, tmp_path / "film.sup", tmp_path)
+    page = TracksPage("subs")
+    page.show_project(project, info, tmp_path, "pro")
+    boxes = [b for b in page.findChildren(QCheckBox) if b.text() == t("tracks.band")]
+    assert len(boxes) == 1  # the PGS file keeps its own place
+    boxes[0].setChecked(True)
+    assert title.subtitles[0].band and not title.subtitles[1].band

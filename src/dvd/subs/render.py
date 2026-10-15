@@ -124,7 +124,12 @@ def render_cue(
     frame_height: int,
     aspect: Fraction,
     style: SubStyle = DEFAULT_STYLE,
+    picture_bottom: int | None = None,
 ) -> Bitmap:
+    """A text cue on the disc frame, centred, its last line `style.bottom` above the frame's
+    bottom. With `picture_bottom` (the row where the letterbox band starts) the text moves up
+    to sit just below the picture when the band is tall; it never goes lower than usual, so a
+    band too thin for the lines leaves them partly over the picture."""
     _qt()
     canvas_w = round(frame_height * aspect)  # square-pixel width of the displayed picture
     font = _font(style, frame_height, cue.italic)
@@ -132,6 +137,9 @@ def render_cue(
     lines = wrap(cue.lines, metrics, style.max_width * canvas_w)
     step = metrics.height() * style.line_spacing
     baseline = frame_height * (1 - style.bottom) - metrics.descent() - step * (len(lines) - 1)
+    if picture_bottom is not None:
+        gap = (style.outline_width + 0.012) * frame_height
+        baseline = min(baseline, picture_bottom + gap + metrics.ascent())
 
     path = QPainterPath()
     for i, line in enumerate(lines):

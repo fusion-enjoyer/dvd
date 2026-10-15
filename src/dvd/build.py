@@ -393,6 +393,7 @@ def build(
                 style=sub_style(sub.style),
                 progress=lambda f, n=n, i=i: report(f"title {n} subtitles {i + 1}", f),
                 placement=placement(p.target),
+                band=sub.band,
             )
         muxed = check_mux(mpg)
         if not muxed.ok:

@@ -244,6 +244,12 @@ TEXTS: dict[str, dict[str, str]] = {
         "tracks.subs_off": "Altyazı kapalı başlasın",
         "tracks.default": "Varsayılan",
         "tracks.remove": "Kaldır",
+        "tracks.band": "Siyah bantta",
+        "tracks.band_hint": (
+            "Altyazı görüntünün altındaki siyah banda, görüntünün hemen altına yerleşir. "
+            "Bant ince ise satırlar her zamanki yerinde kalır. TV'de yakınlaştırma (zoom) "
+            "açıksa bant kesilebilir."
+        ),
         "tracks.add_srt": "Altyazı dosyası ekle",
         "tracks.bitmap_later": "DVB resim altyazıları henüz desteklenmiyor",
         "build.title": "Diski oluştur",

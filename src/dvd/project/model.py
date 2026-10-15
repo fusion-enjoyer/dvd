@@ -139,6 +139,8 @@ class Subtitle(Strict):
     style: str = "varsayilan"
     default: bool = False
     forced: bool = False
+    # Text subtitles sit just below the picture, in the letterbox band, when there is one.
+    band: bool = False
 
     @model_validator(mode="after")
     def _one_source(self) -> Subtitle:

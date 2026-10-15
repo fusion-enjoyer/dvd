@@ -154,3 +154,16 @@ def test_ass_file_becomes_text_cues(tmp_path: Path):
     cues = read_srt(extract_text_track(ass, 0, tmp_path / "out.srt"))
     assert len(cues) == 1 and cues[0].start == 1.0 and cues[0].end == 2.5
     assert cues[0].lines == ("Merhaba dünya", "ikinci satır")
+
+
+def test_band_moves_text_below_the_picture_but_never_lower():
+    cue = Cue(0, 1, ("Siyah bantta",))
+    normal = render_cue(cue, *PAL_WIDE)
+    # 4:3 frame with a 2.39:1 film: the picture ends at row 432, the band is 144 rows tall.
+    tall = render_cue(cue, 720, 576, Fraction(4, 3), picture_bottom=432)
+    assert 432 <= tall.y < normal.y
+    # A thin band (16:9 frame, 1.85:1 film ends at row 560): the usual place.
+    thin = render_cue(cue, *PAL_WIDE, picture_bottom=560)
+    assert (thin.x, thin.y) == (normal.x, normal.y)
+    two = render_cue(Cue(0, 1, ("Bir", "İki")), 720, 576, Fraction(4, 3), picture_bottom=432)
+    assert two.y >= 432
