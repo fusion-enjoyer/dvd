@@ -108,11 +108,44 @@ def test_anamorphic_pal_dvd_source():
     assert (t.aspect, t.active_width, t.active_height) == ("16:9", 720, 576)
 
 
-def test_frame_rate_conversion_not_supported_yet():
-    with pytest.raises(UnsupportedSource):
-        plan_target(track(fps=Fraction(30000, 1001)), "pal", Video())
+def test_pal_to_ntsc_conversion_not_supported_yet():
     with pytest.raises(UnsupportedSource):
         plan_target(track(fps=Fraction(25)), "ntsc", Video())
+
+
+@pytest.mark.parametrize(("fps", "speedup", "cadence"), [
+    (Fraction(30), 1, (3, (0, 1, 1, 2, 2))),
+    (Fraction(30000, 1001), Fraction(1001, 1000), (3, (0, 1, 1, 2, 2))),
+    (Fraction(60), 1, (6, (0, 1, 2, 4, 5))),
+    (Fraction(60000, 1001), Fraction(1001, 1000), (6, (0, 1, 2, 4, 5))),
+])  # fmt: skip
+def test_30_and_60_fps_to_pal_pick_a_frame_per_field(fps, speedup, cadence):
+    t = plan_target(track(1920, 1080, fps), "pal", Video())
+    assert t.interlaced and t.fps == 25 and t.speedup == speedup and t.cadence == cadence
+
+
+@pytest.mark.skipif(FFMPEG is None, reason="ffmpeg not installed")
+def test_30_fps_to_pal_keeps_every_frame_in_the_fields(tmp_path: Path):
+    src = tmp_path / "telefon30.mp4"
+    # Frame n has luma 16 + 8n, so each field tells which source frame it came from.
+    subprocess.run(
+        [str(FFMPEG), "-v", "error", "-y", "-f", "lavfi",
+         "-i", "color=black:size=640x360:rate=30:duration=1",
+         "-vf", "geq=lum='16+8*N':cb=128:cr=128", "-c:v", "libx264", "-qp", "0",
+         "-pix_fmt", "yuv444p", str(src)],
+        check=True,
+    )  # fmt: skip
+    v = probe(src).main_video
+    target = plan_target(v, "pal", Video(aspect="16:9"))
+    clip = build_clip(src, v, target, Video(aspect="16:9"))
+    assert clip.num_frames == 25 and clip.fps == 25
+    shown = []
+    for n in range(5):
+        with clip.get_frame(n) as f:
+            luma = np.asarray(f[0])[200:376, 200:520]
+        shown += [round((luma[0::2].mean() - 16) / 8), round((luma[1::2].mean() - 16) / 8)]
+    # 10 fields, 6 source frames: 0 1 1 2 2 | 3 4 4 5 5
+    assert shown == [0, 1, 1, 2, 2, 3, 4, 4, 5, 5]
 
 
 def test_dolby_vision_only_and_interlaced_are_rejected_for_now():

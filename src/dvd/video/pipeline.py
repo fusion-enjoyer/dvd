@@ -4,12 +4,15 @@ Steps: open the source, decide the DVD frame (PAL/NTSC, 16:9 or 4:3), scale the 
 with black bars where the shapes differ, convert BT.709 to BT.601 for SD, and retime film to 25 fps
 for PAL. 50 and 60 fps sources become interlaced video (25i / 29.97i): each output frame
 carries two source frames as its top and bottom field, so motion stays as smooth as the source.
+30 and 60 fps go to PAL the same way: each of the 50 fields a second shows the source frame
+nearest its time (30p keeps every frame, 60p drops one in six).
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from fractions import Fraction
+from math import floor, gcd
 from pathlib import Path
 
 import vapoursynth as vs
@@ -51,6 +54,9 @@ class Target:
     pad_left: int = 0
     pad_top: int = 0
     interlaced: bool = False  # two source frames per DVD frame, top field first
+    # Frame rate conversion before interlacing: (cycle, offsets) for std.SelectEvery, picking
+    # the source frame for each field (30/60 fps to PAL).
+    cadence: tuple[int, tuple[int, ...]] | None = None
 
     @property
     def dar(self) -> Fraction:
@@ -63,6 +69,22 @@ def _close(a: Fraction, b: Fraction) -> bool:
 
 def _even(x: float) -> int:
     return max(2, int(round(x / 2)) * 2)
+
+
+def field_cadence(source_fps: int, field_rate: int = 50) -> tuple[int, tuple[int, ...]]:
+    """Which source frame each field shows when `source_fps` frames become `field_rate`
+    fields a second: the frame nearest the field's time. 30 -> 50: (3, (0, 1, 1, 2, 2)), every
+    frame kept, shown for 2 or 1 fields; 60 -> 50: (6, (0, 1, 2, 4, 5)), one frame in six
+    dropped."""
+    g = gcd(source_fps, field_rate)
+    cycle, fields = source_fps // g, field_rate // g
+    return cycle, tuple(floor(Fraction(k * cycle, fields) + Fraction(1, 2)) for k in range(fields))
+
+
+def _ntsc_like(rate: Fraction) -> Fraction | None:
+    """30 for 30 or 29.97 fps, 60 for 60 or 59.94; None otherwise."""
+    return next((r for r in (Fraction(30), Fraction(60))
+                 if _close(rate, r) or _close(rate, r * SLOWDOWN)), None)  # fmt: skip
 
 
 def check_supported(v: VideoTrack) -> None:
@@ -134,13 +156,17 @@ def plan_target(
     frame_dar = Fraction(16, 9) if aspect == "16:9" else Fraction(4, 3)
 
     film = any(_close(rate, r) for r in FILM_RATES)
-    pulldown, interlaced, speedup = False, False, Fraction(1)
+    pulldown, interlaced, speedup, cadence = False, False, Fraction(1), None
     if standard == "pal":
         frame_w, frame_h, fps = 720, 576, PAL_RATE
         if _close(rate, 2 * PAL_RATE):
             interlaced = True
         elif film:
             speedup = PAL_RATE / rate
+        elif ntsc_like := _ntsc_like(rate):
+            # 29.97/59.94 are taken as 30/60: the picture runs 0.1% fast, audio follows.
+            interlaced, speedup = True, ntsc_like / rate
+            cadence = field_cadence(int(ntsc_like), int(2 * PAL_RATE))
         elif not _close(rate, PAL_RATE):
             raise UnsupportedSource(f"{float(rate):g} fps to PAL needs frame rate conversion")
     else:
@@ -181,6 +207,7 @@ def plan_target(
     return Target(
         standard, frame_w, frame_h, fps, aspect, pulldown, speedup, active_w, active_h,
         Crop(left=left, right=right, top=top, bottom=bottom), pad_left, pad_top, interlaced,
+        cadence,
     )  # fmt: skip
 
 
@@ -230,6 +257,9 @@ def build_clip(
             bottom=pad_h - target.pad_top,
             color=[16 << 8, 128 << 8, 128 << 8],
         )
+    if target.cadence:
+        cycle, offsets = target.cadence
+        clip = core.std.SelectEvery(clip, cycle, list(offsets))
     if target.interlaced:
         clip = interlace(clip, pre.dither)
     else:
