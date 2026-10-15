@@ -3,7 +3,6 @@ from __future__ import annotations
 import dataclasses
 import json
 import sys
-from dataclasses import replace
 from pathlib import Path
 
 import typer
@@ -359,30 +358,14 @@ series_app = typer.Typer(help="Turn a season folder into a set of discs.", no_ar
 app.add_typer(series_app, name="series")
 
 
-def _episodes(folder: Path):
-    from dvd.probe import probe
-    from dvd.series import scan_folder
+def _season(folder: Path):
+    from dvd.project.season import read_season
 
     try:
-        episodes = scan_folder(folder)
+        return read_season(folder)
     except (OSError, ValueError) as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from None
-    if not episodes:
-        typer.echo(f"no episode files (S01E02, 1x02, ...) in {folder}", err=True)
-        raise typer.Exit(1)
-    infos = [probe(e.path) for e in episodes]
-    episodes = [replace(e, duration=i.duration or 0) for e, i in zip(episodes, infos, strict=True)]
-    return episodes, infos
-
-
-def _plan(episodes, infos, media: str, quality: str):
-    from dvd.project import new_project
-    from dvd.series import plan_set
-
-    sample = new_project(infos[0], infos[0].path.parent).titles[0]
-    return plan_set(episodes, media, quality, [a.bitrate for a in sample.audio],
-                    len(sample.subtitles))  # fmt: skip
 
 
 @series_app.command("plan")
@@ -392,8 +375,9 @@ def series_plan(
     quality: str = typer.Option("iyi", help="standart (4 Mbps), iyi (5) or yuksek (6)"),
 ) -> None:
     """Show how the episodes would be shared out over discs."""
-    episodes, infos = _episodes(folder)
-    s = _plan(episodes, infos, media, quality)
+    from dvd.project.season import plan_season
+
+    s = plan_season(_season(folder), media, quality)
     for n, (disc, kbps) in enumerate(zip(s.discs, s.video_kbps, strict=True), start=1):
         minutes = sum(e.duration for e in disc) / 60
         codes = f"{disc[0].code}-{disc[-1].code}" if len(disc) > 1 else disc[0].code
@@ -412,48 +396,26 @@ def series_new(
     """Write one project file per disc into the season folder."""
     from dvd import settings
     from dvd.meta.tmdb import Client, TmdbError
-    from dvd.project import new_series_project, save
-    from dvd.project.model import MenuBackground, MenuPage, SeriesDisc
-    from dvd.series import from_tmdb, name_from_folder
+    from dvd.project import save
+    from dvd.project.season import disc_projects, lookup, plan_season
 
-    episodes, infos = _episodes(folder)
-    s = _plan(episodes, infos, media, quality)
-    by_path = {i.path: i for i in infos}
-    guessed, season = name_from_folder(folder.resolve())
-    season = season or episodes[0].season or 1
+    season = _season(folder)
+    s = plan_season(season, media, quality)
     meta = None
     if tmdb and settings.tmdb_key():
         try:
-            meta = from_tmdb(Client(settings.tmdb_key()), guessed, season)
+            meta = lookup(season, Client(settings.tmdb_key()))
         except TmdbError as exc:
             typer.echo(f"TMDB: {exc}; going on without it", err=True)
         if meta is None:
-            typer.echo(f"TMDB does not know {guessed!r}; episode numbers are used", err=True)
-    name = name or (f"{meta.name} {season}. Sezon" if meta else folder.resolve().name)
-    for n, disc in enumerate(s.discs, start=1):
-        label = f"{name} - Disk {n}" if s.count > 1 else name
-        try:
-            project = new_series_project([by_path[e.path] for e in disc], folder, label)
-        except ValueError as exc:
-            typer.echo(str(exc), err=True)
-            raise typer.Exit(1) from None
-        project.disc.media = media
-        project.series = SeriesDisc(name=name[:64], disc=n, discs=s.count)
-        for title, episode in zip(project.titles, disc, strict=True):
-            known = meta.episode_names.get(episode.number) if meta else None
-            title.name = (f"{episode.number}. {known}" if known else
-                          f"{episode.number}. bölüm")[:80]  # fmt: skip
-        if project.menus is not None and meta is not None:
-            if meta.backdrop is not None:
-                project.menus.background = MenuBackground(image=meta.backdrop.as_posix())
-            project.menus.logo = meta.logo.as_posix() if meta.logo else None
-        if project.menus is not None:
-            project.menus = project.menus.model_copy(
-                update={"template": "dizi", "pages": [MenuPage(id="main", kind="main"),
-                                  MenuPage(id="episodes", kind="episodes"),
-                                  MenuPage(id="languages", kind="languages")]})  # fmt: skip
-        out = folder / f"{label}.dvd.yaml"
-        save(project, out)
+            typer.echo(f"TMDB does not know {season.name!r}; episode numbers are used", err=True)
+    try:
+        projects = disc_projects(season, s, name, meta)
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from None
+    for (out, disc_project), disc in zip(projects, s.discs, strict=True):
+        save(disc_project, out)
         typer.echo(f"wrote {out.name}: {disc[0].code}-{disc[-1].code}")
 
 

@@ -27,11 +27,31 @@ TEXTS: dict[str, dict[str, str]] = {
         "nav.output": "Çıktı",
         "empty.title": "Videoyu buraya sürükleyin",
         "empty.body": (
-            "MKV, M2TS, MP4, TS veya MOV. Blu-ray kopyası da olur, telefonla çekilmiş video da."
+            "MKV, M2TS, MP4, TS veya MOV. Blu-ray kopyası da olur, telefonla çekilmiş video da. "
+            "Dizi için sezon klasörünü sürükleyin."
         ),
         "empty.open": "Dosya seç",
         "empty.open_project": "Proje aç",
         "empty.reading": "Video okunuyor…",
+        "empty.open_season": "Sezon klasörü",
+        "empty.reading_season": "Bölümler okunuyor… ({n} / {count})",
+        "series.title": "Sezon klasöründen disk seti",
+        "series.found": "{count} bölüm: {first} – {last}",
+        "series.name": "Dizi adı",
+        "series.quality": "Kalite hedefi",
+        "series.quality.standart": "Standart (görüntü 4 Mbps)",
+        "series.quality.iyi": "İyi (görüntü 5 Mbps)",
+        "series.quality.yuksek": "Yüksek (görüntü 6 Mbps)",
+        "series.tmdb": "Dizi adını, bölüm adlarını ve görselleri TMDB'den al",
+        "series.disc": "Disk {n} / {count}: {codes} · {episodes} bölüm · {minutes} dk · "
+        "görüntü {mbps} Mbps",
+        "series.below": "hedefin altında",
+        "series.exists": "{count} proje dosyası zaten var; üzerine yazılır.",
+        "series.create": "Projeleri oluştur",
+        "series.creating": "Projeler yazılıyor…",
+        "series.close": "Kapat",
+        "series.tmdb_failed": "TMDB'ye ulaşılamadı ({error}); bölüm numaraları kullanıldı.",
+        "series.tmdb_unknown": "TMDB bu diziyi bulamadı; bölüm numaraları kullanıldı.",
         "page.later": "Bu bölüm henüz hazır değil.",
         "video.title": "Kaynak video",
         "video.duration": "Süre",

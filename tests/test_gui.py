@@ -332,3 +332,56 @@ def test_menu_editor_moves_relabels_and_resets_buttons(app, tmp_path: Path):
     assert load(project_file).menus.pages[0].edits == {}
     QThreadPool.globalInstance().waitForDone(60000)
     w.close()
+
+
+@pytest.mark.skipif(FFMPEG is None, reason="ffmpeg not installed")
+def test_season_folder_becomes_disc_projects(app, tmp_path: Path, monkeypatch):
+    import json
+
+    from dvd.gui.series_dialog import SeriesDialog
+    from dvd.meta.tmdb import Client
+    from dvd.project.season import read_season
+
+    monkeypatch.setenv("DVD_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DVD_SETTINGS", str(tmp_path / "settings.yaml"))
+    monkeypatch.delenv("DVD_TMDB_KEY", raising=False)
+    season_dir = tmp_path / "Dizi.S01"
+    season_dir.mkdir()
+    for n in (1, 2):
+        subprocess.run(
+            [str(FFMPEG), "-v", "error", "-y", "-f", "lavfi",
+             "-i", "testsrc2=size=640x360:rate=25:duration=2", "-f", "lavfi",
+             "-i", "sine=duration=2", "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac",
+             str(season_dir / f"Dizi.S01E0{n}.mkv")],
+            check=True,
+        )  # fmt: skip
+
+    def fake(url: str) -> bytes:  # TMDB knows the series but has no pictures
+        if "/search/tv" in url:
+            return json.dumps({"results": [{"id": 7, "name": "Dizi Adı"}]}).encode()
+        if "/tv/7/season/1" in url:
+            return json.dumps({"episodes": [{"episode_number": 2, "name": "Son"}]}).encode()
+        return json.dumps({"id": 7, "name": "Dizi Adı", "images": {}}).encode()
+
+    reported = []
+    season = read_season(season_dir, lambda n, count: reported.append((n, count)))
+    assert reported == [(0, 2), (1, 2)] and (season.name, season.number) == ("Dizi", 1)
+    dialog = SeriesDialog(season, client=lambda key: Client(key, fetch=fake))
+    assert dialog.name.text() == "Dizi.S01" and not dialog.tmdb.isChecked()
+    assert dialog.discs.count() == 1 and "S01E01 – S01E02 · 2 bölüm" in dialog.discs.item(0).text()
+    dialog.key.setText("anahtar")
+    assert dialog.tmdb.isChecked()
+    dialog.media.setCurrentIndex(dialog.media.findData("dvd5"))
+    written = []
+    dialog.created.connect(written.append)
+    dialog.create()
+    QThreadPool.globalInstance().waitForDone(30000)
+    app.processEvents()
+    assert written == [[season_dir / "Dizi Adı 1. Sezon.dvd.yaml"]]
+    project = load(written[0][0])
+    assert project.disc.media == "dvd5" and project.menus.template == "dizi"
+    assert [t.name for t in project.titles] == ["1. bölüm", "2. Son"]
+    assert "tmdb_key: anahtar" in (tmp_path / "settings.yaml").read_text(encoding="utf-8")
+    again = SeriesDialog(season)  # the file is there now; the default name is the folder's
+    again.name.setText("Dizi Adı 1. Sezon")
+    assert again.note.text() == t("series.exists", count=1)

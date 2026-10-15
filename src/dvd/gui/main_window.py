@@ -32,12 +32,14 @@ from dvd.gui.disc_page import DiscPage
 from dvd.gui.i18n import t
 from dvd.gui.menu_page import MenuEditorPage
 from dvd.gui.pages import BuildPage, TracksPage
+from dvd.gui.series_dialog import SeriesDialog
 from dvd.gui.theme import DENSITY, stylesheet
 from dvd.gui.video_editor import VideoEditor
 from dvd.gui.widgets import BudgetBar, CompareWell, ModeSwitch
 from dvd.probe import SourceInfo, probe
 from dvd.probe.report import fps_text, size_text, timecode
 from dvd.project.model import AudioProfile, ContentProfile, Project, ViewingProfile
+from dvd.project.season import Season, read_season
 
 VIDEO_SUFFIXES = {".mkv", ".m2ts", ".mts", ".mp4", ".m4v", ".ts", ".mov", ".avi", ".mpg"}
 
@@ -92,6 +94,7 @@ def quality(plan: Plan) -> tuple[int, str]:
 class DropZone(QWidget):
     open_requested = Signal()
     project_requested = Signal()
+    season_requested = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -112,8 +115,11 @@ class DropZone(QWidget):
         open_file.clicked.connect(self.open_requested)
         open_project = QPushButton(t("empty.open_project"))
         open_project.clicked.connect(self.project_requested)
+        open_season = QPushButton(t("empty.open_season"))
+        open_season.clicked.connect(self.season_requested)
         buttons.addWidget(open_file)
         buttons.addWidget(open_project)
+        buttons.addWidget(open_season)
         box.addWidget(self.title)
         box.addWidget(self.body)
         box.addSpacing(8)
@@ -411,6 +417,7 @@ class MainWindow(QMainWindow):
         self.drop = DropZone()
         self.drop.open_requested.connect(self.choose_source)
         self.drop.project_requested.connect(self.choose_project)
+        self.drop.season_requested.connect(self.choose_season)
         empty = QWidget()
         ebox = QVBoxLayout(empty)
         ebox.setContentsMargins(40, 40, 40, 40)
@@ -543,6 +550,28 @@ class MainWindow(QMainWindow):
         path, _ = QFileDialog.getOpenFileName(self, t("empty.open_project"), "", pattern)
         if path:
             self.open_path(Path(path))
+
+    def choose_season(self) -> None:
+        folder = QFileDialog.getExistingDirectory(self, t("empty.open_season"))
+        if folder:
+            self.open_season(Path(folder))
+
+    def open_season(self, folder: Path) -> None:
+        """Read a season folder, then let the series dialog write the disc projects; disc 1
+        opens when they are written."""
+
+        def read(report):
+            return read_season(folder, lambda n, count: report(
+                t("empty.reading_season", n=n + 1, count=count), n / count))  # fmt: skip
+
+        self.drop.set_busy(t("empty.reading_season", n=0, count="…"))
+        tasks.run(read, self._season_read, self._failed, lambda text, _f: self.drop.set_busy(text))
+
+    def _season_read(self, season: Season) -> None:
+        self.drop.set_busy(None)
+        self.series_dialog = SeriesDialog(season, self)
+        self.series_dialog.created.connect(lambda files: self.open_path(files[0]))
+        self.series_dialog.open()
 
     def open_path(self, path: Path) -> None:
         self.drop.set_busy(t("empty.reading"))
@@ -787,9 +816,9 @@ class MainWindow(QMainWindow):
         if len(urls) != 1 or not urls[0].isLocalFile():
             return None
         path = Path(urls[0].toLocalFile())
-        if path.suffix.lower() in VIDEO_SUFFIXES or path.name.endswith(proj.PROJECT_SUFFIX):
+        if path.is_dir() or path.suffix.lower() in VIDEO_SUFFIXES:
             return path
-        return None
+        return path if path.name.endswith(proj.PROJECT_SUFFIX) else None
 
     def dragEnterEvent(self, event) -> None:  # noqa: N802 (Qt API)
         if self._dropped_path(event):
@@ -804,4 +833,4 @@ class MainWindow(QMainWindow):
         path = self._dropped_path(event)
         if path:
             self.show_page("empty")
-            self.open_path(path)
+            self.open_season(path) if path.is_dir() else self.open_path(path)
