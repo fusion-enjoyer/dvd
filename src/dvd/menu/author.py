@@ -30,7 +30,8 @@ def commands(pages: list[Page]) -> dict[str, list[tuple[str, str]]]:
         cmds = []
         for k, b in enumerate(p.buttons, start=1):
             a = b.action
-            stay = f"button = {k * 1024}; jump menu {number[p.id]};"  # keep the cursor here
+            # Keep the cursor on the choice; g2 = 1 tells the page's pre not to move it.
+            stay = f"g2 = 1; button = {k * 1024}; jump menu {number[p.id]};"
             if a.do == "play":
                 # g1 tells the end of a title whether to go on to the next one (play all).
                 jump = f"jump title {a.title};" if a.chapter == 1 else (
@@ -48,6 +49,28 @@ def commands(pages: list[Page]) -> dict[str, list[tuple[str, str]]]:
                 cmd = f"subtitle = {64 + a.stream}; {stay}"
             cmds.append((b.id, cmd))
         out[p.id] = cmds
+    return out
+
+
+def pre_commands(pages: list[Page]) -> dict[str, str]:
+    """What a language page runs as it opens: the cursor goes to the audio track playing now
+    (or, without an audio column, to the subtitle shown now), so the page shows the current
+    choice. Not after a choice on the page itself (g2 = 1): the cursor stays where it was."""
+    out = {}
+    for p in pages:
+        index = {b.id: k for k, b in enumerate(p.buttons, start=1)}
+        audio = [(b.action.stream, index[b.id]) for b in p.buttons if b.action.do == "audio"]
+        subs = [(b.action.stream, index[b.id]) for b in p.buttons if b.action.do == "subtitle"]
+        if audio:
+            picks = [f"if (audio == {s}) button = {k * 1024};" for s, k in audio]
+        elif subs:
+            off = next((k for s, k in subs if s is None), None)
+            picks = [f"button = {off * 1024};"] if off else []  # display bit clear: off
+            picks += [f"if (subtitle == {64 + s}) button = {k * 1024};"
+                      for s, k in subs if s is not None]  # fmt: skip
+        else:
+            continue
+        out[p.id] = f"if (g2 == 0) {{ {' '.join(picks)} }} g2 = 0;"
     return out
 
 
@@ -137,9 +160,10 @@ def author_menus(pages: list[Page], rendered: dict[str, RenderedPage], first: st
                  standard: str, aspect: Fraction, workdir: Path) -> list[AuthorMenu]:  # fmt: skip
     """Menu VOBs in `workdir` and their dvdauthor entries, the `first` page first."""
     ordered = sorted(pages, key=lambda p: p.id != first)
-    cmds, entry = commands(ordered), entries(ordered, first)
+    cmds, entry, pre = commands(ordered), entries(ordered, first), pre_commands(ordered)
     menus = []
     for i, page in enumerate(ordered):
         vob = menu_vob(rendered[page.id], standard, aspect, workdir, f"menu{i + 1:02}")
-        menus.append(AuthorMenu(vob.name, cmds[page.id], entry.get(page.id)))
+        menus.append(AuthorMenu(vob.name, cmds[page.id], entry.get(page.id),
+                                pre.get(page.id, "")))  # fmt: skip
     return menus

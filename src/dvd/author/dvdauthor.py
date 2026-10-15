@@ -63,6 +63,7 @@ class AuthorMenu:
     vob: str  # menu program stream with its button subpicture
     buttons: list[tuple[str, str]]  # (button name in the subpicture, VM command)
     entry: str | None = None  # "root", "ptt", "audio", "subtitle": the remote's menu keys
+    pre: str = ""  # VM commands run as the menu opens
 
 
 def dvdauthor_xml(
@@ -106,9 +107,12 @@ def dvdauthor_xml(
         for m in menus:
             entry = f" entry={quoteattr(m.entry)}" if m.entry else ""
             lines.append(f"      <pgc{entry}>")
+            pre = m.pre
             if m.entry == "root":
                 start = "subtitle=64; " if subs_on else ""
-                lines.append(f"        <pre>if (g0 == 0) {{ g0 = 1; {start}}}</pre>")
+                pre = f"if (g0 == 0) {{ g0 = 1; {start}}} {pre}".strip()
+            if pre:
+                lines.append(f"        <pre>{pre}</pre>")
             for name, command in m.buttons:
                 lines.append(f"        <button name={quoteattr(name)}>{command}</button>")
             lines.append(f'        <vob file={quoteattr(m.vob)} pause="inf"/>')

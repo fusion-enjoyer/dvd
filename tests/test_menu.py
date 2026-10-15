@@ -366,3 +366,35 @@ def test_layers_are_drawn_into_the_page_picture(tmp_path: Path):
     page.layers = [MenuLayer(kind="image", rect=(0.1, 0.1, 0.2, 0.1), image="yok.png")]
     with pytest.raises(ValueError, match="yok.png"):
         layer_images([page], tmp_path)
+
+
+def test_language_page_opens_on_the_current_choice():
+    from dvd.menu.author import pre_commands
+    from dvd.menu.simulator import Simulator
+
+    p, info = project(chapters=0, audio=2, subs=1)
+    pages = expand(p, info)
+    pre = pre_commands(pages)
+    assert pre["languages"] == ("if (g2 == 0) { if (audio == 0) button = 1024; "
+                                "if (audio == 1) button = 2048; } g2 = 0;")  # fmt: skip
+    sim = Simulator(pages, "main")
+    sim.move("down")
+    sim.press()
+    assert sim.page.id == "languages" and sim.button.id == "a0"
+    sim.move("down")
+    sim.press()  # Türkçe: the cursor stays on it, not sent back by the page's pre
+    assert sim.state.audio == 1 and sim.button.id == "a1"
+    while sim.button.id != "s0":
+        sim.move("right") if sim.button.id.startswith("a") else sim.move("down")
+    sim.press()
+    assert sim.button.id == "s0" and sim.state.subtitle == 0
+    sim.menu_key()
+    sim.move("down")
+    sim.press()  # back on the page later: the cursor shows the audio playing now
+    assert sim.page.id == "languages" and sim.button.id == "a1"
+
+    p, info = project(chapters=0, audio=1, subs=2)  # subtitles only
+    sim = Simulator(expand(p, info), "main", subtitles_on=True)
+    sim.move("down")
+    sim.press()
+    assert sim.button.id == "s0"
