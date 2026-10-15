@@ -116,9 +116,9 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
   - [x] Metin altyazıyı letterbox bandına yerleştirme seçeneği: iz başına "Siyah bantta" (Profesyonel), satırlar görüntünün hemen altına; bant inceyse her zamanki yer
   - [x] Renkli resim altyazıda (PGS, VobSub) rengi koruma: iz başına "Rengi koru"; dolgu rengi sarı / camgöbeği / yeşil / turuncu / pembe / kırmızıdan en yakınına yuvarlanır, gri-beyaz stilin rengi kalır
   - [ ] DVB resim altyazıları
-- [ ] Bölüm zaman çizelgesi: elle düzenleme, otomatik öneri, thumbnail karesi seçimi
+- [x] Bölüm zaman çizelgesi: elle düzenleme, otomatik öneri, thumbnail karesi seçimi
   - [x] Bölümler sayfası: kaynaktan / aralıkla / elle / yok; elle listede zaman düzenleme, silme, önizlemedeki kareye ekleme; her bölümün karesi; sahne geçişlerine göre öneri (her N dakikada bir nokta, ±15 sn içindeki en belirgin kesmeye kaydırılır)
-  - [ ] Bölüm menüsü için ayrı thumbnail karesi seçimi (Faz 4 menüleriyle)
+  - [x] Bölüm menüsü için ayrı thumbnail karesi seçimi: Bölümler sayfasında satır başına "Menü karesi: önizlemedeki kare" / "Otomatik"; otomatikte bölüm başı, +1, +2.5, +5 sn içinden ilk canlı (karanlık ya da düz olmayan) kare
 - [x] İlgili arayüz ekranları (Ses, Altyazı, Bölümler)
 
 **Bitti kriteri:** Çok dilli, altyazılı, bölümlü film diski; altyazılar ticari DVD'ler kadar temiz.
