@@ -113,7 +113,8 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 - [ ] ASS, PGS, VobSub girişi; forced altyazılar; letterbox bandına altyazı
   - [x] ASS/SSA/WebVTT dosyaları (metin olarak, kendi stilimizle çizilir); Blu-ray PGS: kendi .sup okuyucumuz, resim görüntüyle aynı crop/ölçekle DVD karesine taşınır, 4 renge indirilir; PGS'teki tek tek forced işaretleri diske geçer; PGS'te letterbox bandındaki altyazı bantta kalır
   - [x] VobSub (DVD) altyazıları: MKV/VOB içindeki `dvd_subtitle` izleri ve .idx/.sub dosyaları kendi SPU çözücümüzle; .sup dosyası da eklenebilir. Palet yoksa (VOB) dolgu ve kontur şekilden ayrılır
-  - [ ] DVB resim altyazıları; renkli PGS'te rengi koruma; metin altyazıyı letterbox bandına yerleştirme seçeneği
+  - [x] Metin altyazıyı letterbox bandına yerleştirme seçeneği: iz başına "Siyah bantta" (Profesyonel), satırlar görüntünün hemen altına; bant inceyse her zamanki yer
+  - [ ] DVB resim altyazıları; renkli PGS'te rengi koruma
 - [ ] Bölüm zaman çizelgesi: elle düzenleme, otomatik öneri, thumbnail karesi seçimi
   - [x] Bölümler sayfası: kaynaktan / aralıkla / elle / yok; elle listede zaman düzenleme, silme, önizlemedeki kareye ekleme; her bölümün karesi; sahne geçişlerine göre öneri (her N dakikada bir nokta, ±15 sn içindeki en belirgin kesmeye kaydırılır)
   - [ ] Bölüm menüsü için ayrı thumbnail karesi seçimi (Faz 4 menüleriyle)
