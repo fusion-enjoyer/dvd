@@ -166,7 +166,7 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 ## Faz 6 — Gelişmiş menüler ve disk mantığı
 
 - [ ] Hareketli menüler (video arka plan, giriş + döngü), hareketli thumbnail'lar, geçiş videoları
-- [ ] Kaldığın yerden devam, rastgele bölüm, zaman aşımıyla otomatik oynat
+- [x] Kaldığın yerden devam, rastgele bölüm, zaman aşımıyla otomatik oynat: ana menüde isteğe bağlı "Kaldığın yerden" (`resume`) ve çok başlıklı diskte "Rastgele bölüm" (`g3 = random(N)`); açılış sayfası 5–250 sn bekleyip filmi (dizide hepsini) oynatır (`pause` + `post`); Menü sayfasında ayarlanır, simülatörde W ile bekleme biter
 - [x] Ses/altyazı menüsünde seçili olanı gösterme: sayfa açılırken imleç o an çalan sesin (ses sütunu yoksa gösterilen altyazının) butonuna gelir (`pre` komutu, `audio`/`subtitle` kayıtlarına göre); sayfadaki seçimden sonra imleç yerinde kalır (g2); simülatör aynı komutları çalıştırır
 - [ ] Gizli içerik butonları, kumanda kısıtlamaları
 - [ ] **Disk haritası düzenleyicisi** (düğüm grafiği)
