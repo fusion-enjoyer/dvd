@@ -109,7 +109,8 @@ def test_series_disc_builds_with_episode_menu(tmp_path: Path):
     project = new_series_project(infos, tmp_path, "Dizi S01")
     project.series = SeriesDisc(name="Dizi S01", disc=1, discs=2)
     project.menus = Menus(pages=[MenuPage(id="main", kind="main"),
-                                 MenuPage(id="episodes", kind="episodes")])  # fmt: skip
+                                 MenuPage(id="episodes", kind="episodes")],
+                          resume=True, shuffle=True, timeout=20)  # fmt: skip
     for title in project.titles:
         title.video.overrides = {"encoder": "ffmpeg"}
     project_file = tmp_path / "dizi.dvd.yaml"
@@ -121,6 +122,10 @@ def test_series_disc_builds_with_episode_menu(tmp_path: Path):
     xml = next(tmp_path.rglob("dvdauthor.xml")).read_text(encoding="utf-8")
     assert "<post>if (g1 == 1) jump title 2; call menu;</post>" in xml
     assert "g1 = 1; jump title 1;" in xml and "g1 = 0; jump title 2;" in xml
+    assert ">resume;</button>" in xml and "g3 = random(2);" in xml
+    assert 'pause="20"/>' in xml and "<post>g1 = 1; jump title 1;</post>" in xml
+    log = next(tmp_path.rglob("dvdauthor.log")).read_text(encoding="utf-8", errors="replace")
+    assert "ERR" not in log
     assert (result.video_ts / "VTS_01_0.VOB").is_file()
 
 

@@ -204,9 +204,10 @@ PageKind = Literal["main", "chapters", "episodes", "languages", "audio", "subtit
 class MenuAction(Strict):
     """What a button does: play a title (from a chapter), open a menu page, or pick an audio /
     subtitle stream (and return to the page). `stream: null` with `do: subtitle` turns
-    subtitles off."""
+    subtitles off. `resume` goes back to where the film was left with the Menu key; `random`
+    plays one title picked at random."""
 
-    do: Literal["play", "page", "audio", "subtitle"]
+    do: Literal["play", "page", "audio", "subtitle", "resume", "random"]
     title: int = Field(1, ge=1, le=MAX_TITLES)
     chapter: int = Field(1, ge=1, le=MAX_CHAPTERS)
     page: str | None = None
@@ -341,6 +342,10 @@ class Menus(Strict):
         default_factory=_standard_pages, min_length=1
     )
     first: str = "main"  # the page the disc opens on (and the remote's Menu key)
+    resume: bool = False  # main page: a "go on where you left off" button
+    shuffle: bool = False  # main page of a disc with several titles: "random episode"
+    # The first page plays the film (all titles) after this many seconds without a key press.
+    timeout: int | None = Field(None, ge=5, le=250)
 
     @model_validator(mode="after")
     def _links(self) -> Menus:

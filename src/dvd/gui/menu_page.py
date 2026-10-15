@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QScrollArea,
+    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
@@ -140,6 +141,28 @@ class MenuEditorPage(QWidget):
         opts.addWidget(self.tmdb)
         opts.addStretch()
         box.addWidget(self.options)
+        self.playback = QWidget()
+        play_row = QHBoxLayout(self.playback)
+        play_row.setContentsMargins(0, 0, 0, 0)
+        self.resume = QCheckBox(t("menu.resume"))
+        self.resume.setToolTip(t("menu.resume_hint"))
+        self.resume.toggled.connect(lambda on: self._set_menus(resume=on))
+        self.shuffle = QCheckBox(t("menu.shuffle"))
+        self.shuffle.toggled.connect(lambda on: self._set_menus(shuffle=on))
+        self.timeout = QSpinBox()
+        self.timeout.setRange(0, 250)
+        self.timeout.setSingleStep(5)
+        self.timeout.setSpecialValueText(t("menu.timeout_off"))
+        self.timeout.setSuffix(t("menu.timeout_unit"))
+        self.timeout.setToolTip(t("menu.timeout_hint"))
+        self.timeout.editingFinished.connect(self._timeout_changed)
+        for w in (self.resume, self.shuffle):
+            play_row.addWidget(w)
+        play_row.addSpacing(16)
+        play_row.addWidget(QLabel(t("menu.timeout")))
+        play_row.addWidget(self.timeout)
+        play_row.addStretch()
+        box.addWidget(self.playback)
         row = QHBoxLayout()
         self.page_list = QComboBox()
         self.page_list.setMinimumWidth(200)
@@ -222,11 +245,13 @@ class MenuEditorPage(QWidget):
         self.project_dir, self.frame = project_dir, frame
         self.dirty = True
         menus = project.menus
-        widgets = [self.enabled, self.bg_kind, self.template, *self.page_checks.values()]
+        widgets = [self.enabled, self.bg_kind, self.template, *self.page_checks.values(),
+                   self.resume, self.shuffle, self.timeout]  # fmt: skip
         for w in widgets:
             w.blockSignals(True)
         self.enabled.setChecked(menus is not None)
         self.options.setVisible(menus is not None)
+        self.playback.setVisible(menus is not None)
         self.page_list.setVisible(menus is not None)
         self.lit.setVisible(menus is not None)
         if menus is not None:
@@ -234,6 +259,10 @@ class MenuEditorPage(QWidget):
             for kind, check in self.page_checks.items():
                 check.setChecked(kind in kinds)
             self.template.setCurrentIndex(self.template.findData(menus.template))
+            self.resume.setChecked(menus.resume)
+            self.shuffle.setChecked(menus.shuffle)
+            self.shuffle.setVisible(len(project.titles) > 1)  # only a series has episodes
+            self.timeout.setValue(menus.timeout or 0)
             bg = menus.background
             key = "frame" if bg.frame else "image" if bg.image else "color"
             self.bg_kind.setCurrentIndex(self.bg_kind.findData(key))
@@ -303,8 +332,10 @@ class MenuEditorPage(QWidget):
             self.sim = None
             return
         subs = edit.disc_subtitles(self.project.titles[0])
-        self.sim = Simulator([p for p, _r in self.previews], self.project.menus.first,
-                             subtitles_on=bool(subs) and subs[0].default)  # fmt: skip
+        menus = self.project.menus
+        self.sim = Simulator([p for p, _r in self.previews], menus.first,
+                             subtitles_on=bool(subs) and subs[0].default,
+                             titles=len(self.project.titles), timeout=menus.timeout)  # fmt: skip
 
     def _show_preview(self, layer: str = "highlight") -> None:
         if self.frame is None or not self.previews:
@@ -504,6 +535,8 @@ class MenuEditorPage(QWidget):
             self.sim.press()
         elif key in (Qt.Key.Key_Escape, Qt.Key.Key_M):
             self.sim.menu_key()
+        elif key == Qt.Key.Key_W:  # "wait": let the first page's timeout run out
+            self.sim.wait()
         else:
             super().keyPressEvent(event)
             return
@@ -517,6 +550,18 @@ class MenuEditorPage(QWidget):
     def _toggle(self, on: bool) -> None:
         self.project.menus = default_menus(self.info) if on else None
         self._changed()
+
+    def _set_menus(self, **change) -> None:
+        for key, value in change.items():
+            setattr(self.project.menus, key, value)
+        self._changed()
+
+    def _timeout_changed(self) -> None:
+        value = self.timeout.value()
+        if value and value < 5:
+            value = 5
+        if (value or None) != self.project.menus.timeout:
+            self._set_menus(timeout=value or None)
 
     def _set_page(self, kind: str, on: bool) -> None:
         menus = self.project.menus

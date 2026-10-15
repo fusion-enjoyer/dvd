@@ -398,3 +398,34 @@ def test_language_page_opens_on_the_current_choice():
     sim.move("down")
     sim.press()
     assert sim.button.id == "s0"
+
+
+def test_resume_random_and_timeout():
+    from dvd.menu.author import commands, timeout_command
+    from dvd.menu.simulator import Simulator
+
+    p, info = project(chapters=0, audio=1, subs=0, menus={"resume": True, "timeout": 30})
+    pages = expand(p, info)
+    assert [b.id for b in pages[0].buttons] == ["play", "resume"]  # one title: no random
+    sim = Simulator(pages, "main", titles=1, timeout=30)
+    sim.move("down")
+    sim.press()  # nothing was stopped yet: resume does nothing
+    assert sim.state.playing is None
+    sim.wait()
+    assert sim.state.playing == (1, 1) and sim.state.registers[1] == 0
+    sim.menu_key()
+    sim.move("down")
+    sim.press()
+    assert sim.state.playing == (1, 1) and sim.state.log[-1] == "resume"
+    assert timeout_command(3) == "g1 = 1; jump title 1;"
+
+    p, info = project(chapters=0, audio=1, subs=0, menus={"shuffle": True})
+    p.titles = [p.titles[0].model_copy() for _ in range(3)]
+    pages = expand(p, [info] * 3)
+    assert [b.id for b in pages[0].buttons] == ["play", "random"]
+    random_cmd = dict(commands(pages, 3)["main"])["random"]
+    assert random_cmd.startswith("g1 = 0; g3 = random(3); if (g3 == 1) jump title 1;")
+    sim = Simulator(pages, "main", titles=3)
+    sim.move("down")
+    sim.press()
+    assert sim.state.playing[0] in (1, 2, 3) and sim.state.registers[1] == 0

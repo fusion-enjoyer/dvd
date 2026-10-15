@@ -22,8 +22,12 @@ ENTRIES = {"main": "root", "chapters": "ptt", "episodes": "ptt", "languages": "a
            "audio": "audio", "subtitles": "subtitle"}  # fmt: skip
 
 
-def commands(pages: list[Page]) -> dict[str, list[tuple[str, str]]]:
-    """VM commands per page: (button name, command). Menu pages are numbered in list order."""
+MAX_RANDOM_TITLES = 60  # each title is one more command in the page's command table
+
+
+def commands(pages: list[Page], titles: int = 1) -> dict[str, list[tuple[str, str]]]:
+    """VM commands per page: (button name, command). Menu pages are numbered in list order;
+    `titles` is how many titles a random pick chooses from."""
     number = {p.id: i + 1 for i, p in enumerate(pages)}
     out = {}
     for p in pages:
@@ -43,6 +47,13 @@ def commands(pages: list[Page]) -> dict[str, list[tuple[str, str]]]:
                 cmd = f"jump menu {number[a.page]};"
             elif a.do == "audio":
                 cmd = f"audio = {a.stream}; {stay}"
+            elif a.do == "resume":
+                cmd = "resume;"  # players ignore it when nothing was interrupted
+            elif a.do == "random":
+                if not 1 <= titles <= MAX_RANDOM_TITLES:
+                    raise AuthorError(f"a random pick needs 1-{MAX_RANDOM_TITLES} titles")
+                jumps = " ".join(f"if (g3 == {n}) jump title {n};" for n in range(1, titles + 1))
+                cmd = f"g1 = 0; g3 = random({titles}); {jumps}"
             elif a.stream is None:
                 cmd = f"subtitle = 0; {stay}"  # stream 0 without the display bit: off
             else:
@@ -156,14 +167,23 @@ def menu_vob(
     return out
 
 
+def timeout_command(titles: int) -> str:
+    """What the first page does when nobody presses a key: play (a series: all of it)."""
+    return f"g1 = {int(titles > 1)}; jump title 1;"
+
+
 def author_menus(pages: list[Page], rendered: dict[str, RenderedPage], first: str,
-                 standard: str, aspect: Fraction, workdir: Path) -> list[AuthorMenu]:  # fmt: skip
-    """Menu VOBs in `workdir` and their dvdauthor entries, the `first` page first."""
+                 standard: str, aspect: Fraction, workdir: Path, titles: int = 1,
+                 timeout: int | None = None) -> list[AuthorMenu]:  # fmt: skip
+    """Menu VOBs in `workdir` and their dvdauthor entries, the `first` page first. With
+    `timeout`, the first page waits that many seconds, then plays."""
     ordered = sorted(pages, key=lambda p: p.id != first)
-    cmds, entry, pre = commands(ordered), entries(ordered, first), pre_commands(ordered)
+    cmds, entry, pre = commands(ordered, titles), entries(ordered, first), pre_commands(ordered)
     menus = []
     for i, page in enumerate(ordered):
         vob = menu_vob(rendered[page.id], standard, aspect, workdir, f"menu{i + 1:02}")
+        wait = timeout if timeout and page.id == first else None
         menus.append(AuthorMenu(vob.name, cmds[page.id], entry.get(page.id),
-                                pre.get(page.id, "")))  # fmt: skip
+                                pre.get(page.id, ""), wait,
+                                timeout_command(titles) if wait else ""))  # fmt: skip
     return menus

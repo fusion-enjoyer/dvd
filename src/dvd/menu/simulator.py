@@ -3,23 +3,25 @@ dvdauthor, so trying the menus here checks what the disc will do.
 
 Supported commands (all we generate): `jump title T [chapter C]`, `jump menu N`,
 `audio = N`, `subtitle = N` (64 + stream: on; below 64: off), `button = N` (N / 1024 is the
-button to highlight), `gN = V`, and `if (X == V) <command or { block }>` with X one of
-`audio`, `subtitle`, `gN`. A page's pre commands run as it opens. Arrow keys follow the
+button to highlight), `gN = V`, `gN = random(M)`, `resume`, and
+`if (X == V) <command or { block }>` with X one of `audio`, `subtitle`, `gN`. A page's pre
+commands run as it opens; `wait()` lets the first page's timeout run out. Arrow keys follow the
 buttons' navigation; Menu returns to the root page, as the remote's Menu key does.
 """
 
 from __future__ import annotations
 
+import random
 import re
 from dataclasses import dataclass, field
 
-from dvd.menu.author import commands, entries, pre_commands
+from dvd.menu.author import commands, entries, pre_commands, timeout_command
 from dvd.menu.layout import Page
 
 _CONDITION = re.compile(r"(audio|subtitle|g\d+) == (\d+)")
 _STATEMENT = re.compile(
     r"jump title (\d+)(?: chapter (\d+))?|jump menu (\d+)|audio = (\d+)|subtitle = (\d+)"
-    r"|button = (\d+)|g(\d+) = (\d+)"
+    r"|button = (\d+)|g(\d+) = (\d+)|g(\d+) = random\((\d+)\)|(resume)"
 )
 
 
@@ -44,14 +46,17 @@ class State:
     audio: int = 0
     subtitle: int | None = None  # stream shown, None: off
     playing: tuple[int, int] | None = None  # (title, chapter) once a play button is pressed
+    left: tuple[int, int] | None = None  # where the Menu key stopped the film (for resume)
     registers: dict[int, int] = field(default_factory=dict)  # general registers set so far
     log: list[str] = field(default_factory=list)
 
 
 class Simulator:
-    def __init__(self, pages: list[Page], first: str, subtitles_on: bool = False) -> None:
+    def __init__(self, pages: list[Page], first: str, subtitles_on: bool = False,
+                 titles: int = 1, timeout: int | None = None) -> None:  # fmt: skip
         self.pages = sorted(pages, key=lambda p: p.id != first)  # same order as on the disc
-        self.commands = commands(self.pages)
+        self.titles, self.timeout = titles, timeout
+        self.commands = commands(self.pages, titles)
         self.entries = entries(self.pages, first)
         self.pre = pre_commands(self.pages)
         self.state = State(subtitle=0 if subtitles_on else None)
@@ -72,9 +77,17 @@ class Simulator:
         self.state.button = ids.index(b.nav[direction])
 
     def menu_key(self) -> None:
-        """The remote's Menu key: back to the root page; also stops the film."""
+        """The remote's Menu key: back to the root page; also stops the film (the player
+        remembers where, for resume)."""
+        if self.state.playing is not None:
+            self.state.left = self.state.playing
         self.state.playing = None
         self._show(0, 0)
+
+    def wait(self) -> None:
+        """Nobody touches the remote: the first page's timeout plays the film."""
+        if self.timeout and self.state.playing is None and self.state.page == 0:
+            self.run(timeout_command(self.titles))
 
     def press(self) -> None:
         b = self.button
@@ -122,7 +135,17 @@ class Simulator:
         m = _STATEMENT.fullmatch(s)
         if m is None:
             raise SimulatorError(f"the simulator does not know the command {s!r}")
-        title, chapter, menu, audio, subtitle, button, register, value = m.groups()
+        (title, chapter, menu, audio, subtitle, button, register, value, rnd_register,
+         rnd_top, resume) = m.groups()  # fmt: skip
+        if rnd_register:
+            self.state.registers[int(rnd_register)] = random.randint(1, int(rnd_top))
+            return
+        if resume:
+            if self.state.left is not None:
+                self.state.playing = self.state.left
+                self.state.log.append("resume")
+                ctx["done"] = True
+            return
         if register:
             self.state.registers[int(register)] = int(value)
             return

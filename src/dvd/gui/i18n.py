@@ -190,6 +190,19 @@ TEXTS: dict[str, dict[str, str]] = {
         "menu.edit.reset": "Bu butonu varsayılana döndür",
         "menu.edit.arrows": "Kumanda yönlerini göster",
         "menu.edit.nav": "Kumandada bu butondan",
+        "menu.resume": '"Kaldığın yerden" butonu',
+        "menu.resume_hint": (
+            "Ana menüye, filmi Menü tuşuyla bırakılan yerden sürdüren bir buton ekler. "
+            "Oynatıcı yarıda kalan bir film yoksa basışı yok sayar."
+        ),
+        "menu.shuffle": '"Rastgele bölüm" butonu',
+        "menu.timeout": "Kimse dokunmazsa oynat",
+        "menu.timeout_off": "kapalı",
+        "menu.timeout_unit": " sn sonra",
+        "menu.timeout_hint": (
+            "Disk açılış sayfasında bu kadar bekledikten sonra filmi (dizide bütün bölümleri) "
+            "kendiliğinden oynatır. 5–250 saniye."
+        ),
         "menu.layer.add_text": "+ Yazı",
         "menu.layer.add_image": "+ Resim",
         "menu.layer.add_shape": "+ Kutu",
@@ -213,7 +226,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "menu.sim.subs": "Altyazı: {lang}",
         "menu.sim.off": "kapalı",
         "menu.sim.playing": "Film {chapter}. bölümden başlardı",
-        "menu.sim.keys": "(yön tuşları, Enter: seç, Esc: Menü tuşu)",
+        "menu.sim.keys": "(yön tuşları, Enter: seç, Esc: Menü tuşu, W: beklemeyi bitir)",
         "chapters.title": "Bölümler",
         "chapters.hint": "Bölüm başları oynatıcıda ileri/geri atlama noktalarıdır; "
         "bölüm menüsünde bu kareler gösterilir.",

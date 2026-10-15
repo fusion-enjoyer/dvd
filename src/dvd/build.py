@@ -229,7 +229,8 @@ def _menus(project: Project, prepared: list[_Prepared], project_dir: Path, work_
     rendered = {page.id: render_page(page, frame, backdrop, thumbs, tpl, logo, pictures)
                 for page in pages}  # fmt: skip
     return author_menus(pages, rendered, project.menus.first, project.disc.standard,
-                        p.target.dar, work_dir)  # fmt: skip
+                        p.target.dar, work_dir, len(project.titles),
+                        project.menus.timeout)  # fmt: skip
 
 
 def _intro_path(project_file: Path, intro) -> Path:

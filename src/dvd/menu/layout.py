@@ -181,6 +181,11 @@ def _main(page: MenuPage, all_pages: list[MenuPage], project: Project, tpl: Temp
     title = project.titles[0]
     several = len(project.titles) > 1
     choices = [("play", "Hepsini oynat" if several else "Filmi oynat", _play(every=several))]
+    menus = project.menus
+    if menus is not None and menus.resume:
+        choices.append(("resume", "Kaldığın yerden", MenuAction(do="resume")))
+    if menus is not None and menus.shuffle and several:
+        choices.append(("random", "Rastgele bölüm", MenuAction(do="random")))
     labels = {"chapters": "Bölümler", "episodes": "Bölümler", "languages": "Dil ayarları",
               "audio": "Ses", "subtitles": "Altyazı"}  # fmt: skip
     for other in all_pages:
