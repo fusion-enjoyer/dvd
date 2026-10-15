@@ -139,10 +139,10 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 - [x] Şablon sistemi + ilk hazır şablonlar (Minimal, Sinematik, 2000'ler DVD'si): `menu/templates.py`, şablon hem yerleşimi (ana menü sütun / alt sıra / ortada sütun, başlık yeri) hem çizimi (karartma, renk tonu, büyük harf, gölge, imleç işareti: çubuk / alt çizgi / ok) belirler; Menü sayfasında seçilir
 - [x] First Play zinciri (intro → menü), başlık bitince davranışı: `first_play` giriş videoları ikinci titleset'te sırayla oynar, sonra VMG üzerinden menüye (ya da filme) geçer; `at_end`: menüye dön / dur / baştan oynat; Disk sayfası (ad, ortam, standart, giriş videoları, film sonu)
 - [x] **TMDB entegrasyonu**: otomatik eşleştirme, Türkçe başlık/özet, arka plan/afiş/saydam logo seçici, menü şablonlarına bağlama: dosya adından ad/yıl tahmini, Türkçe arama (yıl tutmazsa yılsız), yazısız arka planlar ve Türkçe logolar önce; seçilen arka plan menü arka planı, logo ana sayfada başlığın yerine; disk adı Türkçe ad olabilir. Anahtar kullanıcı ayarlarında, görseller yerel önbellekte
-- [ ] **Menü editörü v1**: tuval, katmanlar, özellikler paneli, güvenli alan kılavuzları, navigasyon okları görünümü
+- [x] **Menü editörü v1**: tuval, katmanlar, özellikler paneli, güvenli alan kılavuzları, navigasyon okları görünümü
   - [x] Menü sayfasında "Düzenle": butonları sürükle / boyutlandır / yön tuşlarıyla kaydır, buton yazısını değiştir, varsayılana döndür; TV güvenli alan çizgileri (%90 / %80); kumanda yönleri okla gösterilir; çakışan butonlar kırmızı ve build uyarısı. Değişiklikler sayfanın `edits` alanına buton bazında yazılır
   - [x] Yönlerin editörde elle bağlanması
-  - [ ] Katmanlar (logo, serbest yazı, şekil)
+  - [x] Katmanlar: yazı, resim (PNG/JPEG, saydamlık korunur), kutu (renk + saydamlık); Düzenle görünümünde ekle / taşı / boyutlandır / yazısını ve rengini değiştir / sil; sayfanın `layers` listesinde, durağan görüntüye çizilir
 - [x] **DVD VM simülatörü v1**: menüleri yakmadan klavyeyle gezme: diske giden buton komutlarını (jump title/menu, audio, subtitle, button) yorumlar; Menü sayfasında "Klavyeyle dene" (yön tuşları, Enter, Esc = Menü tuşu), ses/altyazı durumu ve oynatılacak bölüm gösterilir
 
 **Bitti kriteri:** Editörde tasarlanan statik menüler gerçek oynatıcıda doğru çalışıyor.
