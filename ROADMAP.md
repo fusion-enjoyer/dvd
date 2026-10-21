@@ -172,7 +172,7 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
   - [x] Kumanda kısıtlamaları: giriş videosu "Atlanamaz" (Disk sayfası); oynarken ileri sarma, bölüm atlama, doğrudan başlık/bölüm seçme ve menü tuşları kapalı. dvdauthor UOP yazamadığı için PGC maskesi authoring'den sonra IFO ve BUP'a yamanır (`author/uops.py`)
   - [x] Gizli içerik butonları: menü editöründe "+ Gizli video bu butonun yanına"; o butonda bir yöne basınca etiketsiz bir nokta seçilir (yanınca küçük işaret), Enter videoyu oynatır, bitince ana menü. Otomatik yönler bu noktaya hiç gitmez. Videolar ikinci titleset'te, VMG menüsü g4'e göre atlar; diskte en çok 8
 - [ ] **Disk haritası düzenleyicisi** (düğüm grafiği)
-- [ ] Şablon editörü, şablon dışa/içe aktarma
+- [x] Şablon editörü, şablon dışa/içe aktarma: Menü sayfasında "Şablonu düzenle…" (hazır ya da kendi şablonundan başla, yerleşim/renk/font/imleç, canlı önizleme, kaydet ve kullan, dosyaya aktar, dosyadan al); kullanıcı şablonları `%APPDATA%\DVD Studyo	emplates`, temel şablondan farkları yazılır; `dvd template list|export|import`
 
 ---
 
