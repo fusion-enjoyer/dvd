@@ -156,13 +156,15 @@ def dvdauthor_xml(
         lines.append(f"        <vob file={quoteattr(t.vob)} chapters={quoteattr(chapters)}/>")
         if n < len(titles) and menus:
             # Play all (g1 = 1) goes on; a single episode chosen in the menu returns to it.
-            lines.append(f"        <post>if (g1 == 1) jump title {n + 1}; call menu;</post>")
+            # "entry root": a bare "call menu" means the chapter menu to dvdauthor.
+            lines.append(f"        <post>if (g1 == 1) jump title {n + 1}; "
+                         "call menu entry root;</post>")  # fmt: skip
         elif n < len(titles):
             lines.append(f"        <post>jump title {n + 1};</post>")
         elif at_end == "repeat":
             lines.append("        <post>jump title 1;</post>")
         elif at_end == "menu" and menus:
-            lines.append("        <post>call menu;</post>")
+            lines.append("        <post>call menu entry root;</post>")
         elif at_end == "stop":
             lines.append("        <post>exit;</post>")  # no menus and "menu": playback just ends
         lines.append("      </pgc>")

@@ -120,7 +120,7 @@ def test_series_disc_builds_with_episode_menu(tmp_path: Path):
     result = build(project_file, make_iso=False)
 
     xml = next(tmp_path.rglob("dvdauthor.xml")).read_text(encoding="utf-8")
-    assert "<post>if (g1 == 1) jump title 2; call menu;</post>" in xml
+    assert "<post>if (g1 == 1) jump title 2; call menu entry root;</post>" in xml
     assert "g1 = 1; jump title 1;" in xml and "g1 = 0; jump title 2;" in xml
     assert ">resume;</button>" in xml and "g3 = random(2);" in xml
     assert 'pause="20"/>' in xml and "<post>g1 = 1; jump title 1;</post>" in xml

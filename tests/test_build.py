@@ -349,7 +349,7 @@ def test_build_disc_with_menus(tmp_path: Path):
     assert "VTS_01_0.VOB" in names  # the titleset menus
     xml = (next(tmp_path.rglob("dvdauthor.xml"))).read_text(encoding="utf-8")
     assert "jump titleset 1 menu;" in xml and 'entry="root"' in xml and 'entry="ptt"' in xml
-    assert "<post>call menu;</post>" in xml
+    assert "<post>call menu entry root;</post>" in xml
     assert "jump title 1 chapter 2;" in xml  # chapter 2 button of the chapter page
     log = next(tmp_path.rglob("menu01/spumux.log")).read_text(encoding="utf-8")
     assert "ERR" not in log

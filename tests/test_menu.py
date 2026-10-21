@@ -291,7 +291,10 @@ def test_play_all_and_single_episode_commands():
     assert dict(cmds["episodes"])["ep2"] == "g1 = 0; jump title 2;"
     titles = [AuthorTitle(f"t{i}.mpg", "16:9", ["tr"]) for i in (1, 2, 3)]
     xml = dvdauthor_xml(titles, "pal", menus=[AuthorMenu("m.mpg", cmds["main"], "root")])
-    assert xml.count("<post>if (g1 == 1) jump title") == 2 and "<post>call menu;</post>" in xml
+    assert (
+        xml.count("<post>if (g1 == 1) jump title") == 2
+        and "<post>call menu entry root;</post>" in xml
+    )
     sim = Simulator(pages, "main")
     sim.press()
     assert sim.state.registers[1] == 1 and sim.state.playing == (1, 1)
