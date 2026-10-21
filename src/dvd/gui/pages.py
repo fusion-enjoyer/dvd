@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
     QGridLayout,
+    QHBoxLayout,
     QLabel,
     QProgressBar,
     QPushButton,
@@ -356,9 +357,20 @@ class BuildPage(QWidget):
         self.warnings = _label("", "warn", wrap=True)
         self.open_folder = QPushButton(t("build.open_folder"))
         self.open_folder.clicked.connect(self._open_folder)
+        self.inspect = QPushButton(t("inspect.open"))
+        self.inspect.clicked.connect(lambda: self._inspect(self.folder / "VIDEO_TS"))
+        other = QPushButton(t("inspect.open_other"))
+        other.setObjectName("link")
+        other.clicked.connect(self._inspect_other)
         for w in (self.stage, self.bar, self.done_list, self.result, self.warnings):
             box.addWidget(w)
-        box.addWidget(self.open_folder, alignment=Qt.AlignmentFlag.AlignLeft)
+        row = QHBoxLayout()
+        row.setSpacing(8)
+        for w in (self.open_folder, self.inspect):
+            row.addWidget(w)
+        row.addStretch()
+        box.addLayout(row)
+        box.addWidget(other, alignment=Qt.AlignmentFlag.AlignLeft)
         box.addStretch()
         self.folder: Path | None = None
         self.reset()
@@ -370,6 +382,7 @@ class BuildPage(QWidget):
         self.result.setText("")
         self.warnings.setText("")
         self.open_folder.hide()
+        self.inspect.hide()
         self.finished_stages: list[str] = []
 
     def set_summary(self, text: str) -> None:
@@ -398,6 +411,7 @@ class BuildPage(QWidget):
         self.result.style().polish(self.result)
         self.warnings.setText("\n".join(translate_warning(w) for w in warnings))
         self.open_folder.show()
+        self.inspect.show()
 
     def failed(self, message: str) -> None:
         self.start.setEnabled(True)
@@ -405,6 +419,18 @@ class BuildPage(QWidget):
         self.result.setObjectName("error")
         self.result.setText(f"{t('build.failed')}\n{message}")
         self.result.style().polish(self.result)
+
+    def _inspect(self, video_ts: Path) -> None:
+        from dvd.gui.disc_inspector import DiscInspector
+
+        DiscInspector(video_ts, self).exec()
+
+    def _inspect_other(self) -> None:
+        folder = QFileDialog.getExistingDirectory(self, t("inspect.choose"),
+                                                  str(self.folder or Path.home()))  # fmt: skip
+        if folder:
+            path = Path(folder)
+            self._inspect(path / "VIDEO_TS" if (path / "VIDEO_TS").is_dir() else path)
 
     def _open_folder(self) -> None:
         if self.folder and hasattr(os, "startfile"):

@@ -366,6 +366,33 @@ def test_build_disc_with_menus(tmp_path: Path):
     assert float(duration) == pytest.approx(12 * 24000 / 1001 / 25, abs=0.4)
     # Our own authoring of the same menus and title gives the same disc, file for file.
     _same_when_we_author_it(tmp_path, result.video_ts)
+    # The inspector reads the buttons back out of the menu's NAV pack.
+    from dvd.ifo import read_disc
+    from dvd.ifo.buttons import menu_buttons
+    from dvd.ifo.vm import decode
+
+    disc = read_disc(result.video_ts)
+    root = next(m for m in disc.titlesets[0].menus if m.entry == "root")
+    buttons = menu_buttons(result.video_ts, 1, root)
+    assert len(buttons) >= 2
+    assert all(0 <= b.rect[0] < b.rect[2] < 720 and 0 <= b.rect[1] < b.rect[3] < 576
+               for b in buttons)  # fmt: skip
+    assert buttons[0].down == 2 and all(decode(b.command) for b in buttons)
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QApplication
+
+    from dvd.gui.disc_inspector import DiscInspector
+
+    _app = QApplication.instance() or QApplication([])
+    inspector = DiscInspector(result.video_ts)
+    labels = [inspector.tree.topLevelItem(i).text(0)
+              for i in range(inspector.tree.topLevelItemCount())]  # fmt: skip
+    assert labels[:2] == ["Disk", "Disk açılışı"] and "Titleset 1 (PAL 16:9)" in labels
+    menus = inspector.tree.findItems("Menü 1", Qt.MatchFlag.MatchStartsWith
+                                     | Qt.MatchFlag.MatchRecursive)  # fmt: skip
+    inspector.tree.setCurrentItem(menus[0])
+    assert "Butonlar (" in inspector.detail.toPlainText()
+    assert inspector.status.text() == "Disk kurallarına uyuyor; bulgu yok."
 
 
 def _same_when_we_author_it(tmp_path: Path, video_ts: Path) -> None:
