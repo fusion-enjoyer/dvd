@@ -148,3 +148,44 @@ def test_compiled_programs_read_back():
         compile_program("call menu entry root", "vtsm")
     with pytest.raises(CompileError):
         compile_program("teleport", "vtsm")
+
+
+@pytest.mark.skipif(not READY, reason="toolchain not installed")
+def test_vobu_scan_matches_dvdauthor_nav_packs(tmp_path: Path):
+    """Our VOBU boundaries and reference picture ends are what dvdauthor writes into the
+    NAV packs, for a film with an NTSC pulldown encode and a subtitle stream."""
+    import re
+    from fractions import Fraction
+
+    from dvd.author.vobu import read_dsi, scan
+    from dvd.build import build
+    from dvd.probe import probe
+    from dvd.project import new_project, save
+    from dvd.project.edit import add_subtitle_file
+
+    src = tmp_path / "film.mkv"
+    subprocess.run(
+        [str(FFMPEG), "-v", "error", "-y", "-f", "lavfi",
+         "-i", "testsrc2=size=1280x720:rate=24000/1001:duration=5", "-f", "lavfi",
+         "-i", "sine=duration=5", "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "ac3",
+         str(src)],
+        check=True,
+    )  # fmt: skip
+    (tmp_path / "film.srt").write_text("1\n00:00:01,000 --> 00:00:03,000\nMerhaba\n", "utf-8")
+    project = new_project(probe(src), tmp_path)
+    project.disc.standard = "ntsc"
+    project.titles[0].video.overrides = {"encoder": "ffmpeg"}
+    project.menus = None
+    add_subtitle_file(project.titles[0], tmp_path / "film.srt", tmp_path)
+    project_file = tmp_path / "vobu.dvd.yaml"
+    save(project, project_file)
+    result = build(project_file, make_iso=False)
+
+    xml = next(tmp_path.rglob("dvdauthor.xml"))
+    vob_in = xml.parent / re.search(r'<vob file="([^"]+)" chapters', xml.read_text("utf-8"))[1]
+    ours = scan(vob_in, Fraction(24000, 1001))
+    theirs = read_dsi(result.video_ts / "VTS_01_1.VOB")
+    assert len(ours) == len(theirs) > 5
+    for o, t in zip(ours, theirs, strict=True):
+        assert (o.sector, o.last_sector - o.sector, tuple(o.ref_ends)) == (t.lbn, t.end, t.refs)
+    assert ours[1].start_pts == ours[0].end_pts  # units follow each other without a gap
