@@ -12,6 +12,33 @@ READY = all(toolchain.find_executable([n], DIRS) for n in ("dvdauthor.exe", "spu
     and FFMPEG is not None  # fmt: skip
 
 
+def assert_nav_packs_match(work: Path, video_ts: Path, fps) -> None:
+    """Our NAV packs for the film title equal the ones dvdauthor wrote, byte for byte."""
+    import re
+
+    from dvd.author.nav import CellMap, nav_pack
+    from dvd.author.vobu import scan_stream
+    from dvd.ifo import read_disc
+
+    xml = next(work.rglob("dvdauthor.xml"))
+    vob_in = xml.parent / re.search(r'<vob file="([^"]+)" chapters', xml.read_text("utf-8"))[1]
+    ts = read_disc(video_ts).titlesets[0]
+    scan = scan_stream(vob_in, fps)
+    firsts = {c.first_sector for c in ts.titles[0].cells}
+    cells = CellMap([i for i, v in enumerate(scan.vobus) if v.sector in firsts])
+    vob = (video_ts / "VTS_01_1.VOB").read_bytes()
+    for i, v in enumerate(scan.vobus):
+        theirs = vob[v.sector * 2048 : (v.sector + 1) * 2048]
+        ours = nav_pack(theirs, scan, cells, i, ts.standard == "pal", len(ts.audio),
+                        len(ts.subpictures))  # fmt: skip
+        units = scan.subpictures.get(0, [])
+        if units and v.end_pts <= units[0][1]:
+            # Before the first subpicture dvdauthor reads past its table (findspuidx never
+            # says "none"), so its value there changes from run to run; ours says "later".
+            theirs = theirs[:0x5A9] + ours[0x5A9:0x5AD] + theirs[0x5AD:]
+        assert ours == theirs, f"VOBU {i} differs"
+
+
 @pytest.mark.parametrize(("raw", "text"), [
     ("3008000001830000", "CallSS VTSM root, resume cell 1"),
     ("3006000101830000", "JumpSS VTSM (vts 1, title 1) root"),
@@ -78,6 +105,9 @@ def test_read_a_built_disc(tmp_path: Path):
     assert [m.entry for m in film.menus if m.entry] == ["root", "ptt"]
     assert film.menus[0].cells[0].still == 255  # the menu still waits for a key
     assert pgc.uops == 0 and intro.titles[0].uops == NO_SKIP
+    from fractions import Fraction
+
+    assert_nav_packs_match(tmp_path, result.video_ts, Fraction(25))
     from typer.testing import CliRunner
 
     from dvd.cli import app
@@ -189,3 +219,4 @@ def test_vobu_scan_matches_dvdauthor_nav_packs(tmp_path: Path):
     for o, t in zip(ours, theirs, strict=True):
         assert (o.sector, o.last_sector - o.sector, tuple(o.ref_ends)) == (t.lbn, t.end, t.refs)
     assert ours[1].start_pts == ours[0].end_pts  # units follow each other without a gap
+    assert_nav_packs_match(tmp_path, result.video_ts, Fraction(24000, 1001))

@@ -190,7 +190,8 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 - [ ] IFO yazıcı: VMG, VTS, PGC, program/cell tabloları, VM komutları
 - [ ] VOB multiplexer: NAV pack (PCI/DSI), VOBU sınırları, zaman damgaları
   - [x] VOBU tarayıcı (`author/vobu.py`): program akışından VOBU başlangıç/bitiş sektörleri, ilk üç referans resmin bittiği sektörler, sunum zamanları; yalnız dolgu paketleri sayılmaz. dvdauthor'ın NAV paketlerine yazdığıyla (PAL, NTSC pulldown, altyazılı) birebir test ediliyor
-  - [ ] NAV paketlerini (PCI/DSI) kendimiz doldurma
+  - [x] Başlık VOB'larının NAV paketleri (`author/nav.py`): PCI genel bilgisi, DSI (sektörler, referans resimler, hücre, 0,5–120 sn arama tablosu, ses ve altyazı senkron adresleri); alan sayımıyla (pulldown dahil) VOBU bitiş zamanları. PAL ve NTSC+altyazılı test disklerinde dvdauthor'ınkiyle bayt bayt aynı (dvdauthor'ın ilk altyazıdan önceki kararsız değeri hariç)
+  - [ ] Menü NAV paketleri (buton/vurgu bilgisi), ses bitişinin son VOBU'ya etkisi
 - [ ] Seamless branching, çoklu açı
 - [ ] DVD-9 katman geçişi yerleşimi
 - [x] VM komut derleyicisi (okunabilir mini dil → DVD VM): `ifo/vmc.py`, menü kodunun yazdığı dil (atama, rastgele, ses/altyazı/buton, jump title/chapter/menu/cell, call menu entry, titleset/VMG atlamaları, resume, exit, if ve if-blokları); dvdauthor'ın ürettiği baytlarla birebir test ediliyor
