@@ -11,6 +11,7 @@ from pathlib import Path
 import vapoursynth as vs
 
 from dvd.audio.ac3 import can_copy, encode_ac3
+from dvd.author import psmux
 from dvd.author.dvdauthor import AuthorTitle, author, dvdauthor_xml, mux, timecode
 from dvd.author.own import author_xml
 from dvd.author.pscheck import check as check_mux
@@ -300,6 +301,17 @@ def _intro_path(project_file: Path, intro) -> Path:
     return path if path.is_absolute() else project_file.parent / path
 
 
+def _mux(project: Project, m2v: Path, audio: list[Path], out: Path) -> Path:
+    """FFmpeg's DVD muxer, or ours with our own authoring (a VOBU per GOP, so chapters land
+    on their frame)."""
+    if project.disc.authoring == "own":
+        try:
+            return psmux.mux(m2v, audio, out)
+        except psmux.MuxError as exc:
+            raise BuildError(f"mux: {exc}") from None
+    return mux(m2v, audio, out)
+
+
 def _intro_vob(project: Project, info: SourceInfo, film: _Prepared, budget: Plan,
                work_dir: Path, k: int, report: Progress,
                kind: str = "intro") -> AuthorTitle:  # fmt: skip
@@ -335,7 +347,7 @@ def _intro_vob(project: Project, info: SourceInfo, film: _Prepared, budget: Plan
         out = work_dir / f"{tag}_a0.ac3"
         audio.append(encode_ac3(info.path, a.index, out, "2.0", 192, target.speedup,
                                 delay_ms=offset, source_channels=a.channels))  # fmt: skip
-    mpg = mux(m2v, audio, work_dir / f"{tag}.mpg")
+    mpg = _mux(project, m2v, audio, work_dir / f"{tag}.mpg")
     return AuthorTitle(vob=mpg.name, aspect=target.aspect)
 
 
@@ -350,6 +362,8 @@ def build(
     """`authoring`: "dvdauthor" or "own", in place of the project's choice."""
     project_file = Path(project_file).resolve()
     project = load(project_file)
+    if authoring is not None:
+        project.disc.authoring = authoring
     name = safe_name(project.disc.name)
     out_dir = out_dir or project_file.parent / name
     work_dir = work_dir or project_file.parent / "build" / name
@@ -450,7 +464,7 @@ def build(
             )
         warnings += [f"title {n}: {w}" for w in compliance.warnings]
         report(f"title {n} mux", 0.0)
-        mpg = mux(m2v, audio_files, work_dir / f"{tag}.mpg")
+        mpg = _mux(project, m2v, audio_files, work_dir / f"{tag}.mpg")
         subs = disc_subtitles(p.title)
         for i, sub in enumerate(subs):
             cues = retime(_subtitle_cues(sub, p, project_file, work_dir / f"{tag}_s{i}.srt"),
@@ -511,7 +525,7 @@ def build(
     report("authoring", 0.0)
     locked = {k: NO_SKIP for k, intro in enumerate(project.first_play, start=1)
               if not intro.skippable}  # fmt: skip
-    if (authoring or project.disc.authoring) == "own":
+    if project.disc.authoring == "own":
         xml = work_dir / "dvdauthor.xml"  # the same description dvdauthor would get
         xml.write_text(dvdauthor_xml(author_titles, project.disc.standard, menus=menus,
                                      intros=intros, at_end=project.at_end, hidden=hidden),

@@ -112,6 +112,10 @@ def scan_stream(path: Path, fps: Fraction) -> Scan:
                 if sid == 0xBB and (not vobus or vobus[-1].sector != sector):  # NAV pack
                     if vobus:
                         _close(vobus[-1], sector - 1, pts_seen, frame, video)
+                        if open_ref is not None and open_ref[0] is vobus[-1]:
+                            # The unit ends on a reference picture (a GOP that closes a
+                            # chapter): it runs to the unit's last video pack.
+                            vobus[-1].ref_ends.append(open_ref[1])
                     video = bytearray()
                     vobus.append(Vobu(sector, scr))
                     pts_seen = []
