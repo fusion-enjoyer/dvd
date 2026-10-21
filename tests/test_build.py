@@ -507,3 +507,26 @@ def test_chapter_pictures_can_move(tmp_path: Path):
     inside = np.abs(frames[0] - frames[1])[y : y + h, x : x + w].mean()
     outside = np.abs(frames[0] - frames[1])[: y - 10, :].mean()
     assert inside > 3 * outside  # the pictures move, the page around them hardly changes
+
+
+@pytest.mark.skipif(not READY, reason="toolchain not installed")
+def test_pages_dissolve_into_each_other(tmp_path: Path):
+    src = _sample(tmp_path, seconds=12)
+    project = new_project(probe(src), tmp_path)
+    project.titles[0].video.overrides = {"encoder": "ffmpeg"}
+    project.menus.transition = 1.0
+    project_file = tmp_path / "gecis.dvd.yaml"
+    save(project, project_file)
+
+    build(project_file, make_iso=False)
+
+    xml = next(tmp_path.rglob("dvdauthor.xml")).read_text(encoding="utf-8")
+    pages = xml.count('pause="inf"')  # main, chapters, languages
+    assert pages == 3
+    # The main page's Chapters button goes through transition menu 4, which goes on to 2.
+    assert '<button name="chapters">jump menu 4;</button>' in xml
+    assert '<vob file="trans01.mpg" pause="0"/>\n        <post>jump menu 2;</post>' in xml
+    log = next(tmp_path.rglob("dvdauthor.log")).read_text(encoding="utf-8", errors="replace")
+    assert "ERR" not in log
+    dissolve = probe(next(tmp_path.rglob("build/*/trans01.mpg")))
+    assert dissolve.duration == pytest.approx(1.0, abs=0.2)

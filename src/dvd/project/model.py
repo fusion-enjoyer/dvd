@@ -374,6 +374,8 @@ class Menus(Strict):
     timeout: int | None = Field(None, ge=5, le=250)
     # Chapter and episode pages: each picture plays this many seconds of its chapter, looping.
     moving_thumbs: int | None = Field(None, ge=3, le=30)
+    # Seconds of a dissolve from one page to the next when a button opens another page.
+    transition: float | None = Field(None, ge=0.5, le=3.0)
 
     @model_validator(mode="after")
     def _links(self) -> Menus:

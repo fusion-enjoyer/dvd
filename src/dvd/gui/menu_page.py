@@ -185,6 +185,10 @@ class MenuEditorPage(QWidget):
             lambda on: self._set_menus(moving_thumbs=8 if on else None)
         )
         play_row.addWidget(self.moving_thumbs)
+        self.transition = QCheckBox(t("menu.transition"))
+        self.transition.setToolTip(t("menu.transition_hint"))
+        self.transition.toggled.connect(lambda on: self._set_menus(transition=1.0 if on else None))
+        play_row.addWidget(self.transition)
         play_row.addSpacing(16)
         play_row.addWidget(QLabel(t("menu.timeout")))
         play_row.addWidget(self.timeout)
@@ -277,7 +281,8 @@ class MenuEditorPage(QWidget):
         self.dirty = True
         menus = project.menus
         widgets = [self.enabled, self.bg_kind, self.template, *self.page_checks.values(),
-                   self.resume, self.shuffle, self.timeout, self.moving_thumbs]  # fmt: skip
+                   self.resume, self.shuffle, self.timeout, self.moving_thumbs,
+                   self.transition]  # fmt: skip
         for w in widgets:
             w.blockSignals(True)
         self.enabled.setChecked(menus is not None)
@@ -295,6 +300,7 @@ class MenuEditorPage(QWidget):
             self.shuffle.setVisible(len(project.titles) > 1)  # only a series has episodes
             self.timeout.setValue(menus.timeout or 0)
             self.moving_thumbs.setChecked(menus.moving_thumbs is not None)
+            self.transition.setChecked(menus.transition is not None)
             bg = menus.background
             key = ("motion" if bg.motion else "frame" if bg.frame else
                    "image" if bg.image else "color")  # fmt: skip

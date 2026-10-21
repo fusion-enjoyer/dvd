@@ -248,6 +248,8 @@ def test_menu_page_toggles_menus_and_previews_pages(app, tmp_path: Path):
     assert load(project_file).menus.background.intro == 3
     page.moving_thumbs.setChecked(True)
     assert load(project_file).menus.moving_thumbs == 8
+    page.transition.setChecked(True)
+    assert load(project_file).menus.transition == 1.0
     page.bg_kind.setCurrentIndex(page.bg_kind.findData("frame"))
     assert load(project_file).menus.background.motion is None
     page.enabled.setChecked(False)

@@ -278,7 +278,8 @@ def _menus(project: Project, prepared: list[_Prepared], project_dir: Path, work_
             videos[page.id] = (mpg, float(seconds))
     return author_menus(pages, rendered, project.menus.first, project.disc.standard,
                         p.target.dar, work_dir, len(project.titles),
-                        project.menus.timeout, videos, intros)  # fmt: skip
+                        project.menus.timeout, videos, intros,
+                        project.menus.transition)  # fmt: skip
 
 
 def _intro_path(project_file: Path, intro) -> Path:

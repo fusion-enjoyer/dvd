@@ -273,6 +273,10 @@ TEXTS: dict[str, dict[str, str]] = {
             "Bölüm (ve dizide bölüm seçim) sayfalarında her kare kendi bölümünden 8 saniyelik "
             "bir döngü oynatır. Disk biraz büyür, diski oluşturmak uzar."
         ),
+        "menu.transition": "Sayfa geçişleri yumuşak",
+        "menu.transition_hint": (
+            "Bir butonla başka menü sayfasına geçerken iki sayfa 1 saniyede birbirine karışır."
+        ),
         "menu.timeout": "Kimse dokunmazsa oynat",
         "menu.timeout_off": "kapalı",
         "menu.timeout_unit": " sn sonra",

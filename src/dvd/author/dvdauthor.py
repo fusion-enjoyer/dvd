@@ -64,7 +64,7 @@ class AuthorMenu:
     buttons: list[tuple[str, str]]  # (button name in the subpicture, VM command)
     entry: str | None = None  # "root", "ptt", "audio", "subtitle": the remote's menu keys
     pre: str = ""  # VM commands run as the menu opens
-    pause: int | None = None  # seconds the still waits; None: until a key is pressed
+    pause: int | None = None  # seconds the still waits (0: none); None: until a key press
     post: str = ""  # VM commands run when the pause runs out
     loop: bool = False  # a moving menu: the video plays again from the start
     intro: str | None = None  # a moving menu's opening, played once before the looping part
@@ -134,7 +134,7 @@ def dvdauthor_xml(
                 again = "jump cell 2;" if m.intro else "jump cell 1;"
                 lines.append(f"        <post>{m.post} {again}</post>".replace("> ", ">"))
             else:
-                pause = str(m.pause) if m.pause else "inf"
+                pause = "inf" if m.pause is None else str(m.pause)
                 lines.append(f'        <vob file={quoteattr(m.vob)} pause="{pause}"/>')
                 if m.post:
                     lines.append(f"        <post>{m.post}</post>")
