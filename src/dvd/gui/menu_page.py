@@ -179,6 +179,12 @@ class MenuEditorPage(QWidget):
         self.timeout.editingFinished.connect(self._timeout_changed)
         for w in (self.resume, self.shuffle):
             play_row.addWidget(w)
+        self.moving_thumbs = QCheckBox(t("menu.moving_thumbs"))
+        self.moving_thumbs.setToolTip(t("menu.moving_thumbs_hint"))
+        self.moving_thumbs.toggled.connect(
+            lambda on: self._set_menus(moving_thumbs=8 if on else None)
+        )
+        play_row.addWidget(self.moving_thumbs)
         play_row.addSpacing(16)
         play_row.addWidget(QLabel(t("menu.timeout")))
         play_row.addWidget(self.timeout)
@@ -271,7 +277,7 @@ class MenuEditorPage(QWidget):
         self.dirty = True
         menus = project.menus
         widgets = [self.enabled, self.bg_kind, self.template, *self.page_checks.values(),
-                   self.resume, self.shuffle, self.timeout]  # fmt: skip
+                   self.resume, self.shuffle, self.timeout, self.moving_thumbs]  # fmt: skip
         for w in widgets:
             w.blockSignals(True)
         self.enabled.setChecked(menus is not None)
@@ -288,6 +294,7 @@ class MenuEditorPage(QWidget):
             self.shuffle.setChecked(menus.shuffle)
             self.shuffle.setVisible(len(project.titles) > 1)  # only a series has episodes
             self.timeout.setValue(menus.timeout or 0)
+            self.moving_thumbs.setChecked(menus.moving_thumbs is not None)
             bg = menus.background
             key = ("motion" if bg.motion else "frame" if bg.frame else
                    "image" if bg.image else "color")  # fmt: skip

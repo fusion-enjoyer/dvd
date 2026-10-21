@@ -258,6 +258,24 @@ def _menus(project: Project, prepared: list[_Prepared], project_dir: Path, work_
                          over.background, work_dir / "motion", "menu", wanted,
                          p.target.crop)  # fmt: skip
         videos[first.id] = (mpg, bg.motion / float(p.target.speedup))
+    if project.menus.moving_thumbs:
+        from dvd.menu.motion import thumb_rects, thumbs_mpg
+
+        wanted = resolve_profiles(project.disc.profiles)["encoder"]
+        for page in pages:
+            shots = [b for b in page.buttons if b.thumb is not None]
+            if not shots or page.id in videos:
+                continue
+            clips = []
+            for b in shots:
+                q = prepared[b.thumb_title]
+                start = b.thumb_choices[0] if len(b.thumb_choices) == 1 else b.thumb + 1.0
+                clips.append((q.source, q.info, start, q.target.crop))
+            seconds = project.menus.moving_thumbs
+            mpg = thumbs_mpg(rendered[page.id].background, clips, thumb_rects(page, frame),
+                             seconds, project.disc.standard, p.target.dar, work_dir / "motion",
+                             f"thumbs-{page.id}", wanted)  # fmt: skip
+            videos[page.id] = (mpg, float(seconds))
     return author_menus(pages, rendered, project.menus.first, project.disc.standard,
                         p.target.dar, work_dir, len(project.titles),
                         project.menus.timeout, videos, intros)  # fmt: skip

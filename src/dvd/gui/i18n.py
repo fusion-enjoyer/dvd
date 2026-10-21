@@ -268,6 +268,11 @@ TEXTS: dict[str, dict[str, str]] = {
             "Oynatıcı yarıda kalan bir film yoksa basışı yok sayar."
         ),
         "menu.shuffle": '"Rastgele bölüm" butonu',
+        "menu.moving_thumbs": "Bölüm kareleri hareketli",
+        "menu.moving_thumbs_hint": (
+            "Bölüm (ve dizide bölüm seçim) sayfalarında her kare kendi bölümünden 8 saniyelik "
+            "bir döngü oynatır. Disk biraz büyür, diski oluşturmak uzar."
+        ),
         "menu.timeout": "Kimse dokunmazsa oynat",
         "menu.timeout_off": "kapalı",
         "menu.timeout_unit": " sn sonra",

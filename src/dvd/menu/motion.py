@@ -128,8 +128,8 @@ def _rgba(image: QImage) -> np.ndarray:
     return view[:, : img.width() * 4].reshape(img.height(), img.width(), 4).copy()
 
 
-def _audio(source: Path, info: SourceInfo, start: float, seconds: float, speedup: Fraction,
-           out: Path, fade_out: bool = True) -> Path:  # fmt: skip
+def _audio(source: Path | None, info: SourceInfo | None, start: float, seconds: float,
+           speedup: Fraction, out: Path, fade_out: bool = True) -> Path:  # fmt: skip
     """The film's sound for the stretch (silence without one), as the video's speed, faded
     out over the last second so the loop does not click (not for an intro, which runs on
     into the loop)."""
@@ -140,7 +140,7 @@ def _audio(source: Path, info: SourceInfo, start: float, seconds: float, speedup
     fade = "afade=t=in:d=0.3"
     if fade_out:
         fade += f",afade=t=out:st={max(0.0, length - 1):.3f}:d=1"
-    if info.audio:
+    if source is not None and info is not None and info.audio:
         tempo = f"atempo={float(speedup):.6f}," if speedup != 1 else ""
         args = ["-ss", f"{start:.3f}", "-t", f"{seconds:.3f}", "-i", str(source),
                 "-map", f"0:{info.audio[0].index}", "-af", tempo + fade]  # fmt: skip
@@ -174,4 +174,75 @@ def motion_mpg(source: Path, info: SourceInfo, start: float, seconds: float, sta
                           workdir / f"{name}_{name_enc}")  # fmt: skip
     ac3 = _audio(source, info, start, seconds, speedup, workdir / f"{name}.ac3",
                  fade_out=not intro)  # fmt: skip
+    return mux(m2v, [ac3], workdir / f"{name}.mpg")
+
+
+def _nearest_rate(piece: vs.VideoNode, rate: Fraction, disc: Fraction) -> vs.VideoNode:
+    """The disc rate by taking the nearest source frame (no speedup, no pulldown)."""
+    if not _close(rate, disc):
+        count = int(piece.num_frames * disc / rate)
+        picks = [min(piece.num_frames - 1, round(k * rate / disc)) for k in range(count)]
+        piece = core.std.Splice([piece[i] for i in picks])
+    return core.std.AssumeFPS(piece, fpsnum=disc.numerator, fpsden=disc.denominator)
+
+
+def thumb_rects(page, frame: tuple[int, int, Fraction]) -> list[tuple[int, int, int, int]]:
+    """Disc-pixel boxes (x, y, w, h, all even) of the pictures in a page's thumb buttons, as
+    `render_page` draws them: 16:9 at display size, squeezed to the disc width."""
+    fw, fh, aspect = frame
+    dw = round(fh * aspect)
+    out = []
+    for b in page.buttons:
+        if b.thumb is None:
+            continue
+        x, y, w, _h = b.rect
+        width, height = w * fw, w * dw * 9 / 16
+        out.append(tuple(int(v) // 2 * 2 for v in (x * fw, y * fh, width, height)))
+    return out
+
+
+def thumbs_mpg(base: QImage, clips: list[tuple[Path, SourceInfo, float, Crop]],
+               rects: list[tuple[int, int, int, int]], seconds: float, standard: str,
+               aspect: Fraction, workdir: Path, name: str,
+               encoder: str = "ffmpeg") -> Path:  # fmt: skip
+    """A page whose thumb pictures move: each (source, info, start, crop) plays `seconds`
+    inside its box over the still page `base` (disc frame, RGB); silent, ready to loop."""
+    workdir.mkdir(parents=True, exist_ok=True)
+    frame_h = 576 if standard == "pal" else 480
+    matrix = "470bg" if standard == "pal" else "170m"
+    disc = PAL_RATE if standard == "pal" else NTSC_RATE
+    count = max(1, round(seconds * disc))
+    rgba = _rgba(base)
+    rgba[:, :, 3] = 255
+    out, _mask = _picture_clip(rgba, matrix, count, disc)
+    for (source, info, start, crop), (x, y, w, h) in zip(clips, rects, strict=True):
+        v = info.main_video
+        if v is None or w < 16 or h < 16:
+            continue
+        clip = open_source(source, v)
+        rate = Fraction(clip.fps_num, clip.fps_den)
+        first = max(0, min(clip.num_frames - 1, round(start * rate)))
+        piece = clip[first : min(clip.num_frames, first + round(seconds * rate) + 1)]
+        c = _cover_crop(v.width, v.height, v.sar, Fraction(16, 9), crop)
+        if any((c.left, c.right, c.top, c.bottom)):
+            piece = core.std.Crop(piece, c.left, c.right, c.top, c.bottom)
+        piece = scale_to_sd(piece, v, w, h, "spline36", matrix, vs.YUV420P16)
+        piece = _nearest_rate(piece, rate, disc)
+        while piece.num_frames < count:  # a short chapter: play it again
+            piece = piece + piece
+        piece = core.std.AddBorders(piece[:count], left=x, right=720 - x - w, top=y,
+                                    bottom=frame_h - y - h)  # fmt: skip
+        box = core.std.BlankClip(width=w, height=h, format=vs.GRAY16, color=[65535], length=count)
+        mask = core.std.AddBorders(box, left=x, right=720 - x - w, top=y,
+                                   bottom=frame_h - y - h, color=[0])  # fmt: skip
+        mask = core.std.AssumeFPS(mask, fpsnum=disc.numerator, fpsden=disc.denominator)
+        out = core.std.MaskedMerge(out, piece, mask, first_plane=True)
+    clip = core.resize.Point(out, format=vs.YUV420P8, dither_type="error_diffusion")
+    settings = EncodeSettings(bitrate=VIDEO_KBPS, maxrate=PEAK_KBPS,
+                              aspect="16:9" if aspect > Fraction(3, 2) else "4:3",
+                              standard=standard)  # fmt: skip
+    name_enc, _note = encoders.choose(encoder)
+    m2v = encoders.encode(name_enc, clip, workdir / f"{name}.m2v", settings,
+                          workdir / f"{name}_{name_enc}")  # fmt: skip
+    ac3 = _audio(None, None, 0.0, count / float(disc), Fraction(1), workdir / f"{name}.ac3")
     return mux(m2v, [ac3], workdir / f"{name}.mpg")

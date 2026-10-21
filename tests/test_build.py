@@ -472,3 +472,38 @@ def test_moving_menu_loops_the_film_behind_the_buttons(tmp_path: Path):
     assert moving.duration == pytest.approx(4.8, abs=0.4)
     assert [a.codec for a in moving.audio] == ["ac3"] and len(moving.subtitles) == 1
     assert (result.video_ts / "VTS_01_0.VOB").stat().st_size > 2_000_000  # all menus
+
+
+@pytest.mark.skipif(not READY, reason="toolchain not installed")
+def test_chapter_pictures_can_move(tmp_path: Path):
+    from fractions import Fraction
+
+    from dvd.menu.layout import expand
+    from dvd.menu.motion import thumb_rects
+
+    src = _sample(tmp_path, seconds=12)
+    project = new_project(probe(src), tmp_path)
+    project.titles[0].video.overrides = {"encoder": "ffmpeg"}
+    project.menus.moving_thumbs = 3
+    project_file = tmp_path / "kareler.dvd.yaml"
+    save(project, project_file)
+
+    build(project_file, make_iso=False)
+
+    xml = next(tmp_path.rglob("dvdauthor.xml")).read_text(encoding="utf-8")
+    chapters = xml.split('entry="ptt"')[1].split("</pgc>")[0]
+    assert "<post>jump cell 1;</post>" in chapters and 'pause="inf"' not in chapters
+    page = next(p for p in expand(project, [probe(src)]) if p.kind == "chapters")
+    x, y, w, h = thumb_rects(page, (720, 576, Fraction(16, 9)))[0]
+    mpg = next(tmp_path.rglob("motion/thumbs-chapters.mpg"))
+    frames = []
+    for n in (0, 40):
+        raw = subprocess.run(
+            [str(FFMPEG), "-v", "error", "-i", str(mpg), "-vf", rf"select=eq(n\,{n})",
+             "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "gray", "-"],
+            capture_output=True, check=True,
+        ).stdout  # fmt: skip
+        frames.append(np.frombuffer(raw, np.uint8).reshape(576, 720).astype(int))
+    inside = np.abs(frames[0] - frames[1])[y : y + h, x : x + w].mean()
+    outside = np.abs(frames[0] - frames[1])[: y - 10, :].mean()
+    assert inside > 3 * outside  # the pictures move, the page around them hardly changes

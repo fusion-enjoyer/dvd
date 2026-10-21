@@ -372,6 +372,8 @@ class Menus(Strict):
     shuffle: bool = False  # main page of a disc with several titles: "random episode"
     # The first page plays the film (all titles) after this many seconds without a key press.
     timeout: int | None = Field(None, ge=5, le=250)
+    # Chapter and episode pages: each picture plays this many seconds of its chapter, looping.
+    moving_thumbs: int | None = Field(None, ge=3, le=30)
 
     @model_validator(mode="after")
     def _links(self) -> Menus:
