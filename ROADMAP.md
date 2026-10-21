@@ -185,6 +185,8 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 ## Faz 7 — Kendi authoring motorumuz (dibine kadar)
 
 - [ ] IFO/BUP okuyucu → referans analizörü uygulamaya entegre (menü ağacı, VM komutları okunur halde)
+  - [x] Okuyucu ve komut çözücü: `dvd/ifo` VIDEO_TS.IFO ve VTS IFO'larını okur (başlıklar, bölümler, titleset görüntü/ses/altyazı, menü PGC'leri ve giriş türleri, hücreler ve süreleri, kumanda kısıtlamaları, palet, pre/post/hücre komutları); `ifo/vm.py` 8 baytlık VM komutlarını metne çevirir; `dvd ifo <klasör> [-c]`. İlk bulgusu: dvdauthor'da yalın `call menu` bölüm menüsünü çağırıyormuş, düzeltildi
+  - [ ] Uygulamada referans analizörü (menü ağacı görünümü), ripler gelince referans DVD'lerle doğrulama
 - [ ] IFO yazıcı: VMG, VTS, PGC, program/cell tabloları, VM komutları
 - [ ] VOB multiplexer: NAV pack (PCI/DSI), VOBU sınırları, zaman damgaları
 - [ ] Seamless branching, çoklu açı
