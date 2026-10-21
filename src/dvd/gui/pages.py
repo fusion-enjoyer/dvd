@@ -293,6 +293,7 @@ class TracksPage(QWidget):
 
 
 STAGES = [
+    (r"title \d+ index", "build.stage.index"),
     (r"title \d+ audio", "build.stage.audio"),
     (r"title \d+ video", "build.stage.video"),
     (r"title \d+ check", "build.stage.check"),

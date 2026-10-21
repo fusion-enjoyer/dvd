@@ -387,6 +387,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "build.open_folder": "Klasörü aç",
         "build.failed": "Disk oluşturulamadı.",
         "build.wrote": "Yazıldı: {path}",
+        "build.stage.index": "Kaynak video taranıyor (büyük dosyada birkaç dakika sürer)",
         "build.stage.audio": "Ses izleri hazırlanıyor",
         "build.stage.video": "Görüntü hazırlanıyor",
         "build.stage.check": "DVD uyumluluğu denetleniyor",

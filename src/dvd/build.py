@@ -46,6 +46,7 @@ from dvd.video.pipeline import (
     UnsupportedSource,
     build_clip,
     check_supported,
+    open_source,
     plan_target,
 )
 from dvd.video.preprocess import resolve as resolve_preprocess
@@ -167,7 +168,11 @@ def estimate(project: Project, infos: list[SourceInfo]) -> Plan:
 
 
 def prepare_title(
-    project: Project, project_file: Path, n: int, warnings: list[str] | None = None
+    project: Project,
+    project_file: Path,
+    n: int,
+    warnings: list[str] | None = None,
+    report: Progress | None = None,
 ) -> _Prepared:
     """Probe title `n` (1-based), detect its bars and plan its DVD frame."""
     title = project.titles[n - 1]
@@ -175,9 +180,14 @@ def prepare_title(
     info = probe(source)
     if info.main_video is None:
         raise BuildError(f"{source.name} has no video track")
+    # Opening the source indexes the whole file the first time (minutes for a large Blu-ray;
+    # cached after). The build needs that index anyway, so crop detection reads from it too.
+    if report is not None:
+        report(f"title {n} index", 0.0)
+    check_supported(info.main_video)
+    open_source(source, info.main_video)
     detected = None
     if title.video.crop == "auto":
-        check_supported(info.main_video)
         detected = detect_crop(source, info.main_video)
         if detected is None and warnings is not None:
             warnings.append(f"title {n}: black bars could not be detected; full frame used")
@@ -193,10 +203,10 @@ def disc_clip(project: Project, p: _Prepared) -> vs.VideoNode:
     return build_clip(p.source, p.info.main_video, p.target, p.title.video, pre)
 
 
-def _prepare(project: Project, project_file: Path, warnings: list[str]) -> list[_Prepared]:
-    return [
-        prepare_title(project, project_file, n, warnings) for n in range(1, len(project.titles) + 1)
-    ]
+def _prepare(project: Project, project_file: Path, warnings: list[str],
+             report: Progress | None = None) -> list[_Prepared]:  # fmt: skip
+    return [prepare_title(project, project_file, n, warnings, report)
+            for n in range(1, len(project.titles) + 1)]  # fmt: skip
 
 
 def _menus(project: Project, prepared: list[_Prepared], project_dir: Path, work_dir: Path,
@@ -347,7 +357,7 @@ def build(
 
     warnings = []
 
-    prepared = _prepare(project, project_file, warnings)
+    prepared = _prepare(project, project_file, warnings, report)
     intro_infos = [probe(_intro_path(project_file, i)) for i in project.first_play]
     clips = project.menus.hidden_clips() if project.menus is not None else []
     hidden_infos = [probe(_intro_path(project_file, h)) for h in clips]
