@@ -224,7 +224,7 @@ def test_templates_place_the_main_buttons():
     main = expand(p, info)[0]
     assert all(b.rect[0] + b.rect[2] / 2 == pytest.approx(0.5) for b in main.buttons)
     with pytest.raises(ValidationError):
-        Menus.model_validate({"template": "yok"})
+        Menus.model_validate({"template": "../yok"})  # user names, but no paths
 
 
 def test_uppercase_labels_keep_turkish_letters():
@@ -463,3 +463,42 @@ def test_hidden_clip_spot_is_reached_only_from_its_button():
     assert r.highlight[cy, cx, 3] > 0 and r.select[cy, cx, 3] > 0  # a dot when lit
     corner = r.highlight[round(y * rows) + 1, round(x * cols) + 1]
     assert corner[3] == 0  # only a dot, not the whole spot
+
+
+def test_user_templates_save_export_and_import(tmp_path: Path, monkeypatch):
+    from dataclasses import replace
+
+    from dvd.menu.templates import (
+        TEMPLATES,
+        TemplateError,
+        export_template,
+        import_template,
+        list_templates,
+        load_template,
+        save_template,
+        template,
+    )
+
+    monkeypatch.setenv("DVD_TEMPLATE_DIR", str(tmp_path / "tpl"))
+    mine = replace(TEMPLATES["sinematik"], highlight=(255, 0, 0), uppercase=False)
+    path = save_template("Kırmızı sinema", mine, "sinematik")
+    text = path.read_text(encoding="utf-8")
+    assert text.startswith("base: sinematik") and "uppercase: false" in text
+    assert "marker" not in text  # only what differs from the base is written
+    loaded = load_template("Kırmızı sinema")
+    assert loaded.highlight == (255, 0, 0) and loaded.main == "row-bottom"
+    assert list_templates()[-1] == "Kırmızı sinema"
+    with pytest.raises(TemplateError):
+        save_template("minimal", mine)
+    shared = export_template("Kırmızı sinema", tmp_path / "paylas.yaml")
+    assert import_template(shared) == "Kırmızı sinema 2"  # the name was taken
+    assert load_template("Kırmızı sinema 2").highlight == (255, 0, 0)
+    (tmp_path / "bozuk.yaml").write_text("base: yok\n", encoding="utf-8")
+    with pytest.raises(TemplateError):
+        import_template(tmp_path / "bozuk.yaml")
+    (tmp_path / "bozuk.yaml").write_text("marker: daire\n", encoding="utf-8")
+    with pytest.raises(TemplateError, match="marker"):
+        import_template(tmp_path / "bozuk.yaml")
+    assert template("silinmis") is TEMPLATES["minimal"]  # a project naming a missing one
+    p, info = project(menus={"template": "Kırmızı sinema"})
+    assert [b.rect[1] for b in expand(p, info)[0].buttons][0] > 0.7  # its row-bottom layout

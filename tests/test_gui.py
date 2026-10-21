@@ -489,3 +489,26 @@ def test_text_subtitles_can_go_into_the_band(app, tmp_path: Path):
     assert len(keep) == 1  # only the PGS file
     keep[0].setChecked(True)
     assert title.subtitles[1].keep_colour and not title.subtitles[0].keep_colour
+
+
+def test_template_editor_saves_a_user_template(app, tmp_path: Path, monkeypatch):
+    from PySide6.QtWidgets import QComboBox
+
+    from dvd.gui.template_editor import TemplateEditor
+    from dvd.menu.templates import load_template
+
+    monkeypatch.setenv("DVD_TEMPLATE_DIR", str(tmp_path))
+    dialog = TemplateEditor("2000ler")
+    assert dialog.preview.pixmap() is not None and not dialog.preview.pixmap().isNull()
+    marker = dialog.widgets["marker"]
+    assert isinstance(marker, QComboBox)
+    marker.setCurrentIndex(marker.findData("underline"))
+    dialog.widgets["shadow"].setChecked(False)
+    saved = []
+    dialog.saved.connect(saved.append)
+    assert dialog.save() is None  # no name yet
+    dialog.name.setText("Mavi")
+    assert dialog.save() == "Mavi" and saved == ["Mavi"]
+    tpl = load_template("Mavi")
+    assert tpl.marker == "underline" and not tpl.shadow and tpl.tint == (20, 50, 110)
+    assert (tmp_path / "Mavi.yaml").read_text(encoding="utf-8").startswith("base: 2000ler")

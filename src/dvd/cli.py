@@ -354,6 +354,46 @@ def profile_import(file: Path) -> None:
     typer.echo(f"wrote {save_user_profile(file.stem, settings)}")
 
 
+template_app = typer.Typer(help="List, export and import menu templates.", no_args_is_help=True)
+app.add_typer(template_app, name="template")
+
+
+@template_app.command("list")
+def template_list() -> None:
+    """Built-in and user menu templates."""
+    from dvd.menu.templates import TEMPLATES, list_templates
+
+    for name in list_templates():
+        typer.echo(f"{name}{'' if name not in TEMPLATES else '  (built-in)'}")
+
+
+@template_app.command("export")
+def template_export(
+    name: str = typer.Argument(..., help="Template name"),
+    out: Path = typer.Argument(..., help="File to write (.yaml)"),
+) -> None:
+    """Write a template to a file to share."""
+    from dvd.menu.templates import TemplateError, export_template
+
+    try:
+        typer.echo(f"wrote {export_template(name, out)}")
+    except TemplateError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from None
+
+
+@template_app.command("import")
+def template_import(path: Path = typer.Argument(..., help="Exported template file")) -> None:
+    """Add a shared template to your templates."""
+    from dvd.menu.templates import TemplateError, import_template
+
+    try:
+        typer.echo(f"imported as {import_template(path)!r}")
+    except (TemplateError, OSError, ValueError) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from None
+
+
 series_app = typer.Typer(help="Turn a season folder into a set of discs.", no_args_is_help=True)
 app.add_typer(series_app, name="series")
 

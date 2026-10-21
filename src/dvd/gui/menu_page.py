@@ -124,10 +124,12 @@ class MenuEditorPage(QWidget):
         opts.addSpacing(16)
         opts.addWidget(QLabel(t("menu.template")))
         self.template = QComboBox()
-        for name in ("minimal", "sinematik", "2000ler", "dizi"):
-            self.template.addItem(t(f"menu.template.{name}"), name)
+        self._fill_templates()
         self.template.currentIndexChanged.connect(self._template_changed)
         opts.addWidget(self.template)
+        edit_tpl = QPushButton(t("menu.template.edit"))
+        edit_tpl.clicked.connect(self._edit_template)
+        opts.addWidget(edit_tpl)
         opts.addSpacing(16)
         opts.addWidget(QLabel(t("menu.background")))
         self.bg_kind = QComboBox()
@@ -265,7 +267,7 @@ class MenuEditorPage(QWidget):
             kinds = {p.kind for p in menus.pages}
             for kind, check in self.page_checks.items():
                 check.setChecked(kind in kinds)
-            self.template.setCurrentIndex(self.template.findData(menus.template))
+            self._fill_templates(menus.template)
             self.resume.setChecked(menus.resume)
             self.shuffle.setChecked(menus.shuffle)
             self.shuffle.setVisible(len(project.titles) > 1)  # only a series has episodes
@@ -622,6 +624,34 @@ class MenuEditorPage(QWidget):
         dialog = TmdbDialog(self.project, self.source, self)
         dialog.applied.connect(self._changed)
         dialog.exec()
+
+    def _fill_templates(self, select: str | None = None) -> None:
+        from dvd.gui.template_editor import template_text
+        from dvd.menu.templates import list_templates
+
+        self.template.blockSignals(True)
+        self.template.clear()
+        for name in list_templates():
+            self.template.addItem(template_text(name), name)
+        if select is not None:
+            if self.template.findData(select) < 0:  # a template not on this PC
+                self.template.addItem(select, select)
+            self.template.setCurrentIndex(self.template.findData(select))
+        self.template.blockSignals(False)
+
+    def _edit_template(self) -> None:
+        from dvd.gui.template_editor import TemplateEditor
+
+        dialog = TemplateEditor(self.project.menus.template if self.project and
+                                self.project.menus else "minimal", self)  # fmt: skip
+        dialog.saved.connect(self._template_saved)
+        dialog.exec()
+
+    def _template_saved(self, name: str) -> None:
+        self._fill_templates(name)
+        if self.project is not None and self.project.menus is not None:
+            self.project.menus.template = name
+            self._changed()
 
     def _template_changed(self) -> None:
         self.project.menus.template = self.template.currentData()
