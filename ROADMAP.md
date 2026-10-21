@@ -168,7 +168,8 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 - [ ] Hareketli menüler (video arka plan, giriş + döngü), hareketli thumbnail'lar, geçiş videoları
   - [x] Video arka plan: Menü sayfasında arka plan "Filmden video (hareketli)"; açılış sayfasının arkasında filmin seçilen kareden başlayan 5–60 sn'lik kısmı sesiyle döner (sayfa yazıları her kareye çizilir, butonlar spumux katmanında); diğer sayfalarda aynı kare durağan. Zaman aşımı döngü sayısıyla (g5) çalışır
   - [x] Giriş + döngü: hareketli arka planda isteğe bağlı 1–10 sn giriş; sayfa filmin üstünde yavaşça belirir (bir kez, hücre 1), döngü filmin kaldığı yerden sürer (hücre 2, `jump cell 2`); butonlar döngüyle gelir
-  - [ ] Hareketli thumbnail'lar, geçiş videoları
+  - [x] Hareketli thumbnail'lar: "Bölüm kareleri hareketli" (Menü sayfası); bölüm ve bölüm seçim sayfalarında her kare kendi bölümünden 8 sn döngü (elle seçilen kareden ya da bölüm başı +1 sn), sayfa sessiz döner
+  - [ ] Geçiş videoları
 - [x] Kaldığın yerden devam, rastgele bölüm, zaman aşımıyla otomatik oynat: ana menüde isteğe bağlı "Kaldığın yerden" (`resume`) ve çok başlıklı diskte "Rastgele bölüm" (`g3 = random(N)`); açılış sayfası 5–250 sn bekleyip filmi (dizide hepsini) oynatır (`pause` + `post`); Menü sayfasında ayarlanır, simülatörde W ile bekleme biter
 - [x] Ses/altyazı menüsünde seçili olanı gösterme: sayfa açılırken imleç o an çalan sesin (ses sütunu yoksa gösterilen altyazının) butonuna gelir (`pre` komutu, `audio`/`subtitle` kayıtlarına göre); sayfadaki seçimden sonra imleç yerinde kalır (g2); simülatör aynı komutları çalıştırır
 - [x] Gizli içerik butonları, kumanda kısıtlamaları
