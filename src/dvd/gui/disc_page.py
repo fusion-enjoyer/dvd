@@ -7,6 +7,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QFileDialog,
     QFormLayout,
@@ -107,9 +108,14 @@ class DiscPage(QWidget):
             empty.show()
         for row, intro in enumerate(project.first_play):
             name = _label(f"{row + 1}.  {Path(intro.file).name}")
+            locked = QCheckBox(t("disc.intro_locked"))
+            locked.setToolTip(t("disc.intro_locked_hint"))
+            locked.setChecked(not intro.skippable)
+            locked.toggled.connect(lambda on, x=intro: self._set(
+                lambda: setattr(x, "skippable", not on)))  # fmt: skip
             remove = QPushButton(t("tracks.remove"))
             remove.clicked.connect(lambda _=False, i=row: self._remove(i))
-            for col, w in enumerate((name, remove)):
+            for col, w in enumerate((name, locked, remove)):
                 self.grid.addWidget(w, row, col)
                 w.show()
         self.grid.setColumnStretch(0, 1)

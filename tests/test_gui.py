@@ -301,9 +301,15 @@ def test_disc_page_edits_disc_settings_and_intros(app, tmp_path: Path):
     saved = load(project_file)
     assert saved.disc.name == "Yaz Tatili 2026" and saved.disc.media == "dvd9"
     assert saved.at_end == "repeat" and saved.first_play == [Intro(file="logo.mkv")]
+    from PySide6.QtWidgets import QCheckBox
+
+    lock = next(b for b in page.findChildren(QCheckBox) if b.text() == t("disc.intro_locked"))
+    lock.setChecked(True)
+    assert load(project_file).first_play == [Intro(file="logo.mkv", skippable=False)]
     page._remove(0)
     assert load(project_file).first_play == []
     assert w.name_label.text() == "Yaz Tatili 2026"
+    QThreadPool.globalInstance().waitForDone(60000)  # let the preview finish before exit
 
 
 @pytest.mark.skipif(FFMPEG is None, reason="ffmpeg not installed")

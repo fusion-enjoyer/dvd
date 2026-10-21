@@ -15,6 +15,7 @@ from dvd.video.compliance import check as check_video
 
 DIRS = toolchain.tool_dirs()
 FFMPEG = toolchain.find_executable(["ffmpeg.exe", "ffmpeg"], DIRS)
+FFPROBE = toolchain.find_executable(["ffprobe.exe", "ffprobe"], DIRS)
 sys.path.insert(0, str(Path(__file__).parent))
 READY = all(
     toolchain.find_executable([p], DIRS)
@@ -378,12 +379,12 @@ def test_intro_plays_before_the_menu(tmp_path: Path):
         check=True,
     )  # fmt: skip
     project = new_project(probe(src), tmp_path)
-    project.first_play = [Intro(file="logo.mkv")]
+    project.first_play = [Intro(file="logo.mkv", skippable=False)]
     project.at_end = "repeat"
     project.titles[0].video.overrides = {"encoder": "ffmpeg"}
     project_file = tmp_path / "giris.dvd.yaml"
     save(project, project_file)
-    assert load(project_file).first_play == [Intro(file="logo.mkv")]
+    assert load(project_file).first_play == [Intro(file="logo.mkv", skippable=False)]
 
     result = build(project_file)
 
@@ -397,3 +398,13 @@ def test_intro_plays_before_the_menu(tmp_path: Path):
     intro_vob = probe(result.video_ts / "VTS_02_1.VOB")
     assert intro_vob.duration == pytest.approx(2, abs=0.3)
     assert intro_vob.main_video.width == 720
+    # The unskippable intro: its PGC forbids skipping, the film's does not.
+    from dvd.author.uops import NO_SKIP, read_masks
+
+    for suffix in ("IFO", "BUP"):
+        assert read_masks(result.video_ts / f"VTS_02_0.{suffix}") == [NO_SKIP]
+    assert read_masks(result.video_ts / "VTS_01_0.IFO") == [0]
+    out = subprocess.run([str(FFPROBE), "-v", "error", "-f", "dvdvideo", "-title", "2",
+                          "-show_entries", "format=duration", "-of", "csv=p=0",
+                          "-i", str(result.video_ts)], capture_output=True, text=True)  # fmt: skip
+    assert out.returncode == 0 and float(out.stdout) == pytest.approx(2, abs=0.3)

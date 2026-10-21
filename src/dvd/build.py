@@ -13,6 +13,7 @@ import vapoursynth as vs
 from dvd.audio.ac3 import can_copy, encode_ac3
 from dvd.author.dvdauthor import AuthorTitle, author, mux, timecode
 from dvd.author.pscheck import check as check_mux
+from dvd.author.uops import NO_SKIP, restrict
 from dvd.budget.planner import Plan, plan
 from dvd.output.iso import write_iso
 from dvd.probe import SourceInfo, probe
@@ -436,6 +437,10 @@ def build(
     report("authoring", 0.0)
     video_ts = author(author_titles, project.disc.standard, work_dir, out_dir, menus=menus,
                       intros=intros, at_end=project.at_end)  # fmt: skip
+    locked = {k: NO_SKIP for k, intro in enumerate(project.first_play, start=1)
+              if not intro.skippable}  # fmt: skip
+    if locked:  # intros are titleset 2 (titleset 1 holds the film), one PGC each
+        restrict(video_ts, 2, locked)
     iso = None
     if make_iso:
         iso = write_iso(

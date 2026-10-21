@@ -142,6 +142,11 @@ TEXTS: dict[str, dict[str, str]] = {
         "disc.at_end.stop": "Dur",
         "disc.at_end.repeat": "Baştan oynat",
         "disc.intros": "GİRİŞ VİDEOLARI",
+        "disc.intro_locked": "Atlanamaz",
+        "disc.intro_locked_hint": (
+            "Oynarken ileri sarma, bölüm atlama ve menü tuşları çalışmaz (uyarı ekranları "
+            "gibi). Duraklatma ve durdurma çalışır."
+        ),
         "disc.intros_hint": "Disk takılınca menüden önce sırayla oynar (logo, uyarı ekranı). "
         "Kumandanın Title (Top Menu) tuşu atlatır.",
         "disc.no_intros": "Giriş videosu yok; disk doğrudan menüyle açılır.",

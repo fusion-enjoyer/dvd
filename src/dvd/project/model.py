@@ -371,6 +371,8 @@ class Intro(Strict):
     """A clip played once when the disc starts, before the menu (a logo, a warning)."""
 
     file: str = Field(min_length=1)
+    # False: no fast forward, chapter skip or menu keys while it plays (a warning screen).
+    skippable: bool = True
 
 
 def _intro(value: Any) -> Any:
