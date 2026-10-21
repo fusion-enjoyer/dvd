@@ -440,3 +440,32 @@ def test_hidden_clip_is_a_title_reached_through_the_vmg_menu(tmp_path: Path):
                           "-show_entries", "format=duration", "-of", "csv=p=0",
                           "-i", str(result.video_ts)], capture_output=True, text=True)  # fmt: skip
     assert out.returncode == 0 and float(out.stdout) == pytest.approx(3, abs=0.3)
+
+
+@pytest.mark.skipif(not READY, reason="toolchain not installed")
+def test_moving_menu_loops_the_film_behind_the_buttons(tmp_path: Path):
+    from dvd.project.model import MenuBackground
+
+    src = _sample(tmp_path, seconds=12)
+    project = new_project(probe(src), tmp_path)
+    project.titles[0].video.overrides = {"encoder": "ffmpeg"}
+    project.menus.background = MenuBackground(frame="0:00:02.000", motion=5)
+    project.menus.timeout = 12
+    project_file = tmp_path / "hareket.dvd.yaml"
+    save(project, project_file)
+    assert load(project_file).menus.background.motion == 5
+
+    result = build(project_file, make_iso=False)
+
+    xml = next(tmp_path.rglob("dvdauthor.xml")).read_text(encoding="utf-8")
+    assert '<vob file="menu01.mpg"/>' in xml  # no pause: the video runs
+    # 5 s of 23.976 film run 4 % fast on PAL: 4.8 s a loop, 3 loops cover 12 s.
+    assert "<post>g5 += 1; if (g5 == 3) { g5 = 0; g1 = 0; jump title 1; } jump cell 1;</post>" \
+        in xml  # fmt: skip
+    assert "g5 = 0;" in xml.split('<pgc entry="root">')[1].split("</pre>")[0]
+    log = next(tmp_path.rglob("dvdauthor.log")).read_text(encoding="utf-8", errors="replace")
+    assert "ERR" not in log
+    moving = probe(next(tmp_path.rglob("build/*/menu01.mpg")))  # with its buttons muxed in
+    assert moving.duration == pytest.approx(4.8, abs=0.4)
+    assert [a.codec for a in moving.audio] == ["ac3"] and len(moving.subtitles) == 1
+    assert (result.video_ts / "VTS_01_0.VOB").stat().st_size > 2_000_000  # all menus

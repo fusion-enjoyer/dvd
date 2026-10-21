@@ -229,9 +229,22 @@ def _menus(project: Project, prepared: list[_Prepared], project_dir: Path, work_
         raise BuildError(str(exc)) from None
     rendered = {page.id: render_page(page, frame, backdrop, thumbs, tpl, logo, pictures)
                 for page in pages}  # fmt: skip
+    videos = {}
+    bg = project.menus.background
+    if bg.motion and bg.frame:
+        from dvd.menu.motion import motion_mpg
+
+        first = next(page for page in pages if page.id == project.menus.first)
+        over = render_page(first, frame, None, thumbs, tpl, logo, pictures, transparent=True)
+        wanted = resolve_profiles(project.disc.profiles)["encoder"]
+        start = parse_timecode(bg.frame)
+        mpg = motion_mpg(p.source, p.info, start, bg.motion, project.disc.standard, p.target.dar,
+                         over.background, work_dir / "motion", "menu", wanted,
+                         p.target.crop)  # fmt: skip
+        videos[first.id] = (mpg, bg.motion / float(p.target.speedup))
     return author_menus(pages, rendered, project.menus.first, project.disc.standard,
                         p.target.dar, work_dir, len(project.titles),
-                        project.menus.timeout)  # fmt: skip
+                        project.menus.timeout, videos)  # fmt: skip
 
 
 def _intro_path(project_file: Path, intro) -> Path:

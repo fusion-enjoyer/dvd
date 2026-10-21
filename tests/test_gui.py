@@ -237,6 +237,14 @@ def test_menu_page_toggles_menus_and_previews_pages(app, tmp_path: Path):
     assert page.well.image is not None
     page.page_checks["chapters"].setChecked(False)
     assert [p.kind for p in load(project_file).menus.pages] == ["main", "languages"]
+    page.bg_kind.setCurrentIndex(page.bg_kind.findData("motion"))
+    bg = load(project_file).menus.background
+    assert bg.motion == 20 and bg.frame is not None and page.motion_secs.isVisibleTo(page)
+    page.motion_secs.setValue(30)
+    page.motion_secs.editingFinished.emit()
+    assert load(project_file).menus.background.motion == 30
+    page.bg_kind.setCurrentIndex(page.bg_kind.findData("frame"))
+    assert load(project_file).menus.background.motion is None
     page.enabled.setChecked(False)
     assert load(project_file).menus is None
     QThreadPool.globalInstance().waitForDone(60000)

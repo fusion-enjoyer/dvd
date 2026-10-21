@@ -66,6 +66,7 @@ class AuthorMenu:
     pre: str = ""  # VM commands run as the menu opens
     pause: int | None = None  # seconds the still waits; None: until a key is pressed
     post: str = ""  # VM commands run when the pause runs out
+    loop: bool = False  # a moving menu: the video plays again from the start
 
 
 def dvdauthor_xml(
@@ -125,10 +126,14 @@ def dvdauthor_xml(
                 lines.append(f"        <pre>{pre}</pre>")
             for name, command in m.buttons:
                 lines.append(f"        <button name={quoteattr(name)}>{command}</button>")
-            pause = str(m.pause) if m.pause else "inf"
-            lines.append(f'        <vob file={quoteattr(m.vob)} pause="{pause}"/>')
-            if m.post:
-                lines.append(f"        <post>{m.post}</post>")
+            if m.loop:
+                lines.append(f"        <vob file={quoteattr(m.vob)}/>")
+                lines.append(f"        <post>{m.post} jump cell 1;</post>".replace("> ", ">"))
+            else:
+                pause = str(m.pause) if m.pause else "inf"
+                lines.append(f'        <vob file={quoteattr(m.vob)} pause="{pause}"/>')
+                if m.post:
+                    lines.append(f"        <post>{m.post}</post>")
             lines.append("      </pgc>")
         lines.append("    </menus>")
     lines += [

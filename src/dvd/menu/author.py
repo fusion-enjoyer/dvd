@@ -144,9 +144,11 @@ def menu_vob(
     aspect: Fraction,
     folder: Path,
     name: str,
+    video: Path | None = None,
 ) -> Path:
-    """Write `name`.mpg in `folder`: the background as a short still, silent AC-3, and the
-    highlight subpicture with the buttons."""
+    """Write `name`.mpg in `folder`: the background as a short still with silent AC-3 (or
+    `video`, a moving background already muxed), and the highlight subpicture with the
+    buttons."""
     spumux = toolchain.find_executable(["spumux.exe", "spumux"], toolchain.tool_dirs())
     if spumux is None:
         raise AuthorError("spumux not found; run `dvd doctor`")
@@ -154,7 +156,7 @@ def menu_vob(
     work.mkdir(parents=True, exist_ok=True)
     save_rgba(rendered.highlight, work / "hl.png")
     save_rgba(rendered.select, work / "sel.png")
-    still = still_mpg(rendered.background, standard, aspect, work / "still.mpg")
+    still = video or still_mpg(rendered.background, standard, aspect, work / "still.mpg")
     (work / "spumux.xml").write_text(spumux_menu_xml(rendered, standard), encoding="utf-8")
     out = folder / f"{name}.mpg"
     env = {**os.environ, "VIDEO_FORMAT": standard.upper()}
@@ -177,16 +179,31 @@ def timeout_command(titles: int) -> str:
 
 def author_menus(pages: list[Page], rendered: dict[str, RenderedPage], first: str,
                  standard: str, aspect: Fraction, workdir: Path, titles: int = 1,
-                 timeout: int | None = None) -> list[AuthorMenu]:  # fmt: skip
+                 timeout: int | None = None, videos: dict[str, tuple[Path, float]] | None = None,
+                 ) -> list[AuthorMenu]:  # fmt: skip
     """Menu VOBs in `workdir` and their dvdauthor entries, the `first` page first. With
-    `timeout`, the first page waits that many seconds, then plays."""
+    `timeout`, the first page waits that many seconds, then plays. `videos`: moving
+    backgrounds by page id (muxed file, seconds it lasts); those pages loop, and a timeout
+    counts the loops in g5."""
     ordered = sorted(pages, key=lambda p: p.id != first)
     cmds, entry, pre = commands(ordered, titles), entries(ordered, first), pre_commands(ordered)
     menus = []
+    videos = videos or {}
     for i, page in enumerate(ordered):
-        vob = menu_vob(rendered[page.id], standard, aspect, workdir, f"menu{i + 1:02}")
+        moving = videos.get(page.id)
+        vob = menu_vob(rendered[page.id], standard, aspect, workdir, f"menu{i + 1:02}",
+                       moving[0] if moving else None)  # fmt: skip
         wait = timeout if timeout and page.id == first else None
-        menus.append(AuthorMenu(vob.name, cmds[page.id], entry.get(page.id),
-                                pre.get(page.id, ""), wait,
-                                timeout_command(titles) if wait else ""))  # fmt: skip
+        if moving is None:
+            menus.append(AuthorMenu(vob.name, cmds[page.id], entry.get(page.id),
+                                    pre.get(page.id, ""), wait,
+                                    timeout_command(titles) if wait else ""))  # fmt: skip
+            continue
+        pre_cmd, post = pre.get(page.id, ""), ""
+        if wait:  # count the loops: g5 is reset as the page opens
+            loops = max(1, -(-wait // max(1, round(moving[1]))))
+            pre_cmd = f"g5 = 0; {pre_cmd}".strip()
+            post = f"g5 += 1; if (g5 == {loops}) {{ g5 = 0; {timeout_command(titles)} }}"
+        menus.append(AuthorMenu(vob.name, cmds[page.id], entry.get(page.id), pre_cmd,
+                                post=post, loop=True))  # fmt: skip
     return menus

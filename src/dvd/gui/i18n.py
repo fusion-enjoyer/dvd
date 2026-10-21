@@ -228,6 +228,12 @@ TEXTS: dict[str, dict[str, str]] = {
         "tpl.label_size": "Buton yazı boyu",
         "tpl.title_size": "Başlık yazı boyu",
         "menu.bg.frame": "Filmden kare",
+        "menu.bg.motion": "Filmden video (hareketli)",
+        "menu.bg.motion_unit": " sn döngü",
+        "menu.bg.motion_hint": (
+            "Açılış sayfasının arkasında filmin bu kareden başlayan kısmı sesiyle döner. "
+            "Diğer sayfalarda aynı kare durağan kalır. Önizleme ilk kareyi gösterir."
+        ),
         "menu.bg.image": "Resim dosyası",
         "menu.bg.color": "Düz renk",
         "menu.bg.use_frame": "Önizlemedeki kareyi kullan ({tc})",

@@ -315,6 +315,9 @@ class MenuBackground(Strict):
     frame: str | None = None  # timecode of a film frame, else...
     image: str | None = None  # ...a picture file, else a plain colour
     color: str = Field("#141414", pattern=r"^#[0-9a-fA-F]{6}$")
+    # With a film frame: the first page plays this many seconds of the film from there,
+    # looping, behind the buttons (a moving menu); other pages keep the still frame.
+    motion: int | None = Field(None, ge=5, le=60)
 
     @field_validator("frame")
     @classmethod
@@ -322,6 +325,12 @@ class MenuBackground(Strict):
         if v is not None:
             parse_timecode(v)
         return v
+
+    @model_validator(mode="after")
+    def _motion_needs_frame(self) -> MenuBackground:
+        if self.motion is not None and self.frame is None:
+            raise ValueError("a moving background starts at a film frame ('frame')")
+        return self
 
 
 PAGE_ALIASES = {"settings": "languages", "ayarlar": "languages", "ana": "main",

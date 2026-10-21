@@ -171,16 +171,23 @@ def render_page(
     template: Template | None = None,
     logo: QImage | None = None,
     layer_images: dict[str, QImage] | None = None,
+    transparent: bool = False,
 ) -> RenderedPage:
     """`frame`: disc frame width, height and display aspect. `background`: any size, it is
     scaled to cover the frame; None draws the template's plain backdrop. `layer_images`: the
-    pictures of image layers, by their `image` value."""
+    pictures of image layers, by their `image` value. `transparent`: no backdrop at all; the
+    page picture keeps an alpha channel, to lay over a moving background."""
     _fonts()
     t = template or get_template("minimal")
     fw, fh, aspect = frame
     dw = round(fh * aspect)  # square-pixel width
-    canvas = QImage(dw, fh, QImage.Format.Format_RGB32)
-    canvas.fill(QColor(20, 20, 20))
+    if transparent:
+        canvas = QImage(dw, fh, QImage.Format.Format_ARGB32_Premultiplied)
+        canvas.fill(Qt.GlobalColor.transparent)
+        background = None
+    else:
+        canvas = QImage(dw, fh, QImage.Format.Format_RGB32)
+        canvas.fill(QColor(20, 20, 20))
     p = QPainter(canvas)
     p.setRenderHint(QPainter.RenderHint.Antialiasing)
     p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
@@ -287,8 +294,9 @@ def render_page(
         y0 = max(0, int(r.top())) // 2 * 2
         y1 = min(fh, int(r.bottom()) + 2) // 2 * 2
         boxes.append((b, (x0, y0, x1, y1)))
+    picture = QImage.Format.Format_RGBA8888 if transparent else QImage.Format.Format_RGB888
     return RenderedPage(
-        squeeze(canvas).convertToFormat(QImage.Format.Format_RGB888),
+        squeeze(canvas).convertToFormat(picture),
         _quantize(squeeze(overlays["highlight"]), t.highlight),
         _quantize(squeeze(overlays["select"]), t.select),
         boxes,

@@ -133,13 +133,20 @@ class MenuEditorPage(QWidget):
         opts.addSpacing(16)
         opts.addWidget(QLabel(t("menu.background")))
         self.bg_kind = QComboBox()
-        for key in ("frame", "image", "color"):
+        for key in ("frame", "motion", "image", "color"):
             self.bg_kind.addItem(t(f"menu.bg.{key}"), key)
         self.bg_kind.currentIndexChanged.connect(self._bg_kind_changed)
         opts.addWidget(self.bg_kind)
         self.bg_action = QPushButton()
         self.bg_action.clicked.connect(self._bg_action)
         opts.addWidget(self.bg_action)
+        self.motion_secs = QSpinBox()
+        self.motion_secs.setRange(5, 60)
+        self.motion_secs.setValue(20)
+        self.motion_secs.setSuffix(t("menu.bg.motion_unit"))
+        self.motion_secs.setToolTip(t("menu.bg.motion_hint"))
+        self.motion_secs.editingFinished.connect(self._motion_changed)
+        opts.addWidget(self.motion_secs)
         self.tmdb = QPushButton(t("tmdb.open"))
         self.tmdb.setToolTip(t("tmdb.open_hint"))
         self.tmdb.clicked.connect(self._open_tmdb)
@@ -273,8 +280,11 @@ class MenuEditorPage(QWidget):
             self.shuffle.setVisible(len(project.titles) > 1)  # only a series has episodes
             self.timeout.setValue(menus.timeout or 0)
             bg = menus.background
-            key = "frame" if bg.frame else "image" if bg.image else "color"
+            key = ("motion" if bg.motion else "frame" if bg.frame else
+                   "image" if bg.image else "color")  # fmt: skip
             self.bg_kind.setCurrentIndex(self.bg_kind.findData(key))
+            self.motion_secs.setVisible(key == "motion")
+            self.motion_secs.setValue(bg.motion or 20)
             self._bg_button_text()
         for w in widgets:
             w.blockSignals(False)
@@ -288,7 +298,8 @@ class MenuEditorPage(QWidget):
 
     def _bg_button_text(self) -> None:
         bg, key = self.project.menus.background, self.bg_kind.currentData()
-        text = {"frame": t("menu.bg.use_frame", tc=(bg.frame or "-").split(".")[0]),
+        tc = (bg.frame or "-").split(".")[0]
+        text = {"frame": t("menu.bg.use_frame", tc=tc), "motion": t("menu.bg.use_frame", tc=tc),
                 "image": Path(bg.image).name if bg.image else t("menu.bg.pick_image"),
                 "color": bg.color}[key]  # fmt: skip
         self.bg_action.setText(text)
@@ -659,8 +670,12 @@ class MenuEditorPage(QWidget):
 
     def _bg_kind_changed(self) -> None:
         key, menus = self.bg_kind.currentData(), self.project.menus
+        self.motion_secs.setVisible(key == "motion")
         if key == "frame":
             menus.background = MenuBackground(frame=edit.format_time(self.position()))
+        elif key == "motion":
+            menus.background = MenuBackground(frame=edit.format_time(self.position()),
+                                              motion=self.motion_secs.value())  # fmt: skip
         elif key == "color":
             menus.background = MenuBackground(color=menus.background.color)
         else:
@@ -670,8 +685,9 @@ class MenuEditorPage(QWidget):
 
     def _bg_action(self) -> None:
         key, menus = self.bg_kind.currentData(), self.project.menus
-        if key == "frame":
-            menus.background = MenuBackground(frame=edit.format_time(self.position()))
+        if key in ("frame", "motion"):
+            menus.background = MenuBackground(frame=edit.format_time(self.position()),
+                                              motion=menus.background.motion)  # fmt: skip
             self._changed()
         elif key == "image":
             self._pick_image()
@@ -680,6 +696,14 @@ class MenuEditorPage(QWidget):
             if colour.isValid():
                 menus.background = MenuBackground(color=colour.name())
                 self._changed()
+
+    def _motion_changed(self) -> None:
+        bg = self.project.menus.background
+        if bg.motion and bg.motion != self.motion_secs.value():
+            self.project.menus.background = bg.model_copy(
+                update={"motion": self.motion_secs.value()}
+            )
+            self._changed()
 
     def _pick_image(self) -> None:
         path, _ = QFileDialog.getOpenFileName(self, t("menu.bg.pick_image"), str(self.project_dir),
