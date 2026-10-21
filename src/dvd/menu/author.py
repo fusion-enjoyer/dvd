@@ -4,6 +4,7 @@ subpicture muxed in by spumux, and the DVD VM commands for each button."""
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 from fractions import Fraction
 from pathlib import Path
@@ -180,7 +181,7 @@ def timeout_command(titles: int) -> str:
 def author_menus(pages: list[Page], rendered: dict[str, RenderedPage], first: str,
                  standard: str, aspect: Fraction, workdir: Path, titles: int = 1,
                  timeout: int | None = None, videos: dict[str, tuple[Path, float]] | None = None,
-                 ) -> list[AuthorMenu]:  # fmt: skip
+                 intros: dict[str, Path] | None = None) -> list[AuthorMenu]:  # fmt: skip
     """Menu VOBs in `workdir` and their dvdauthor entries, the `first` page first. With
     `timeout`, the first page waits that many seconds, then plays. `videos`: moving
     backgrounds by page id (muxed file, seconds it lasts); those pages loop, and a timeout
@@ -204,6 +205,10 @@ def author_menus(pages: list[Page], rendered: dict[str, RenderedPage], first: st
             loops = max(1, -(-wait // max(1, round(moving[1]))))
             pre_cmd = f"g5 = 0; {pre_cmd}".strip()
             post = f"g5 += 1; if (g5 == {loops}) {{ g5 = 0; {timeout_command(titles)} }}"
+        intro = (intros or {}).get(page.id)
+        if intro is not None and intro.parent != workdir:
+            intro = Path(shutil.copy2(intro, workdir / f"menu{i + 1:02}_intro.mpg"))
         menus.append(AuthorMenu(vob.name, cmds[page.id], entry.get(page.id), pre_cmd,
-                                post=post, loop=True))  # fmt: skip
+                                post=post, loop=True,
+                                intro=intro.name if intro else None))  # fmt: skip
     return menus

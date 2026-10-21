@@ -238,6 +238,13 @@ TEXTS: dict[str, dict[str, str]] = {
         "menu.bg.frame": "Filmden kare",
         "menu.bg.motion": "Filmden video (hareketli)",
         "menu.bg.motion_unit": " sn döngü",
+        "menu.bg.intro_off": "girişsiz",
+        "menu.bg.intro_prefix": "giriş ",
+        "menu.bg.intro_unit": " sn",
+        "menu.bg.intro_hint": (
+            "Döngüden önce bir kez: sayfa bu sürede filmin üstünde yavaşça belirir, butonlar "
+            "döngüyle gelir. Döngü filmin kaldığı yerden sürer."
+        ),
         "menu.bg.motion_hint": (
             "Açılış sayfasının arkasında filmin bu kareden başlayan kısmı sesiyle döner. "
             "Diğer sayfalarda aynı kare durağan kalır. Önizleme ilk kareyi gösterir."

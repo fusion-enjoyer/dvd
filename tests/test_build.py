@@ -449,7 +449,7 @@ def test_moving_menu_loops_the_film_behind_the_buttons(tmp_path: Path):
     src = _sample(tmp_path, seconds=12)
     project = new_project(probe(src), tmp_path)
     project.titles[0].video.overrides = {"encoder": "ffmpeg"}
-    project.menus.background = MenuBackground(frame="0:00:02.000", motion=5)
+    project.menus.background = MenuBackground(frame="0:00:02.000", motion=5, intro=2)
     project.menus.timeout = 12
     project_file = tmp_path / "hareket.dvd.yaml"
     save(project, project_file)
@@ -458,10 +458,13 @@ def test_moving_menu_loops_the_film_behind_the_buttons(tmp_path: Path):
     result = build(project_file, make_iso=False)
 
     xml = next(tmp_path.rglob("dvdauthor.xml")).read_text(encoding="utf-8")
-    assert '<vob file="menu01.mpg"/>' in xml  # no pause: the video runs
+    # The intro (page fading in) is cell 1, played once; the loop is cell 2.
+    assert '<vob file="menu01_intro.mpg"/>\n        <vob file="menu01.mpg"/>' in xml
     # 5 s of 23.976 film run 4 % fast on PAL: 4.8 s a loop, 3 loops cover 12 s.
-    assert "<post>g5 += 1; if (g5 == 3) { g5 = 0; g1 = 0; jump title 1; } jump cell 1;</post>" \
+    assert "<post>g5 += 1; if (g5 == 3) { g5 = 0; g1 = 0; jump title 1; } jump cell 2;</post>" \
         in xml  # fmt: skip
+    intro = probe(next(tmp_path.rglob("build/*/menu01_intro.mpg")))
+    assert intro.duration == pytest.approx(1.9, abs=0.3) and not intro.subtitles
     assert "g5 = 0;" in xml.split('<pgc entry="root">')[1].split("</pre>")[0]
     log = next(tmp_path.rglob("dvdauthor.log")).read_text(encoding="utf-8", errors="replace")
     assert "ERR" not in log

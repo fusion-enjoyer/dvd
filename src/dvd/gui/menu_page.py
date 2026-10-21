@@ -148,6 +148,14 @@ class MenuEditorPage(QWidget):
         self.motion_secs.setToolTip(t("menu.bg.motion_hint"))
         self.motion_secs.editingFinished.connect(self._motion_changed)
         opts.addWidget(self.motion_secs)
+        self.intro_secs = QSpinBox()
+        self.intro_secs.setRange(0, 10)
+        self.intro_secs.setSpecialValueText(t("menu.bg.intro_off"))
+        self.intro_secs.setPrefix(t("menu.bg.intro_prefix"))
+        self.intro_secs.setSuffix(t("menu.bg.intro_unit"))
+        self.intro_secs.setToolTip(t("menu.bg.intro_hint"))
+        self.intro_secs.editingFinished.connect(self._motion_changed)
+        opts.addWidget(self.intro_secs)
         self.tmdb = QPushButton(t("tmdb.open"))
         self.tmdb.setToolTip(t("tmdb.open_hint"))
         self.tmdb.clicked.connect(self._open_tmdb)
@@ -286,6 +294,8 @@ class MenuEditorPage(QWidget):
             self.bg_kind.setCurrentIndex(self.bg_kind.findData(key))
             self.motion_secs.setVisible(key == "motion")
             self.motion_secs.setValue(bg.motion or 20)
+            self.intro_secs.setVisible(key == "motion")
+            self.intro_secs.setValue(bg.intro or 0)
             self._bg_button_text()
         for w in widgets:
             w.blockSignals(False)
@@ -684,6 +694,7 @@ class MenuEditorPage(QWidget):
     def _bg_kind_changed(self) -> None:
         key, menus = self.bg_kind.currentData(), self.project.menus
         self.motion_secs.setVisible(key == "motion")
+        self.intro_secs.setVisible(key == "motion")
         if key == "frame":
             menus.background = MenuBackground(frame=edit.format_time(self.position()))
         elif key == "motion":
@@ -700,7 +711,8 @@ class MenuEditorPage(QWidget):
         key, menus = self.bg_kind.currentData(), self.project.menus
         if key in ("frame", "motion"):
             menus.background = MenuBackground(frame=edit.format_time(self.position()),
-                                              motion=menus.background.motion)  # fmt: skip
+                                              motion=menus.background.motion,
+                                              intro=menus.background.intro)  # fmt: skip
             self._changed()
         elif key == "image":
             self._pick_image()
@@ -712,10 +724,9 @@ class MenuEditorPage(QWidget):
 
     def _motion_changed(self) -> None:
         bg = self.project.menus.background
-        if bg.motion and bg.motion != self.motion_secs.value():
-            self.project.menus.background = bg.model_copy(
-                update={"motion": self.motion_secs.value()}
-            )
+        wanted = {"motion": self.motion_secs.value(), "intro": self.intro_secs.value() or None}
+        if bg.motion and (bg.motion, bg.intro) != (wanted["motion"], wanted["intro"]):
+            self.project.menus.background = bg.model_copy(update=wanted)
             self._changed()
 
     def _pick_image(self) -> None:

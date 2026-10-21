@@ -318,6 +318,9 @@ class MenuBackground(Strict):
     # With a film frame: the first page plays this many seconds of the film from there,
     # looping, behind the buttons (a moving menu); other pages keep the still frame.
     motion: int | None = Field(None, ge=5, le=60)
+    # Before the loop: this many seconds (from `frame`) in which the page fades in over the
+    # film, played once; the loop follows on from there.
+    intro: int | None = Field(None, ge=1, le=10)
 
     @field_validator("frame")
     @classmethod
@@ -330,6 +333,8 @@ class MenuBackground(Strict):
     def _motion_needs_frame(self) -> MenuBackground:
         if self.motion is not None and self.frame is None:
             raise ValueError("a moving background starts at a film frame ('frame')")
+        if self.intro is not None and self.motion is None:
+            raise ValueError("a menu intro needs a moving background ('motion')")
         return self
 
 

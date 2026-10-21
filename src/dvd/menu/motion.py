@@ -75,10 +75,11 @@ def _picture_clip(rgba: np.ndarray, matrix: str, length: int, fps: Fraction):
 
 
 def motion_clip(source: Path, info: SourceInfo, start: float, seconds: float, standard: str,
-                aspect: Fraction, overlay: QImage, crop: Crop | None = None
-                ) -> tuple[vs.VideoNode, bool, Fraction]:  # fmt: skip
+                aspect: Fraction, overlay: QImage, crop: Crop | None = None,
+                fade_in: bool = False) -> tuple[vs.VideoNode, bool, Fraction]:  # fmt: skip
     """The disc menu video: (clip, pulldown, speedup). Film runs 4 % fast on PAL (speedup)
-    and with pulldown flags on NTSC; other rates take the nearest source frame."""
+    and with pulldown flags on NTSC; other rates take the nearest source frame. With
+    `fade_in` the page appears gradually over the whole clip (the menu's intro)."""
     v = info.main_video
     if v is None:
         raise AuthorError(f"{source.name} has no video for a moving menu")
@@ -113,6 +114,9 @@ def motion_clip(source: Path, info: SourceInfo, start: float, seconds: float, st
     if rgba.shape[:2] != (frame_h, 720):
         raise AuthorError("the menu page and the moving background differ in size")
     page, mask = _picture_clip(rgba, matrix, piece.num_frames, out_rate)
+    if fade_in:
+        n = mask.num_frames
+        mask = core.std.Splice([core.std.Expr(mask[k], f"x {(k + 1) / n:.5f} *") for k in range(n)])
     merged = core.std.MaskedMerge(piece, page, mask, first_plane=True)
     return core.resize.Point(merged, format=vs.YUV420P8, dither_type="error_diffusion"), \
         pulldown, speedup  # fmt: skip
@@ -125,14 +129,17 @@ def _rgba(image: QImage) -> np.ndarray:
 
 
 def _audio(source: Path, info: SourceInfo, start: float, seconds: float, speedup: Fraction,
-           out: Path) -> Path:  # fmt: skip
+           out: Path, fade_out: bool = True) -> Path:  # fmt: skip
     """The film's sound for the stretch (silence without one), as the video's speed, faded
-    out over the last second so the loop does not click."""
+    out over the last second so the loop does not click (not for an intro, which runs on
+    into the loop)."""
     ffmpeg = toolchain.find_executable(["ffmpeg.exe", "ffmpeg"], toolchain.tool_dirs())
     if ffmpeg is None:
         raise AuthorError("ffmpeg not found; run `dvd doctor`")
     length = seconds / float(speedup)
-    fade = f"afade=t=in:d=0.3,afade=t=out:st={max(0.0, length - 1):.3f}:d=1"
+    fade = "afade=t=in:d=0.3"
+    if fade_out:
+        fade += f",afade=t=out:st={max(0.0, length - 1):.3f}:d=1"
     if info.audio:
         tempo = f"atempo={float(speedup):.6f}," if speedup != 1 else ""
         args = ["-ss", f"{start:.3f}", "-t", f"{seconds:.3f}", "-i", str(source),
@@ -151,17 +158,20 @@ def _audio(source: Path, info: SourceInfo, start: float, seconds: float, speedup
 
 def motion_mpg(source: Path, info: SourceInfo, start: float, seconds: float, standard: str,
                aspect: Fraction, overlay: QImage, workdir: Path, name: str,
-               encoder: str = "ffmpeg", crop: Crop | None = None) -> Path:  # fmt: skip
+               encoder: str = "ffmpeg", crop: Crop | None = None,
+               intro: bool = False) -> Path:  # fmt: skip
     """The moving background with the page drawn over it, encoded and muxed with sound:
-    `workdir`/`name`.mpg, ready for the button subpicture."""
+    `workdir`/`name`.mpg, ready for the button subpicture. `intro`: the page fades in and
+    the sound runs on (the part played once before the loop)."""
     workdir.mkdir(parents=True, exist_ok=True)
     clip, pulldown, speedup = motion_clip(source, info, start, seconds, standard, aspect,
-                                          overlay, crop)  # fmt: skip
+                                          overlay, crop, fade_in=intro)  # fmt: skip
     settings = EncodeSettings(bitrate=VIDEO_KBPS, maxrate=PEAK_KBPS,
                               aspect="16:9" if aspect > Fraction(3, 2) else "4:3",
                               standard=standard, pulldown=pulldown)  # fmt: skip
     name_enc, _note = encoders.choose(encoder)
     m2v = encoders.encode(name_enc, clip, workdir / f"{name}.m2v", settings,
                           workdir / f"{name}_{name_enc}")  # fmt: skip
-    ac3 = _audio(source, info, start, seconds, speedup, workdir / f"{name}.ac3")
+    ac3 = _audio(source, info, start, seconds, speedup, workdir / f"{name}.ac3",
+                 fade_out=not intro)  # fmt: skip
     return mux(m2v, [ac3], workdir / f"{name}.mpg")

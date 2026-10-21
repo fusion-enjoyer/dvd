@@ -243,6 +243,9 @@ def test_menu_page_toggles_menus_and_previews_pages(app, tmp_path: Path):
     page.motion_secs.setValue(30)
     page.motion_secs.editingFinished.emit()
     assert load(project_file).menus.background.motion == 30
+    page.intro_secs.setValue(3)
+    page.intro_secs.editingFinished.emit()
+    assert load(project_file).menus.background.intro == 3
     page.bg_kind.setCurrentIndex(page.bg_kind.findData("frame"))
     assert load(project_file).menus.background.motion is None
     page.enabled.setChecked(False)
