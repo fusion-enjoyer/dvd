@@ -113,9 +113,10 @@ def _audio_offset(packets: list[tuple[int, int]], vobu: Vobu) -> int:
 
 
 def nav_pack(header: bytes, scan: Scan, cells: CellMap, index: int, pal: bool,
-             audio_streams: int, subpicture_streams: int) -> bytes:  # fmt: skip
+             audio_streams: int, subpicture_streams: int, base: int = 0) -> bytes:  # fmt: skip
     """The NAV pack of VOBU `index`. `header`: its first 0x26 bytes as muxed (pack header
-    and system header), kept as they are."""
+    and system header), kept as they are. `base`: where this VOB starts in the titleset's
+    VOB set (sectors), for the absolute sector fields."""
     vobus = scan.vobus
     v = vobus[index]
     buf = bytearray(2048)
@@ -131,7 +132,7 @@ def nav_pack(header: bytes, scan: Scan, cells: CellMap, index: int, pal: bool,
     last = len(vobus) - 1 if last < 0 else last
     elapsed = bcd_time(v.start_pts - vobus[first].start_pts, pal)
     # PCI general information
-    _w(buf, 0x2D, v.sector)
+    _w(buf, 0x2D, base + v.sector)
     _w(buf, 0x39, v.start_pts)
     _w(buf, 0x3D, v.end_pts)
     if v.seq_end:
@@ -139,7 +140,7 @@ def nav_pack(header: bytes, scan: Scan, cells: CellMap, index: int, pal: bool,
     _w(buf, 0x45, elapsed)
     # DSI general information
     _w(buf, 0x407, v.scr)
-    _w(buf, 0x40B, v.sector)
+    _w(buf, 0x40B, base + v.sector)
     _w(buf, 0x40F, v.last_sector - v.sector)
     refs = v.ref_ends[:3]
     for k in range(3 if refs else 0):

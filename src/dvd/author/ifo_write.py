@@ -293,3 +293,73 @@ def write_vts(spec: TitlesetSpec) -> bytes:
     _w(head, 12, at + vobs + ifo_last)  # last sector of the titleset (end of the BUP)
     av_info(head, 0x200, spec)
     return bytes(head) + b"".join(parts)
+
+
+MIN_IFO_SECTORS = 16
+PROVIDER = "DVD Studyo"
+
+
+def write_vmg(titlesets: list[tuple[TitlesetSpec, bytes]], first_play: str = "",
+              provider: str = PROVIDER) -> bytes:  # fmt: skip
+    """VIDEO_TS.IFO for a disc without disc-level menus. `titlesets`: each spec with its
+    written VTS IFO (for the titleset size and its attribute copy). `first_play`: commands
+    run when the disc starts; empty: play title 1."""
+    head = bytearray(SECTOR)
+    head[:12] = b"DVDVIDEO-VMG"
+    head[0x21] = 0x11
+    head[0x27] = 1  # number of volumes
+    head[0x29] = 1  # volume number
+    head[0x2A] = 1  # side
+    _w(head, 0x3E, len(titlesets), 2)
+    head[0x40 : 0x40 + len(provider[:31])] = provider[:31].encode("ascii", "replace")
+    head[0x86] = 4  # first play PGC at 0x400
+    # Title search pointers (written below, once the titleset positions are known)
+    tt_sectors = (8 + 12 * sum(len(s.titles) for s, _i in titlesets) + SECTOR - 1) // SECTOR
+    _w(head, 0xC4, 1)
+    atrt_at = 1 + tt_sectors
+    _w(head, 0xD0, atrt_at)
+    atrt_len = 8 + len(titlesets) * 0x30C
+    ifo_sectors = atrt_at + (atrt_len + SECTOR - 1) // SECTOR
+    _w(head, 0x1C, ifo_sectors - 1)
+    vts_start = max(ifo_sectors * 2, 2 * MIN_IFO_SECTORS)
+    _w(head, 0x0C, vts_start - 1)
+    # First play PGC
+    pal = titlesets[0][0].standard == "pal" if titlesets else True
+    head[0x407] = (1 if pal else 3) << 6
+    head[0x4E5] = 0xEC
+    commands = compile_program(first_play, "vmg") if first_play.strip() \
+        else [bytes.fromhex("3002000000010000")]  # jump title 1  # fmt: skip
+    _w(head, 0x4EC, len(commands), 2)
+    head[0x4F4 : 0x4F4 + 8 * len(commands)] = b"".join(commands)
+    _w(head, 0x4F2, 7 + 8 * len(commands), 2)
+    _w(head, 0x82, 0x4EC + 7 + 8 * len(commands), 2)
+
+    tt = bytearray(8)
+    start = vts_start
+    count = 0
+    for n, (spec, ifo) in enumerate(titlesets, start=1):
+        for k, title in enumerate(spec.titles, start=1):
+            entry = bytearray(12)
+            entry[0] = 0x3C  # one sequential PGC; jumps allowed everywhere
+            entry[1] = 1  # angles
+            _w(entry, 2, len(title.cells), 2)
+            entry[6], entry[7] = n, k
+            _w(entry, 8, start)
+            tt += entry
+            count += 1
+        start += int.from_bytes(ifo[12:16], "big") + 1
+    _w(tt, 0, count, 2)
+    _w(tt, 4, len(tt) - 1)
+
+    atrt = bytearray(8 + 4 * len(titlesets))
+    _w(atrt, 0, len(titlesets), 2)
+    _w(atrt, 4, atrt_len - 1)
+    for i in range(len(titlesets)):
+        _w(atrt, 8 + 4 * i, len(atrt) + i * 0x308)
+    for _spec, ifo in titlesets:
+        entry = bytearray(0x308)
+        _w(entry, 0, 0x307)
+        entry[4:8] = ifo[0x22:0x26]
+        entry[8:] = ifo[0x100:0x400]
+        atrt += entry
+    return bytes(head) + _sectors(tt) + _sectors(atrt)

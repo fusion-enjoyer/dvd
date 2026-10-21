@@ -252,3 +252,45 @@ def test_vobu_scan_matches_dvdauthor_nav_packs(tmp_path: Path):
     assert ours[1].start_pts == ours[0].end_pts  # units follow each other without a gap
     assert_nav_packs_match(tmp_path, result.video_ts, Fraction(24000, 1001))
     assert_vts_ifo_matches(tmp_path, result.video_ts, Fraction(24000, 1001))
+    assert_own_disc_matches(tmp_path, result.video_ts, Fraction(24000, 1001), tmp_path / "own")
+    # Players' reading code (libdvdread/libdvdnav through FFmpeg) opens our disc.
+    out = subprocess.run([str(toolchain.find_executable(["ffprobe.exe", "ffprobe"], DIRS)),
+                          "-v", "error", "-f", "dvdvideo", "-show_entries", "format=duration",
+                          "-of", "csv=p=0", "-i", str(tmp_path / "own" / "VIDEO_TS")],
+                         capture_output=True, text=True)  # fmt: skip
+    assert out.returncode == 0 and float(out.stdout) == pytest.approx(5.0, abs=0.3)
+
+
+def assert_own_disc_matches(work: Path, video_ts: Path, fps, out: Path) -> None:
+    """Our own authoring of the same title: IFOs and VOB as dvdauthor wrote them."""
+    import re
+
+    from dvd.author import ifo_write
+    from dvd.author.ifo_write import AudioAttr, SubpictureAttr, TitlesetSpec, TitleSpec
+    from dvd.author.own import author_titles
+    from dvd.author.vobu import scan_stream
+    from dvd.ifo import read_disc
+
+    text = next(work.rglob("dvdauthor.xml")).read_text("utf-8")
+    xml_dir = next(work.rglob("dvdauthor.xml")).parent
+    vob_in = xml_dir / re.search(r'<vob file="([^"]+)" chapters', text)[1]
+    ts = read_disc(video_ts).titlesets[0]
+    scan = scan_stream(vob_in, fps)
+    firsts = {c.first_sector for c in ts.titles[0].cells}
+    post = re.search(r"<titles>.*?<post>(.*?)</post>", text, re.S)
+    title = TitleSpec(scan, [i for i, v in enumerate(scan.vobus) if v.sector in firsts], "",
+                      post[1] if post else "")  # fmt: skip
+    audio = [AudioAttr(a.coding, a.language, a.channels, k) for k, a in enumerate(ts.audio)]
+    subs = [SubpictureAttr(s.language, k) for k, s in enumerate(ts.subpictures)]
+    spec = TitlesetSpec(ts.standard, ts.aspect, [title], audio, subs)
+    ours = author_titles(spec, [vob_in], out, provider="DVDAuthor 0.7.2+")
+    for name in ("VIDEO_TS.IFO", "VIDEO_TS.BUP", "VTS_01_0.IFO", "VTS_01_0.BUP"):
+        assert (ours / name).read_bytes() == (video_ts / name).read_bytes(), name
+    mine, theirs = (ours / "VTS_01_1.VOB").read_bytes(), (video_ts / "VTS_01_1.VOB").read_bytes()
+    assert len(mine) == len(theirs)
+    for v in scan.vobus:  # dvdauthor's unstable subpicture field (see assert_nav_packs_match)
+        at = v.sector * 2048 + 0x5A9
+        if scan.subpictures.get(0) and v.end_pts <= scan.subpictures[0][0][1]:
+            theirs = theirs[:at] + mine[at : at + 4] + theirs[at + 4 :]
+    assert mine == theirs
+    assert ifo_write.PROVIDER == "DVD Studyo"
