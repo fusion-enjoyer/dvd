@@ -82,6 +82,13 @@ def test_read_a_built_disc(tmp_path: Path):
 
     from dvd.cli import app
 
+    # Our compiler writes the menu's pre program byte for byte as dvdauthor did.
+    from dvd.ifo.vmc import compile_program
+
+    xml = next(tmp_path.rglob("dvdauthor.xml")).read_text(encoding="utf-8")
+    root_pre = xml.split('<pgc entry="root">')[1].split("<pre>")[1].split("</pre>")[0]
+    assert compile_program(root_pre, "vtsm") == film.menus[0].pre
+
     out = CliRunner().invoke(app, ["ifo", str(result.video_ts.parent), "--commands"])
     assert out.exit_code == 0, out.output
     assert "titleset 2: PAL 16:9" in out.output and "blocked: title_or_time_play" in out.output
@@ -94,3 +101,50 @@ def test_read_a_built_disc(tmp_path: Path):
     assert "disc check: 2 titles on the disc, 1 expected" in found
     assert "disc check: title 1 has 2 chapters, 3 expected" in found
     assert any("lasts 6.0 s, 9.0 s expected" in f for f in found)
+
+
+@pytest.mark.parametrize(("text", "domain", "raw"), [
+    ("g15 = 0", "vtsm", ["7100000f00000000"]),
+    ("g14 = g15", "vtsm", ["6100000e000f0000"]),
+    ("if (g0 == 0) g0 = 1", "vtsm", ["71a0000000010000"]),
+    ("button = 1024", "vtsm", ["5600000004000000"]),
+    ("jump title 1", "vtsm", ["3003000000010000"]),
+    ("jump title 1 chapter 2", "vtsm", ["3005000200010000"]),
+    ("jump title 2", "vmg", ["3002000000020000"]),
+    ("jump menu 3", "vtsm", ["2004000000000003"]),
+    ("call menu entry root", "title", ["3008000001830000"]),
+    ("jump titleset 1 menu", "vmg", ["3006000101830000"]),
+    ("exit", "vtsm", ["3001000000000000"]),
+])  # fmt: skip
+def test_compile_matches_dvdauthor(text, domain, raw):
+    from dvd.ifo.vmc import compile_program
+
+    assert [c.hex() for c in compile_program(text, domain)] == raw
+
+
+def test_compiled_programs_read_back():
+    from dvd.ifo.vm import decode
+    from dvd.ifo.vmc import CompileError, compile_program
+
+    program = compile_program(
+        "g5 += 1; if (g5 == 3) { g5 = 0; g1 = 0; jump title 1; } jump cell 1;", "vtsm"
+    )
+    assert [decode(c) for c in program] == [
+        "g5 += 1",
+        "if (g5 != 3) Goto 6",
+        "g5 = 0",
+        "g1 = 0",
+        "JumpVTS_TT 1",
+        "LinkCN 1",
+    ]
+    # A test the command cannot hold becomes a Goto over it.
+    assert [decode(c) for c in compile_program("if (audio == 1) button = 2048", "vtsm")] == [
+        "if (audio != 1) Goto 3",
+        "button = 2048",
+    ]
+    assert decode(compile_program("g3 = random(5)", "vtsm")[0]) == "g3 = random(5)"
+    assert decode(compile_program("subtitle = 65", "vtsm")[0]) == "subtitle = 65"
+    with pytest.raises(CompileError):
+        compile_program("call menu entry root", "vtsm")
+    with pytest.raises(CompileError):
+        compile_program("teleport", "vtsm")
