@@ -102,13 +102,14 @@ class MenuInput:
 
 def write_menu_vob(menus: list[MenuInput], video_ts: Path, standard: str, aspect: str,
                    vts: int = 1) -> list[MenuSpec]:  # fmt: skip
-    """VTS_nn_0.VOB with every menu page, NAV packs carrying the buttons; the menu specs for
-    the IFO (sources scanned, colours numbered into each page's palette)."""
+    """VTS_nn_0.VOB (vts 0: VIDEO_TS.VOB, the disc's own menus) with every menu page, NAV
+    packs carrying the buttons; the menu specs for the IFO (sources scanned, colours
+    numbered into each page's palette)."""
     pal, wide = standard == "pal", aspect == "16:9"
     fps = Fraction(25) if pal else Fraction(30000, 1001)
     specs = []
     for m in menus:
-        spec = MenuSpec([], m.entry, m.pre, m.post)
+        spec = MenuSpec([], m.entry, m.pre, m.post, domain="vmg" if vts == 0 else "vtsm")
         palette = Palette()
         for path, still in zip(m.files, m.stills, strict=True):
             spec.sources.append(MenuSource(scan_stream(path, fps), still))
@@ -126,7 +127,9 @@ def write_menu_vob(menus: list[MenuInput], video_ts: Path, standard: str, aspect
         spec.palette = palette.entries()
         specs.append(spec)
     ids, bases, _length = menu_layout(specs)
-    with (video_ts / f"VTS_{vts:02}_0.VOB").open("wb") as out:
+    name = "VIDEO_TS.VOB" if vts == 0 else f"VTS_{vts:02}_0.VOB"
+    streams = (1, 0) if vts == 0 else (1, 1)  # the disc's menus carry no subpicture here
+    with (video_ts / name).open("wb") as out:
         for m, spec, vob_ids, starts in zip(menus, specs, ids, bases, strict=True):
             palette = Palette()  # the same packs in the same order: the same numbering
             for path, source, vob_id, base in zip(m.files, spec.sources, vob_ids, starts,
@@ -147,26 +150,46 @@ def write_menu_vob(menus: list[MenuInput], video_ts: Path, standard: str, aspect
                         colors.pack(pack)
                         if sector in nav_at:
                             pack = bytearray(nav_pack(pack, scan, cells, nav_at[sector], pal,
-                                                      1, 1, base))  # fmt: skip
+                                                      *streams, base))  # fmt: skip
                             if source is spec.sources[-1] and spec.buttons:  # the loop / still
                                 button_info(pack, spec, scan.vobus[0].start_pts, wide)
                         out.write(pack)
     return specs
 
 
+@dataclass
+class TitlesetInput:
+    spec: TitlesetSpec
+    sources: list[Path]  # each title's program stream
+    menus: list[MenuInput] = field(default_factory=list)
+
+
 def author_disc(spec: TitlesetSpec, sources: list[Path], menus: list[MenuInput],
-                out_dir: Path, first_play: str = "", provider: str = PROVIDER) -> Path:  # fmt: skip
-    """VIDEO_TS with one titleset and its menus (the disc opens on the root menu)."""
+                out_dir: Path, first_play: str = "", provider: str = PROVIDER,
+                more: list[TitlesetInput] | None = None,
+                disc_menus: list[MenuInput] | None = None) -> Path:  # fmt: skip
+    """VIDEO_TS with titleset 1 (and `more` titlesets) with their menus; `disc_menus` are
+    the disc's own menus (VIDEO_TS.VOB). Without `first_play` the disc opens on the root
+    menu of titleset 1."""
     video_ts = out_dir / "VIDEO_TS"
     video_ts.mkdir(parents=True, exist_ok=True)
     for old in video_ts.iterdir():
         old.unlink()
-    for title, palette in zip(spec.titles, write_vobs(spec, sources, video_ts), strict=True):
-        title.palette = palette
-    menu_specs = write_menu_vob(menus, video_ts, spec.standard, spec.aspect)
-    vts = write_vts(spec, menu_specs)
-    vmg = write_vmg([(spec, vts)], first_play or "jump titleset 1 menu;", provider)
-    for name, data in (("VTS_01_0", vts), ("VIDEO_TS", vmg)):
-        (video_ts / f"{name}.IFO").write_bytes(data)
-        (video_ts / f"{name}.BUP").write_bytes(data)
+    written = []
+    for n, ts in enumerate([TitlesetInput(spec, sources, menus), *(more or [])], start=1):
+        for title, palette in zip(ts.spec.titles, write_vobs(ts.spec, ts.sources, video_ts, n),
+                                  strict=True):  # fmt: skip
+            title.palette = palette
+        menu_specs = write_menu_vob(ts.menus, video_ts, ts.spec.standard, ts.spec.aspect, n) \
+            if ts.menus else None  # fmt: skip
+        vts = write_vts(ts.spec, menu_specs)
+        written.append((ts.spec, vts))
+        (video_ts / f"VTS_{n:02}_0.IFO").write_bytes(vts)
+        (video_ts / f"VTS_{n:02}_0.BUP").write_bytes(vts)
+    vmgm = write_menu_vob(disc_menus, video_ts, spec.standard, spec.aspect, 0) \
+        if disc_menus else None  # fmt: skip
+    default = "jump titleset 1 menu;" if menus else ""
+    vmg = write_vmg(written, first_play or default, provider, vmgm)
+    (video_ts / "VIDEO_TS.IFO").write_bytes(vmg)
+    (video_ts / "VIDEO_TS.BUP").write_bytes(vmg)
     return video_ts

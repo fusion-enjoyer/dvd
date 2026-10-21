@@ -365,13 +365,17 @@ def test_build_disc_with_menus(tmp_path: Path):
     ).stdout  # fmt: skip
     assert float(duration) == pytest.approx(12 * 24000 / 1001 / 25, abs=0.4)
     # Our own authoring of the same menus and title gives the same disc, file for file.
+    _same_when_we_author_it(tmp_path, result.video_ts)
+
+
+def _same_when_we_author_it(tmp_path: Path, video_ts: Path) -> None:
     from fractions import Fraction
 
     sys.path.insert(0, str(Path(__file__).parent))
     from own_author import reauthor, same_files
 
-    ours = reauthor(tmp_path, result.video_ts, tmp_path / "own", Fraction(25))
-    assert same_files(ours, result.video_ts) == []
+    ours = reauthor(tmp_path, video_ts, tmp_path / "own", Fraction(25))
+    assert same_files(ours, video_ts) == []
 
 
 @pytest.mark.skipif(not READY, reason="toolchain not installed")
@@ -418,6 +422,7 @@ def test_intro_plays_before_the_menu(tmp_path: Path):
                           "-show_entries", "format=duration", "-of", "csv=p=0",
                           "-i", str(result.video_ts)], capture_output=True, text=True)  # fmt: skip
     assert out.returncode == 0 and float(out.stdout) == pytest.approx(2, abs=0.3)
+    _same_when_we_author_it(tmp_path, result.video_ts)
 
 
 @pytest.mark.skipif(not READY, reason="toolchain not installed")
@@ -450,6 +455,7 @@ def test_hidden_clip_is_a_title_reached_through_the_vmg_menu(tmp_path: Path):
                           "-show_entries", "format=duration", "-of", "csv=p=0",
                           "-i", str(result.video_ts)], capture_output=True, text=True)  # fmt: skip
     assert out.returncode == 0 and float(out.stdout) == pytest.approx(3, abs=0.3)
+    _same_when_we_author_it(tmp_path, result.video_ts)
 
 
 @pytest.mark.skipif(not READY, reason="toolchain not installed")

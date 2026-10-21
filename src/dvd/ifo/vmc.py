@@ -105,6 +105,7 @@ def _jump_guard(b: _Bits, compare: tuple[str, str, str] | None) -> _Bits:
 def statement(text: str, domain: str, compare: tuple[str, str, str] | None = None) -> bytes:
     """One statement as one command."""
     s = " ".join(text.split())
+    s = re.sub(r"\s*(\+=|-=|\*=|/=|%=|(?<![=!<>])=(?!=))\s*", r" \1 ", s).strip()  # "g1=0"
     if m := re.fullmatch(r"(g\d+) = random\((\d+)\)", s):
         return _set(m.group(1), "random", m.group(2), compare)
     if m := re.fullmatch(r"(g\d+) (=|\+=|-=|\*=|/=|%=) (g\d+|\d+)", s):
@@ -141,6 +142,12 @@ def statement(text: str, domain: str, compare: tuple[str, str, str] | None = Non
         b = _jump_guard(_Bits().put(63, 3, 1).put(60, 1, 1).put(51, 4, 6), compare)
         menu = MENU_CODE[m.group(2) or "root"]
         return b.put(23, 2, 2).put(30, 7, int(m.group(1))).put(38, 7, 1).put(19, 4, menu).bytes()
+    if m := re.fullmatch(r"call vmgm menu entry (\w+)(?: resume (\d+))?", s):
+        if domain != "title":
+            raise CompileError("'call vmgm menu' only works from a title")
+        b = _jump_guard(_Bits().put(63, 3, 1).put(60, 1, 1).put(51, 4, 8), compare)
+        cell = int(m.group(2) or 1)
+        return b.put(23, 2, 1).put(19, 4, MENU_CODE[m.group(1)]).put(31, 8, cell).bytes()
     if m := re.fullmatch(r"call menu entry (\w+)(?: resume (\d+))?", s):
         if domain != "title":
             raise CompileError("'call menu' only works from a title")
@@ -177,7 +184,7 @@ def _split(text: str) -> list[str]:
     return [s.strip() for s in out if s.strip()]
 
 
-_IF = re.compile(r"if \((\w+) (==|!=|>=|<=|>|<|&) (\w+)\) (.*)", re.S)
+_IF = re.compile(r"if\s*\(\s*(\w+)\s*(==|!=|>=|<=|>|<|&)\s*(\w+)\s*\)\s*(.*)", re.S)
 
 
 def compile_program(text: str, domain: str) -> list[bytes]:

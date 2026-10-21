@@ -56,6 +56,7 @@ class MenuSpec:
     buttons: list[Button] = field(default_factory=list)
     button_colors: bytes = bytes(24)  # select/action colour and contrast, 3 groups (spumux)
     palette: list[int] = field(default_factory=list)
+    domain: str = "vtsm"  # "vmg" for the disc's own menus (VIDEO_TS.VOB)
 
 
 def _w(buf: bytearray, at: int, value: int, size: int = 4) -> None:
@@ -77,13 +78,13 @@ def button_commands(menu: MenuSpec) -> tuple[list[bytes], list[bytes]]:
     single: list[bytes] = []
     programs: list[tuple[int, list[bytes]]] = []
     for k, b in enumerate(menu.buttons, start=1):
-        program = compile_program(b.command, "vtsm") if b.command.strip() else []
+        program = compile_program(b.command, menu.domain) if b.command.strip() else []
         if len(program) == 1:
             single.append(program[0])
         else:  # g15 = k, then on to the post commands
             single.append(bytes((0x71, 0x01, 0x00, 0x0F, 0x00, k, 0x00, 0x0D)))
             programs.append((k, program))
-    post = compile_program(menu.post, "vtsm") if menu.post.strip() else [EXIT]
+    post = compile_program(menu.post, menu.domain) if menu.post.strip() else [EXIT]
     if not programs:
         return single, post
     head = [bytes.fromhex("6100000e000f0000"), bytes.fromhex("7100000f00000000")]  # g14=g15; g15=0
@@ -113,7 +114,7 @@ def menu_pgc(menu: MenuSpec, vob_ids: list[int], bases: list[int], pal: bool, wi
         buf[28 + 4 * i] |= 0x80
     for i, c in enumerate(menu.palette or [0x108080] * 16):
         _w(buf, 164 + 4 * i, c)
-    pre = compile_program(menu.pre, "vtsm") if menu.pre.strip() else []
+    pre = compile_program(menu.pre, menu.domain) if menu.pre.strip() else []
     if not pre and menu.buttons:
         pre = [bytes.fromhex("5600000004000000")]  # start on button 1
     _single, post = button_commands(menu)
@@ -177,7 +178,8 @@ def pgci_ut(menus: list[MenuSpec], pal: bool, wide: bool, audio: int, subs: int)
     ut = bytearray(16)
     _w(ut, 0, 1, 2)
     ut[8:10] = b"en"
-    ut[11] = entries & 0xFF
+    # Which entry menus exist; the disc's menus always claim the title menu.
+    ut[11] = 0x80 if menus and menus[0].domain == "vmg" else entries & 0xFF
     _w(ut, 12, len(ut))
     ut += lu
     _w(ut, 4, len(ut) - 1)

@@ -44,6 +44,7 @@ class TitleSpec:
     pre: str = ""
     post: str = ""
     palette: list[int] = field(default_factory=list)  # 16 x 0xYYCrCb; empty: grey default
+    uops: int = 0  # what the viewer may not do while it plays (`uops.UOP_BITS`)
 
 
 @dataclass
@@ -115,6 +116,7 @@ def title_pgc(title: TitleSpec, spec: TitlesetSpec, vob_id: int, sector_base: in
     buf[2] = len(cells)  # every cell is a program (and a chapter)
     buf[3] = len(cells)
     _w(buf, 4, bcd_time(_span(title), pal))
+    _w(buf, 8, title.uops)
     for i, a in enumerate(spec.audio):
         buf[12 + 2 * i] = 0x80 | a.stream
     wide = spec.aspect == "16:9"
@@ -316,10 +318,12 @@ PROVIDER = "DVD Studyo"
 
 
 def write_vmg(titlesets: list[tuple[TitlesetSpec, bytes]], first_play: str = "",
-              provider: str = PROVIDER) -> bytes:  # fmt: skip
-    """VIDEO_TS.IFO for a disc without disc-level menus. `titlesets`: each spec with its
-    written VTS IFO (for the titleset size and its attribute copy). `first_play`: commands
-    run when the disc starts; empty: play title 1."""
+              provider: str = PROVIDER, menus: list | None = None) -> bytes:  # fmt: skip
+    """VIDEO_TS.IFO. `titlesets`: each spec with its written VTS IFO (for the titleset size
+    and its attribute copy). `first_play`: commands run when the disc starts; empty: play
+    title 1. `menus`: the disc's own menus (`menu_write.MenuSpec`, in VIDEO_TS.VOB)."""
+    from dvd.author import menu_write
+
     head = bytearray(SECTOR)
     head[:12] = b"DVDVIDEO-VMG"
     head[0x21] = 0x11
@@ -332,15 +336,36 @@ def write_vmg(titlesets: list[tuple[TitlesetSpec, bytes]], first_play: str = "",
     # Title search pointers (written below, once the titleset positions are known)
     tt_sectors = (8 + 12 * sum(len(s.titles) for s, _i in titlesets) + SECTOR - 1) // SECTOR
     _w(head, 0xC4, 1)
-    atrt_at = 1 + tt_sectors
+    at = 1 + tt_sectors
+    pal = titlesets[0][0].standard == "pal" if titlesets else True
+    wide = titlesets[0][0].aspect == "16:9" if titlesets else True
+    menu_tables = []
+    if menus:
+        menu_tables.append(_sectors(menu_write.pgci_ut(menus, pal, wide, 1, 0)))
+        _w(head, 0xC8, at)
+        at += len(menu_tables[0]) // SECTOR
+    atrt_at = at
     _w(head, 0xD0, atrt_at)
     atrt_len = 8 + len(titlesets) * 0x30C
-    ifo_sectors = atrt_at + (atrt_len + SECTOR - 1) // SECTOR
+    at = atrt_at + (atrt_len + SECTOR - 1) // SECTOR
+    if menus:
+        menu_tables.append(_sectors(menu_write.c_adt(menus)))
+        _w(head, 0xD8, at)
+        at += len(menu_tables[1]) // SECTOR
+        menu_tables.append(_sectors(menu_write.vobu_admap(menus)))
+        _w(head, 0xDC, at)
+        at += len(menu_tables[2]) // SECTOR
+    ifo_sectors = at
     _w(head, 0x1C, ifo_sectors - 1)
-    vts_start = max(ifo_sectors * 2, 2 * MIN_IFO_SECTORS)
+    vts_start = ifo_sectors * 2
+    if menus:
+        _w(head, 0xC0, ifo_sectors)
+        vts_start += menu_write.layout(menus)[2]
+        av_info(head, 0x100, TitlesetSpec(titlesets[0][0].standard, titlesets[0][0].aspect, [],
+                                          [AudioAttr()], []))  # fmt: skip
+    vts_start = max(vts_start, 2 * MIN_IFO_SECTORS)
     _w(head, 0x0C, vts_start - 1)
     # First play PGC
-    pal = titlesets[0][0].standard == "pal" if titlesets else True
     head[0x407] = (1 if pal else 3) << 6
     head[0x4E5] = 0xEC
     commands = compile_program(first_play, "vmg") if first_play.strip() \
@@ -378,4 +403,7 @@ def write_vmg(titlesets: list[tuple[TitlesetSpec, bytes]], first_play: str = "",
         entry[4:8] = ifo[0x22:0x26]
         entry[8:] = ifo[0x100:0x400]
         atrt += entry
+    if menus:
+        return (bytes(head) + _sectors(tt) + menu_tables[0] + _sectors(atrt) + menu_tables[1]
+                + menu_tables[2])  # fmt: skip
     return bytes(head) + _sectors(tt) + _sectors(atrt)
