@@ -128,6 +128,15 @@ def test_series_disc_builds_with_episode_menu(tmp_path: Path):
     log = next(tmp_path.rglob("dvdauthor.log")).read_text(encoding="utf-8", errors="replace")
     assert "ERR" not in log
     assert (result.video_ts / "VTS_01_0.VOB").is_file()
+    # Our own authoring of the two episodes and the episode menus: dvdauthor's files.
+    import sys
+    from fractions import Fraction
+
+    sys.path.insert(0, str(Path(__file__).parent))
+    from own_author import reauthor, same_files
+
+    ours = reauthor(tmp_path, result.video_ts, tmp_path / "own", Fraction(25))
+    assert same_files(ours, result.video_ts) == []
 
 
 @pytest.mark.skipif(FFMPEG is None, reason="ffmpeg not installed")

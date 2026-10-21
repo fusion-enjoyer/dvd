@@ -219,6 +219,10 @@ def compile_program(text: str, domain: str) -> list[bytes]:
 
     for part in _merged(_split(text), domain):
         emit(part)
+    # A test that skips the last command needs a line to land on (also when the program is
+    # placed before other code, as button programs are).
+    if any(c[0] == 0 and c[1] & 0x0F == 1 and c[7] == len(out) + 1 for c in out):
+        out.append(bytes(8))  # Nop
     return out
 
 

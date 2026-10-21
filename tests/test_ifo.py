@@ -202,6 +202,7 @@ def test_compiled_programs_read_back():
     assert [decode(c) for c in compile_program("if (audio == 1) button = 2048", "vtsm")] == [
         "if (audio != 1) Goto 3",
         "button = 2048",
+        "Nop",  # a line for the skip to land on
     ]
     assert decode(compile_program("g3 = random(5)", "vtsm")[0]) == "g3 = random(5)"
     assert decode(compile_program("subtitle = 65", "vtsm")[0]) == "subtitle = 65"
