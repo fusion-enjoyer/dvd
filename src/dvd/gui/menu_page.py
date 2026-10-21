@@ -103,6 +103,7 @@ class MenuEditorPage(QWidget):
         self.sim = None
         self.dirty = False
         self.request = 0
+        self.wanted_page: str | None = None
         box = QVBoxLayout(self)
         box.setContentsMargins(24, 20, 24, 20)
         box.setSpacing(12)
@@ -323,6 +324,10 @@ class MenuEditorPage(QWidget):
                 return
             self.previews = previews
             current = self.page_list.currentIndex()
+            ids = [page.id for page, _r in previews]
+            if self.wanted_page in ids:  # asked for from the disc map before the pages were up
+                current = ids.index(self.wanted_page)
+            self.wanted_page = None
             self.page_list.blockSignals(True)
             self.page_list.clear()
             for page, _rendered in previews:
@@ -334,6 +339,14 @@ class MenuEditorPage(QWidget):
             self._show_preview()
 
         tasks.run(lambda: render_preview(*args), done, self.status.setText)
+
+    def select_page(self, page_id: str) -> None:
+        """Show this page (e.g. clicked on the disc map); waits for the previews if needed."""
+        ids = [page.id for page, _r in self.previews]
+        if page_id in ids and not self.dirty:
+            self.page_list.setCurrentIndex(ids.index(page_id))
+        else:
+            self.wanted_page = page_id
 
     def _set_view(self, view: str) -> None:
         self.view = view

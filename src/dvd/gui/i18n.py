@@ -25,6 +25,14 @@ TEXTS: dict[str, dict[str, str]] = {
         "nav.menus": "Menüler",
         "nav.disc": "Disk",
         "nav.output": "Çıktı",
+        "nav.map": "Disk haritası",
+        "map.title": "Disk haritası",
+        "map.hint": (
+            "Disk takılınca neyin oynadığı, menü sayfalarının nereye götürdüğü ve her başlıktan "
+            "sonra ne olduğu. Düz çizgi: buton ya da sıradaki adım; kesikli: kendiliğinden "
+            "(bitince, beklenince); noktalı: rastgele. Menü sayfasına tıklayınca menü "
+            "düzenleyicide açılır."
+        ),
         "empty.title": "Videoyu buraya sürükleyin",
         "empty.body": (
             "MKV, M2TS, MP4, TS veya MOV. Blu-ray kopyası da olur, telefonla çekilmiş video da. "

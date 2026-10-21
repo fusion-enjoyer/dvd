@@ -38,7 +38,7 @@ def test_empty_window_and_mode_switch(app):
     w.set_mode("pro")
     app.processEvents()
     visible = [b for b in w.nav.findChildren(type(w.build_button)) if b.isVisible()]
-    assert len(w.nav_buttons) == 8 and all(b in w.nav_buttons.values() for b in visible)
+    assert len(w.nav_buttons) == 9 and all(b in w.nav_buttons.values() for b in visible)
     assert w.build_button.text() == "Build"
 
 
@@ -520,3 +520,36 @@ def test_template_editor_saves_a_user_template(app, tmp_path: Path, monkeypatch)
     tpl = load_template("Mavi")
     assert tpl.marker == "underline" and not tpl.shadow and tpl.tint == (20, 50, 110)
     assert (tmp_path / "Mavi.yaml").read_text(encoding="utf-8").startswith("base: 2000ler")
+
+
+@pytest.mark.skipif(FFMPEG is None, reason="ffmpeg not installed")
+def test_disc_map_opens_a_menu_page(app, tmp_path: Path):
+    src = tmp_path / "harita.mkv"
+    subprocess.run(
+        [str(FFMPEG), "-v", "error", "-y", "-f", "lavfi",
+         "-i", "testsrc2=size=1280x720:rate=25:duration=2", "-f", "lavfi", "-i", "sine=duration=2",
+         "-f", "lavfi", "-i", "sine=duration=2", "-map", "0", "-map", "1", "-map", "2",
+         "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "ac3", str(src)],
+        check=True,
+    )  # fmt: skip
+    w = MainWindow(mode="pro")
+    w.show()
+    w._loaded(w._load(src))
+    QThreadPool.globalInstance().waitForDone(60000)
+    w.show_page("map")
+    app.processEvents()
+    canvas = w.map_page.canvas
+    assert {"start", "page:main", "page:languages", "title1"} <= set(canvas.boxes)
+    opened = []
+    canvas.page_clicked.connect(opened.append)
+    from PySide6.QtCore import Qt
+    from PySide6.QtTest import QTest
+
+    centre = canvas.boxes["page:languages"].center().toPoint()
+    QTest.mouseClick(canvas, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, centre)
+    assert opened == ["languages"] and w.current == "menu"
+    QThreadPool.globalInstance().waitForDone(60000)
+    app.processEvents()
+    page = w.menu_page
+    assert page.previews[page.page_list.currentIndex()][0].id == "languages"
+    w.close()

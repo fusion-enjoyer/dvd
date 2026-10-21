@@ -502,3 +502,28 @@ def test_user_templates_save_export_and_import(tmp_path: Path, monkeypatch):
     assert template("silinmis") is TEMPLATES["minimal"]  # a project naming a missing one
     p, info = project(menus={"template": "Kırmızı sinema"})
     assert [b.rect[1] for b in expand(p, info)[0].buttons][0] > 0.7  # its row-bottom layout
+
+
+def test_disc_map_follows_the_disc_commands():
+    from dvd.menu.discmap import columns, disc_map
+    from dvd.project.model import HiddenClip, Intro
+
+    p, info = project(chapters=8, audio=2, subs=1, menus={"timeout": 30, "resume": True})
+    p.first_play = [Intro(file="logo.mkv"), Intro(file="dir/uyari.mkv", skippable=False)]
+    p.menus.pages[0].hidden = [HiddenClip(file="gizli.mkv", after="play")]
+    m = disc_map(p, info)
+    assert [[n.id for n in col] for col in columns(m)] == [
+        ["start"], ["intro1", "intro2"],
+        ["page:main", "page:chapters", "page:chapters-2", "page:languages"],
+        ["title1", "hidden1"],
+    ]  # fmt: skip
+    assert m.node("intro2").note == "uyari.mkv · atlanamaz"
+    edges = {(e.src, e.dst, e.style): e for e in m.edges}
+    assert ("start", "intro1", "solid") in edges and ("intro2", "page:main", "solid") in edges
+    assert edges[("page:chapters", "title1", "solid")].text == "bölüm 1–6"
+    assert edges[("page:main", "title1", "dashed")].text == "Kaldığın yerden, 30 sn beklenince"
+    assert edges[("page:main", "hidden1", "solid")].text == "gizli nokta"
+    assert edges[("title1", "page:main", "dashed")].text == "bitince"
+    p.menus, p.at_end = None, "stop"
+    m = disc_map(p, info)
+    assert {(e.src, e.dst) for e in m.edges} >= {("intro2", "title1"), ("title1", "end")}

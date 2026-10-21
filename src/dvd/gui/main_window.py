@@ -28,6 +28,7 @@ from dvd.budget.planner import Plan
 from dvd.build import estimate
 from dvd.gui import tasks
 from dvd.gui.chapters import ChaptersPage
+from dvd.gui.disc_map import DiscMapPage
 from dvd.gui.disc_page import DiscPage
 from dvd.gui.i18n import t
 from dvd.gui.menu_page import MenuEditorPage
@@ -60,11 +61,12 @@ NAV = {
         ("chapters", "nav.chapters"),
         ("menu", "nav.menus"),
         ("disc", "nav.disc"),
+        ("map", "nav.map"),
         ("build", "nav.output"),
     ],
 }
 # Where a page lands when the mode changes and it has no counterpart.
-FALLBACK = {"subs": "audio", "chapters": "video", "disc": "build"}
+FALLBACK = {"subs": "audio", "chapters": "video", "disc": "build", "map": "menu"}
 
 
 def label(text: str = "", name: str | None = None, wrap: bool = False) -> QLabel:
@@ -453,6 +455,9 @@ class MainWindow(QMainWindow):
         self.disc_page = DiscPage()
         self.disc_page.changed.connect(self._tracks_changed)
         self.pages["disc"] = self.disc_page
+        self.map_page = DiscMapPage()
+        self.map_page.page_clicked.connect(self._open_menu_page)
+        self.pages["map"] = self.map_page
         for page in self.pages.values():
             self.stack.addWidget(page)
         self.current = "empty"
@@ -735,6 +740,7 @@ class MainWindow(QMainWindow):
         for page in (self.audio_page, self.subs_page):
             page.show_project(p, self.infos[0], self.project_file.parent, self.mode)
         self.disc_page.show_project(p, self.project_file.parent)
+        self.map_page.show_project(p, self.infos)
         sources = [proj.source_path(self.project_file, title) for title in p.titles]
         self.menu_page.show_project(p, self.infos, sources, self.project_file.parent,
                                     self._menu_frame())  # fmt: skip
@@ -742,6 +748,11 @@ class MainWindow(QMainWindow):
                                         proj.source_path(self.project_file, p.titles[0]),
                                         self._speedup())  # fmt: skip
         self.build_page.set_summary(t("build.summary", folder=self._output_folder()))
+
+    def _open_menu_page(self, page_id: str) -> None:
+        """From the disc map: the menu editor on that page."""
+        self.show_page("menu")
+        self.menu_page.select_page(page_id)
 
     def _speedup(self) -> float:
         from dvd.video.pipeline import UnsupportedSource, plan_target
