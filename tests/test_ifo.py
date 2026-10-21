@@ -341,3 +341,13 @@ def test_validator_finds_broken_discs(tmp_path: Path):
     assert any("title 9 is not on the disc" in f for f in out)
     out = broken("gone", lambda d: (d / "VTS_01_0.BUP").unlink())
     assert any("VTS_01_0.BUP: missing" in f for f in out)
+    # The stream checks: a VOBU whose video starts without a sequence header, and an audio
+    # packet of a second stream the IFO does not declare.
+    vob = (result.video_ts / "VTS_01_1.VOB").read_bytes()
+    seq = vob.find(b"\x00\x00\x01\xb3", 2048 * 30)
+    out = broken("seq", lambda d: patch(d / "VTS_01_1.VOB", seq + 3, b"\xb2"))
+    assert any("does not start with a sequence header" in f for f in out)
+    ac3 = next(i for i in range(0, len(vob), 2048) if vob[i + 14 : i + 18] == b"\x00\x00\x01\xbd"
+               and vob[i + 23 + vob[i + 22]] == 0x80)  # fmt: skip
+    out = broken("audio", lambda d: patch(d / "VTS_01_1.VOB", ac3 + 23 + vob[ac3 + 22], b"\x81"))
+    assert any("audio stream 2 is not in the IFO" in f for f in out)

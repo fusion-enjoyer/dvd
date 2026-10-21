@@ -5,7 +5,10 @@ there and their backups match, every title, chapter, program and cell points to 
 that exists, the commands fit (128 per program chain) and jump only to titles, menus and
 lines that exist, the cell and VOBU address tables agree with the VOBs, every VOBU starts
 with a NAV pack that knows its own place and time, units last at most a second and follow
-each other without gaps, and menu buttons stay within the limit of 36.
+each other without gaps, and menu buttons stay within the limit of 36. From the first packs
+of every VOBU: its video starts with a sequence header and an I picture (where players
+start decoding after a jump), and its audio and subpicture packets belong to streams the
+IFO declares.
 """
 
 from __future__ import annotations
@@ -22,6 +25,7 @@ MAX_VOB_BYTES = 1 << 30
 MAX_COMMANDS = 128
 MAX_BUTTONS = 36
 VOBU_MAX_TICKS = 90000 + 3600  # 1 s (a frame of slack for rounding)
+STREAM_PACKS = 8  # packs read from the start of each VOBU for the stream checks
 
 
 @dataclass(frozen=True)
@@ -136,9 +140,48 @@ def _target_problem(text: str, lines: int, ctx: dict) -> str | None:
     return None
 
 
+def _stream_problems(vobs: _Vobs, sector: int, end: int | None,
+                     streams: tuple[int, int] | None) -> list[str]:  # fmt: skip
+    """The first packs of the VOBU at `sector`: how its video starts, and audio/subpicture
+    stream numbers beyond what the IFO declares (`streams`: audio, subpicture counts)."""
+    problems: list[str] = []
+    video_start = None
+    last = min(sector + STREAM_PACKS, end if end is not None else sector + STREAM_PACKS)
+    for at in range(sector + 1, last + 1):
+        pack = vobs.read(at)
+        if pack is None or pack[:4] != b"\x00\x00\x01\xba":
+            break
+        pos = 14 + (pack[13] & 7)
+        while pos + 9 <= SECTOR and pack[pos : pos + 3] == b"\x00\x00\x01":
+            sid = pack[pos + 3]
+            length = int.from_bytes(pack[pos + 4 : pos + 6], "big")
+            data = pos + 9 + pack[pos + 8]
+            if 0xE0 <= sid <= 0xEF and video_start is None:
+                video_start = bytes(pack[data : pos + 6 + length])
+            elif sid == 0xBD and streams is not None and data < SECTOR:
+                sub = pack[data]
+                if 0x80 <= sub <= 0x87 or 0xA0 <= sub <= 0xA7 or 0x88 <= sub <= 0x8F:
+                    if sub & 0x07 >= streams[0]:
+                        problems.append(f"audio stream {(sub & 0x07) + 1} is not in the IFO")
+                elif 0x20 <= sub <= 0x3F and sub - 0x20 >= streams[1]:
+                    problems.append(f"subpicture stream {sub - 0x20 + 1} is not in the IFO")
+            pos += 6 + length
+    if video_start is not None:
+        if not video_start.startswith(b"\x00\x00\x01\xb3"):
+            problems.append("its video does not start with a sequence header")
+        else:
+            picture = video_start.find(b"\x00\x00\x01\x00")
+            if picture != -1 and picture + 6 <= len(video_start) and \
+                    (video_start[picture + 5] >> 3) & 7 != 1:  # fmt: skip
+                problems.append("its first picture is not an I picture")
+    return sorted(set(problems))
+
+
 def _check_vobus(found: list[Finding], where: str, vobs: _Vobs, vobus: list[int],
-                 cells: list[tuple[int, int, int, int]], menus: bool) -> None:  # fmt: skip
-    """NAV packs against the address tables: place, end, time span, cell."""
+                 cells: list[tuple[int, int, int, int]], menus: bool,
+                 streams: tuple[int, int] | None = None) -> None:  # fmt: skip
+    """NAV packs against the address tables: place, end, time span, cell; the start of
+    each VOBU's streams."""
     if vobus != sorted(vobus) or len(set(vobus)) != len(vobus):
         found.append(Finding("error", where, "the VOBU address map is not in order"))
         return
@@ -176,6 +219,8 @@ def _check_vobus(found: list[Finding], where: str, vobs: _Vobs, vobus: list[int]
             found.append(Finding("warning", name, "a gap or overlap in time with the VOBU "
                                                   "before it"))  # fmt: skip
         previous = (cell, stop)
+        for problem in _stream_problems(vobs, sector, end, streams):
+            found.append(Finding("error", name, problem))
         buttons = pack[0x9E]
         if menus and buttons > MAX_BUTTONS:
             found.append(Finding("error", name, f"{buttons} buttons, at most {MAX_BUTTONS}"))
@@ -263,7 +308,7 @@ def validate(video_ts: Path) -> list[Finding]:
                         )
                     )
         _check_vobus(found, f"titleset {ts.number} titles", titles, ts.title_vobus,
-                     ts.title_cells, False)  # fmt: skip
+                     ts.title_cells, False, (len(ts.audio), len(ts.subpictures)))  # fmt: skip
         if ts.menus:
             _check_vobus(found, f"titleset {ts.number} menus", menus, ts.menu_vobus,
                          ts.menu_cells, True)  # fmt: skip
