@@ -231,6 +231,12 @@ def render_page(
 
     for b in page.buttons:
         r = _px(b.rect, dw, fh)
+        if b.hidden:  # nothing on the picture; lit, a small dot gives the finder away
+            for k, q in painters.items():
+                q.setPen(Qt.PenStyle.NoPen)
+                q.setBrush(QColor(*colours[k]))
+                q.drawEllipse(r.center(), r.width() / 4, r.width() / 4)
+            continue
         if b.thumb is not None:
             pic = QRectF(r.left(), r.top(), r.width(), r.width() * 9 / 16)
             image = (thumbs or {}).get((b.thumb_title, b.thumb))

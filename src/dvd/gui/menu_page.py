@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
 )
 
 from dvd.gui import tasks
+from dvd.gui.disc_page import VIDEO_FILES
 from dvd.gui.i18n import t
 from dvd.gui.menu_canvas import LAYER, MenuCanvas
 from dvd.gui.widgets import ModeSwitch, VideoWell
@@ -35,8 +36,10 @@ from dvd.probe import SourceInfo
 from dvd.project import edit
 from dvd.project.create import default_menus
 from dvd.project.model import (
+    MAX_HIDDEN,
     MAX_MENU_LAYERS,
     ButtonEdit,
+    HiddenClip,
     MenuBackground,
     MenuLayer,
     MenuPage,
@@ -204,6 +207,10 @@ class MenuEditorPage(QWidget):
             add.clicked.connect(lambda _=False, k=kind: self._add_layer(k))
             adds.addWidget(add)
         side.addLayout(adds)
+        self.add_hidden = QPushButton(t("menu.hidden.add"))
+        self.add_hidden.setToolTip(t("menu.hidden.hint"))
+        self.add_hidden.clicked.connect(self._add_hidden)
+        side.addWidget(self.add_hidden)
         self.nav_check = QCheckBox(t("menu.edit.arrows"))
         self.nav_check.toggled.connect(self._show_arrows)
         side.addWidget(self.nav_check)
@@ -397,7 +404,10 @@ class MenuEditorPage(QWidget):
             button is not None or (layer is not None and layer.kind == "text")
         )
         self.label_edit.setText(button.label if button else layer.text or "" if layer else "")
-        self.reset.setText(t("menu.layer.remove") if layer else t("menu.edit.reset"))
+        egg = button is not None and button.hidden
+        self.reset.setText(t("menu.layer.remove") if layer else
+                           t("menu.hidden.remove") if egg else t("menu.edit.reset"))  # fmt: skip
+        self.add_hidden.setEnabled(button is not None and not egg)
         self.label_title.setText(t("menu.layer.label") if layer else t("menu.edit.label"))
         self.colour.setEnabled(layer is not None and layer.kind != "image")
         self._fill_nav(button)
@@ -490,8 +500,42 @@ class MenuEditorPage(QWidget):
         if button is not None and text and text != button.label:
             self._edit_button(bid, label=text)
 
+    def _add_hidden(self) -> None:
+        spec, bid = self._spec(), self.canvas.current
+        menus = self.project.menus if self.project is not None else None
+        if spec is None or menus is None or not bid or bid.startswith(LAYER):
+            return
+        if len(menus.hidden_clips()) >= MAX_HIDDEN:
+            self.status.setText(t("menu.hidden.full", n=MAX_HIDDEN))
+            return
+        path, _ = QFileDialog.getOpenFileName(self, t("menu.hidden.add"), str(self.project_dir),
+                                              VIDEO_FILES)  # fmt: skip
+        if not path:
+            return
+        direction = next((d for d in ("right", "down", "left", "up")
+                          if d not in self._manual_nav(spec, bid)), "right")  # fmt: skip
+        spec.hidden = [*spec.hidden, HiddenClip(file=path, after=bid, direction=direction)]
+        self._changed()
+
+    @staticmethod
+    def _manual_nav(spec: MenuPage, bid: str) -> set[str]:
+        e = spec.edits.get(bid)
+        return {d for d in DIRECTIONS if e is not None and getattr(e, d)}
+
+    def _remove_hidden(self, egg: str) -> None:
+        number = int(egg.removeprefix("egg"))
+        clip = self.project.menus.hidden_clips()[number - 1]
+        for page in self.project.menus.pages:
+            if any(h is clip for h in page.hidden):
+                page.hidden = [h for h in page.hidden if h is not clip]
+        self.canvas.current = None
+        self._changed()
+
     def _reset_button(self) -> None:
-        """Back to the generated button; for a layer: remove it."""
+        """Back to the generated button; for a layer or a hidden spot: remove it."""
+        if (self.canvas.current or "").startswith("egg"):
+            self._remove_hidden(self.canvas.current)
+            return
         found = self._layer(self.canvas.current)
         if found is not None:
             spec, n = found

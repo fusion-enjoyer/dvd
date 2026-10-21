@@ -408,3 +408,35 @@ def test_intro_plays_before_the_menu(tmp_path: Path):
                           "-show_entries", "format=duration", "-of", "csv=p=0",
                           "-i", str(result.video_ts)], capture_output=True, text=True)  # fmt: skip
     assert out.returncode == 0 and float(out.stdout) == pytest.approx(2, abs=0.3)
+
+
+@pytest.mark.skipif(not READY, reason="toolchain not installed")
+def test_hidden_clip_is_a_title_reached_through_the_vmg_menu(tmp_path: Path):
+    from dvd.project.model import HiddenClip
+
+    src = _sample(tmp_path, seconds=6)
+    clip = tmp_path / "gizli.mkv"
+    subprocess.run(
+        [str(FFMPEG), "-v", "error", "-y", "-f", "lavfi",
+         "-i", "testsrc=size=640x360:rate=25:duration=3", "-c:v", "libx264",
+         "-preset", "ultrafast", str(clip)],
+        check=True,
+    )  # fmt: skip
+    project = new_project(probe(src), tmp_path)
+    project.titles[0].video.overrides = {"encoder": "ffmpeg"}
+    project.menus.pages[0].hidden = [HiddenClip(file="gizli.mkv", after="play")]
+    project_file = tmp_path / "gizli.dvd.yaml"
+    save(project, project_file)
+
+    result = build(project_file, make_iso=False)
+
+    xml = next(tmp_path.rglob("dvdauthor.xml")).read_text(encoding="utf-8")
+    assert "<fpc>jump titleset 1 menu;</fpc>" in xml  # no intros: straight to the menu
+    assert "<pre>if (g4 == 1) { g4 = 0; jump title 2; } jump titleset 1 menu;</pre>" in xml
+    assert ">g4 = 1; jump vmgm menu entry title;</button>" in xml
+    log = next(tmp_path.rglob("dvdauthor.log")).read_text(encoding="utf-8", errors="replace")
+    assert "ERR" not in log
+    out = subprocess.run([str(FFPROBE), "-v", "error", "-f", "dvdvideo", "-title", "2",
+                          "-show_entries", "format=duration", "-of", "csv=p=0",
+                          "-i", str(result.video_ts)], capture_output=True, text=True)  # fmt: skip
+    assert out.returncode == 0 and float(out.stdout) == pytest.approx(3, abs=0.3)

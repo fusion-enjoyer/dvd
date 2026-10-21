@@ -3,7 +3,8 @@ dvdauthor, so trying the menus here checks what the disc will do.
 
 Supported commands (all we generate): `jump title T [chapter C]`, `jump menu N`,
 `audio = N`, `subtitle = N` (64 + stream: on; below 64: off), `button = N` (N / 1024 is the
-button to highlight), `gN = V`, `gN = random(M)`, `resume`, and
+button to highlight), `gN = V`, `gN = random(M)`, `resume`, `jump vmgm menu entry title`
+(with g4 set: hidden clip g4 plays, shown as title 0), and
 `if (X == V) <command or { block }>` with X one of `audio`, `subtitle`, `gN`. A page's pre
 commands run as it opens; `wait()` lets the first page's timeout run out. Arrow keys follow the
 buttons' navigation; Menu returns to the root page, as the remote's Menu key does.
@@ -21,7 +22,7 @@ from dvd.menu.layout import Page
 _CONDITION = re.compile(r"(audio|subtitle|g\d+) == (\d+)")
 _STATEMENT = re.compile(
     r"jump title (\d+)(?: chapter (\d+))?|jump menu (\d+)|audio = (\d+)|subtitle = (\d+)"
-    r"|button = (\d+)|g(\d+) = (\d+)|g(\d+) = random\((\d+)\)|(resume)"
+    r"|button = (\d+)|g(\d+) = (\d+)|g(\d+) = random\((\d+)\)|(resume)|(jump vmgm menu entry title)"
 )
 
 
@@ -45,7 +46,8 @@ class State:
     button: int = 0  # index of the highlighted button on the page
     audio: int = 0
     subtitle: int | None = None  # stream shown, None: off
-    playing: tuple[int, int] | None = None  # (title, chapter) once a play button is pressed
+    # (title, chapter) once a play button is pressed; (0, k) for hidden clip k
+    playing: tuple[int, int] | None = None
     left: tuple[int, int] | None = None  # where the Menu key stopped the film (for resume)
     registers: dict[int, int] = field(default_factory=dict)  # general registers set so far
     log: list[str] = field(default_factory=list)
@@ -136,7 +138,17 @@ class Simulator:
         if m is None:
             raise SimulatorError(f"the simulator does not know the command {s!r}")
         (title, chapter, menu, audio, subtitle, button, register, value, rnd_register,
-         rnd_top, resume) = m.groups()  # fmt: skip
+         rnd_top, resume, vmgm) = m.groups()  # fmt: skip
+        if vmgm:
+            clip = self.state.registers.get(4, 0)
+            if clip:
+                self.state.registers[4] = 0
+                self.state.playing = (0, clip)
+                self.state.log.append(f"play hidden clip {clip}")
+            else:
+                self._show(0, 0)
+            ctx["done"] = True
+            return
         if rnd_register:
             self.state.registers[int(rnd_register)] = random.randint(1, int(rnd_top))
             return

@@ -75,6 +75,7 @@ def dvdauthor_xml(
     menus: list[AuthorMenu] | None = None,
     intros: list[AuthorTitle] | None = None,
     at_end: str = "menu",
+    hidden: list[AuthorTitle] | None = None,
 ) -> str:
     """Without menus the disc plays the titles in a row. With menus it opens on the root
     menu. The default subtitle is switched on once, the first time the root menu runs (g0
@@ -83,7 +84,8 @@ def dvdauthor_xml(
     `intros` play first, from a second titleset (their own picture and sound settings, the
     film's title numbers unchanged); the last one goes through a VMG menu that only jumps
     on to the menu or the film. `at_end`: after the last title, "menu" (stop if there are
-    no menus), "stop" or "repeat"."""
+    no menus), "stop" or "repeat". `hidden` clips follow the intros in that titleset; a
+    hidden button sets g4 to the clip's number and calls the VMG menu, which plays it."""
     if len({t.aspect for t in titles}) > 1:
         raise AuthorError("titles with different aspect ratios on one disc are not supported yet")
     aspect = titles[0].aspect
@@ -92,12 +94,18 @@ def dvdauthor_xml(
     langs, sub_langs = titles[0].audio_langs, titles[0].subtitle_langs
     start = "jump titleset 1 menu;" if menus else "jump title 1;"
     lines = [f"<dvdauthor dest={quoteattr(dest)}>"]
-    if intros:
-        # Intro titles are numbered after the film titles across the disc.
+    intros, hidden = intros or [], hidden or []
+    extras = [*intros, *hidden]
+    if extras:
+        # Intro and hidden titles are numbered after the film titles across the disc.
         # The VMG menu only forwards; its black still never shows, but a menu without a
         # video cell would leave the IFO pointing at a VIDEO_TS.VOB that is not written.
-        lines += [f"  <vmgm><fpc>jump title {len(titles) + 1};</fpc>",
-                  f"    <menus>{video}<pgc entry=\"title\"><pre>{start}</pre>"
+        first = len(titles) + len(intros) + 1  # disc title number of hidden clip 1
+        to_clip = "".join(f"if (g4 == {k}) {{ g4 = 0; jump title {first + k - 1}; }} "
+                          for k in range(1, len(hidden) + 1))  # fmt: skip
+        fpc = f"jump title {len(titles) + 1};" if intros else start
+        lines += [f"  <vmgm><fpc>{fpc}</fpc>",
+                  f"    <menus>{video}<pgc entry=\"title\"><pre>{to_clip}{start}</pre>"
                   f"<vob file={quoteattr(VMGM_STILL)}/></pgc></menus>",
                   "  </vmgm>"]  # fmt: skip
     else:
@@ -150,10 +158,11 @@ def dvdauthor_xml(
             lines.append("        <post>exit;</post>")  # no menus and "menu": playback just ends
         lines.append("      </pgc>")
     lines += ["    </titles>", "  </titleset>"]
-    if intros:
+    if extras:
         lines += ["  <titleset>", "    <titles>", f"      {video}"]
-        for k, t in enumerate(intros, start=1):
-            nxt = f"jump title {k + 1};" if k < len(intros) else "call vmgm menu entry title;"
+        for k, t in enumerate(extras, start=1):
+            last = k >= len(intros)  # the last intro, and every hidden clip, go back
+            nxt = "call vmgm menu entry title;" if last else f"jump title {k + 1};"
             lines += ["      <pgc>", f"        <vob file={quoteattr(t.vob)}/>",
                       f"        <post>{nxt}</post>", "      </pgc>"]  # fmt: skip
         lines += ["    </titles>", "  </titleset>"]
@@ -170,6 +179,7 @@ def author(
     menus: list[AuthorMenu] | None = None,
     intros: list[AuthorTitle] | None = None,
     at_end: str = "menu",
+    hidden: list[AuthorTitle] | None = None,
 ) -> Path:
     """Write VIDEO_TS into out_dir; the vob files must already be in workdir."""
     dvdauthor = dvdauthor or toolchain.find_executable(
@@ -180,7 +190,7 @@ def author(
     staging = workdir / "disc"
     shutil.rmtree(staging, ignore_errors=True)
     (workdir / "dvdauthor.xml").write_text(
-        dvdauthor_xml(titles, standard, menus=menus, intros=intros, at_end=at_end),
+        dvdauthor_xml(titles, standard, menus=menus, intros=intros, at_end=at_end, hidden=hidden),
         encoding="utf-8",
     )
     env = {**os.environ, "VIDEO_FORMAT": standard.upper()}

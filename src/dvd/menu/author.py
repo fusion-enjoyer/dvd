@@ -47,6 +47,9 @@ def commands(pages: list[Page], titles: int = 1) -> dict[str, list[tuple[str, st
                 cmd = f"jump menu {number[a.page]};"
             elif a.do == "audio":
                 cmd = f"audio = {a.stream}; {stay}"
+            elif a.do == "hidden":
+                # The clip lives in the second titleset; the VMG menu jumps there (g4).
+                cmd = f"g4 = {a.stream + 1}; jump vmgm menu entry title;"
             elif a.do == "resume":
                 cmd = "resume;"  # players ignore it when nothing was interrupted
             elif a.do == "random":

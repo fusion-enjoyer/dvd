@@ -34,6 +34,7 @@ class Button:
     thumb_title: int = 0  # which title's source that picture comes from (episodes)
     # Source times the picture may be taken from (the first lively one); empty: `thumb` itself.
     thumb_choices: tuple[float, ...] = ()
+    hidden: bool = False  # hidden content: no label, never an automatic arrow target
 
 
 @dataclass
@@ -114,6 +115,7 @@ def expand(project: Project, infos: SourceInfo | list[SourceInfo]) -> list[Page]
         return p.kind != "episodes" or several
 
     shown = [p for p in menus.pages if wanted(p)]
+    clip_numbers = {id(h): k for k, h in enumerate(menus.hidden_clips())}
     pages: list[Page] = []
     for page in shown:
         if page.kind == "main":
@@ -127,6 +129,7 @@ def expand(project: Project, infos: SourceInfo | list[SourceInfo]) -> list[Page]
         else:
             made = [_custom(page)]
         for p in made:
+            _hide(p, page.hidden, clip_numbers)
             apply_edits(p, page.edits)
             p.layers = list(page.layers)
         pages += made
@@ -162,6 +165,32 @@ def apply_edits(page: Page, edits: dict) -> None:
             target = getattr(e, d)
             if target in ids:
                 b.nav[d] = target
+
+
+OPPOSITE = {"up": "down", "down": "up", "left": "right", "right": "left"}
+EGG = 0.045  # side of a hidden spot, fraction of the frame width
+
+
+def _hide(page: Page, hidden: list, numbers: dict[int, int]) -> None:
+    """Add the hidden spots next to their buttons: reached only by pressing the direction on
+    that button; any arrow on the spot goes back."""
+    ids = {b.id: b for b in page.buttons}
+    for h in hidden:
+        anchor = ids.get(h.after)
+        if anchor is None:  # the button is on another page of a split page
+            continue
+        x, y, w, hh = anchor.rect
+        size = min(EGG, hh)
+        cx, cy = x + w / 2 - size / 2, y + hh / 2 - size / 2
+        spots = {"right": (x + w + 0.01, cy), "left": (x - 0.01 - size, cy),
+                 "up": (cx, y - 0.01 - size), "down": (cx, y + hh + 0.01)}  # fmt: skip
+        nx, ny = spots[h.direction]
+        rect = (min(max(0.0, nx), 1 - size), min(max(0.0, ny), 1 - size), size, size)
+        number = numbers[id(h)]
+        egg = Button(f"egg{number + 1}", "", MenuAction(do="hidden", stream=number), rect,
+                     nav={d: anchor.id for d in DIRECTIONS}, hidden=True)  # fmt: skip
+        anchor.nav[h.direction] = egg.id
+        page.buttons.append(egg)
 
 
 def has_choice(kind: str, title) -> bool:
@@ -312,7 +341,7 @@ def auto_nav(buttons: list[Button]) -> None:
                 continue
             best, best_cost = None, float("inf")
             for other in buttons:
-                if other is b:
+                if other is b or other.hidden:
                     continue
                 ox, oy = centre(other)
                 dx, dy = ox - bx, oy - by

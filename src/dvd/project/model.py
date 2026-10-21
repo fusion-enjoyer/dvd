@@ -205,9 +205,9 @@ class MenuAction(Strict):
     """What a button does: play a title (from a chapter), open a menu page, or pick an audio /
     subtitle stream (and return to the page). `stream: null` with `do: subtitle` turns
     subtitles off. `resume` goes back to where the film was left with the Menu key; `random`
-    plays one title picked at random."""
+    plays one title picked at random; `hidden` plays hidden clip number `stream` + 1."""
 
-    do: Literal["play", "page", "audio", "subtitle", "resume", "random"]
+    do: Literal["play", "page", "audio", "subtitle", "resume", "random", "hidden"]
     title: int = Field(1, ge=1, le=MAX_TITLES)
     chapter: int = Field(1, ge=1, le=MAX_CHAPTERS)
     page: str | None = None
@@ -256,6 +256,16 @@ class ButtonEdit(Strict):
 
 
 MAX_MENU_LAYERS = 20
+MAX_HIDDEN = 8  # hidden clips per disc
+
+
+class HiddenClip(Strict):
+    """Hidden content: pressing `direction` on button `after` lights an unmarked spot; Enter
+    there plays `file` (then the disc returns to the main menu)."""
+
+    file: str = Field(min_length=1)
+    after: str = Field(pattern=r"^[a-z0-9_-]{1,32}$")  # the button it hides next to
+    direction: Literal["up", "down", "left", "right"] = "right"
 
 
 class MenuLayer(Strict):
@@ -298,6 +308,7 @@ class MenuPage(Strict):
     edits: dict[str, ButtonEdit] = Field(default_factory=dict)
     # Drawn in order over the backdrop, under the title and the buttons.
     layers: list[MenuLayer] = Field(default_factory=list, max_length=MAX_MENU_LAYERS)
+    hidden: list[HiddenClip] = Field(default_factory=list, max_length=MAX_HIDDEN)
 
 
 class MenuBackground(Strict):
@@ -364,7 +375,13 @@ class Menus(Strict):
                 for direction in (b.up, b.down, b.left, b.right):
                     if direction is not None and direction not in buttons:
                         raise ValueError(f"button {b.id!r} points to unknown button {direction!r}")
+        if len(self.hidden_clips()) > MAX_HIDDEN:
+            raise ValueError(f"at most {MAX_HIDDEN} hidden clips per disc")
         return self
+
+    def hidden_clips(self) -> list[HiddenClip]:
+        """Every page's hidden clips in page order: clip k is number k + 1 on the disc."""
+        return [h for page in self.pages for h in page.hidden]
 
 
 class Intro(Strict):

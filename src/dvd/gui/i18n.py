@@ -208,6 +208,14 @@ TEXTS: dict[str, dict[str, str]] = {
             "Disk açılış sayfasında bu kadar bekledikten sonra filmi (dizide bütün bölümleri) "
             "kendiliğinden oynatır. 5–250 saniye."
         ),
+        "menu.hidden.add": "+ Gizli video bu butonun yanına",
+        "menu.hidden.hint": (
+            "Seçili butondayken bir yöne (önce sağ) basınca görünmeyen bir nokta seçilir; "
+            "Enter gizli videoyu oynatır, video bitince ana menüye dönülür. Nokta seçilince "
+            "küçük bir işaret yanar."
+        ),
+        "menu.hidden.remove": "Gizli videoyu kaldır",
+        "menu.hidden.full": "Bir diskte en çok {n} gizli video olabilir.",
         "menu.layer.add_text": "+ Yazı",
         "menu.layer.add_image": "+ Resim",
         "menu.layer.add_shape": "+ Kutu",

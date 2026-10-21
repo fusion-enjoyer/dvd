@@ -380,6 +380,26 @@ def test_menu_editor_moves_relabels_and_resets_buttons(app, tmp_path: Path):
     page._reset_button()
     assert load(project_file).menus.pages[0].layers == []
     QThreadPool.globalInstance().waitForDone(60000)
+    app.processEvents()
+    # Hidden clip next to Play: added from the editor, then removed again.
+    from unittest import mock
+
+    page.canvas.current = "play"
+    page._button_selected("play")
+    clip = str(tmp_path / "gizli.mkv")
+    with mock.patch("dvd.gui.menu_page.QFileDialog.getOpenFileName", return_value=(clip, "")):
+        page.add_hidden.click()
+    hidden = load(project_file).menus.pages[0].hidden
+    assert [(h.after, h.direction) for h in hidden] == [("play", "right")]
+    QThreadPool.globalInstance().waitForDone(60000)
+    app.processEvents()
+    assert "egg1" in page.canvas.rects
+    page.canvas.current = "egg1"
+    page._button_selected("egg1")
+    assert page.reset.text() == t("menu.hidden.remove")
+    page._reset_button()
+    assert load(project_file).menus.pages[0].hidden == []
+    QThreadPool.globalInstance().waitForDone(60000)
     w.close()
 
 

@@ -429,3 +429,37 @@ def test_resume_random_and_timeout():
     sim.move("down")
     sim.press()
     assert sim.state.playing[0] in (1, 2, 3) and sim.state.registers[1] == 0
+
+
+def test_hidden_clip_spot_is_reached_only_from_its_button():
+    from fractions import Fraction
+
+    from dvd.menu.author import commands
+    from dvd.menu.render import render_page
+    from dvd.menu.simulator import Simulator
+
+    hidden = [{"file": "gizli.mkv", "after": "play", "direction": "right"}]
+    p, info = project(chapters=8, audio=2, subs=0,
+                      menus={"pages": [{"id": "main", "kind": "main", "hidden": hidden},
+                                       "chapters", "languages"]})  # fmt: skip
+    pages = expand(p, info)
+    main = pages[0]
+    egg = main.buttons[-1]
+    assert egg.id == "egg1" and egg.hidden and egg.label == ""
+    play = main.buttons[0]
+    assert play.nav["right"] == "egg1" and set(egg.nav.values()) == {"play"}
+    others = [b for b in main.buttons if b is not play and b is not egg]
+    assert all("egg1" not in b.nav.values() for b in others)  # never reached by accident
+    assert dict(commands(pages)["main"])["egg1"] == "g4 = 1; jump vmgm menu entry title;"
+    sim = Simulator(pages, "main")
+    sim.move("right")
+    assert sim.button.id == "egg1"
+    sim.press()
+    assert sim.state.playing == (0, 1) and sim.state.registers[4] == 0
+    r = render_page(main, (720, 576, Fraction(16, 9)))
+    x, y, w, h = egg.rect
+    rows, cols = r.highlight.shape[:2]
+    cy, cx = round((y + h / 2) * rows), round((x + w / 2) * cols)
+    assert r.highlight[cy, cx, 3] > 0 and r.select[cy, cx, 3] > 0  # a dot when lit
+    corner = r.highlight[round(y * rows) + 1, round(x * cols) + 1]
+    assert corner[3] == 0  # only a dot, not the whole spot
