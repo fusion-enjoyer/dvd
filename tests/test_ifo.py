@@ -294,3 +294,59 @@ def assert_own_disc_matches(work: Path, video_ts: Path, fps, out: Path) -> None:
             theirs = theirs[:at] + mine[at : at + 4] + theirs[at + 4 :]
     assert mine == theirs
     assert ifo_write.PROVIDER == "DVD Studyo"
+
+
+@pytest.mark.skipif(not READY, reason="toolchain not installed")
+def test_validator_finds_broken_discs(tmp_path: Path):
+    import shutil
+
+    from dvd.build import build
+    from dvd.probe import probe
+    from dvd.project import new_project, save
+    from dvd.qa.validate import validate
+
+    meta = tmp_path / "meta.txt"
+    chapter = "[CHAPTER]\nTIMEBASE=1/1000\nSTART={}\nEND={}\n"
+    meta.write_text(";FFMETADATA1\n" + chapter.format(0, 2000) + chapter.format(2000, 4000),
+                    encoding="utf-8")  # fmt: skip
+    src = tmp_path / "film.mkv"
+    subprocess.run(
+        [str(FFMPEG), "-v", "error", "-y", "-f", "lavfi",
+         "-i", "testsrc2=size=1280x720:rate=25:duration=4", "-f", "lavfi", "-i", "sine=duration=4",
+         "-i", str(meta), "-map", "0", "-map", "1", "-map_chapters", "2", "-c:v", "libx264",
+         "-preset", "ultrafast", "-c:a", "ac3", str(src)],
+        check=True,
+    )  # fmt: skip
+    project = new_project(probe(src), tmp_path)
+    project.titles[0].video.overrides = {"encoder": "ffmpeg"}
+    project_file = tmp_path / "v.dvd.yaml"
+    save(project, project_file)
+    result = build(project_file, make_iso=False)
+    assert not [w for w in result.warnings if w.startswith("disc rules")], result.warnings
+    assert validate(result.video_ts) == []
+
+    def broken(name: str, change) -> list[str]:
+        copy = tmp_path / name
+        shutil.copytree(result.video_ts, copy)
+        change(copy)
+        return [str(f) for f in validate(copy)]
+
+    def patch(path: Path, at: int, data: bytes) -> None:
+        b = bytearray(path.read_bytes())
+        b[at : at + len(data)] = data
+        path.write_bytes(bytes(b))
+
+    out = broken("bup", lambda d: patch(d / "VTS_01_0.BUP", 0x100, b"\x99"))
+    assert any("VTS_01_0.BUP: differs" in f for f in out)
+    # The first VOBU's NAV pack claims another sector.
+    out = broken("nav", lambda d: patch(d / "VTS_01_1.VOB", 0x40B, b"\x00\x00\x00\x07"))
+    assert any("its NAV pack says sector 7" in f for f in out)
+    # The film's post command jumps to a title that does not exist (CallSS -> JumpTT 9).
+    vts = result.video_ts / "VTS_01_0.IFO"
+    raw = vts.read_bytes()
+    at = raw.find(bytes.fromhex("3008000001830000"))
+    out = broken("jump", lambda d: patch(d / "VTS_01_0.IFO", at,
+                                         bytes.fromhex("3002000000090000")))  # fmt: skip
+    assert any("title 9 is not on the disc" in f for f in out)
+    out = broken("gone", lambda d: (d / "VTS_01_0.BUP").unlink())
+    assert any("VTS_01_0.BUP: missing" in f for f in out)

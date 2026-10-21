@@ -30,6 +30,7 @@ from dvd.project.model import (
     parse_timecode,
 )
 from dvd.qa.disc_check import check_disc
+from dvd.qa.validate import validate as validate_disc
 from dvd.subs.extract import extract_text_track
 from dvd.subs.pgs import BitmapCue, extract_pgs, parse_sup
 from dvd.subs.render import Placement
@@ -515,6 +516,7 @@ def build(
                                                                      strict=True)]  # fmt: skip
     warnings += check_disc(video_ts, expected, len(intros) + len(hidden), menus is not None,
                            project.at_end, locked)  # fmt: skip
+    warnings += [f"disc rules: {f}" for f in validate_disc(video_ts)]
     iso = None
     if make_iso:
         iso = write_iso(

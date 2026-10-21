@@ -95,6 +95,12 @@ class Titleset:
     title_of_pgc: list[int]  # for each title PGC: its title number in the titleset (0: none)
     chapters: list[list[tuple[int, int]]]  # per titleset title: (pgc, program) per chapter
     menus: list[Pgc]
+    # Address tables: VOBU start sectors, and (vob id, cell id, first, last sector) per cell,
+    # for the title VOBs and the menu VOB.
+    title_vobus: list[int] = field(default_factory=list)
+    title_cells: list[tuple[int, int, int, int]] = field(default_factory=list)
+    menu_vobus: list[int] = field(default_factory=list)
+    menu_cells: list[tuple[int, int, int, int]] = field(default_factory=list)
 
 
 @dataclass
@@ -104,6 +110,8 @@ class Disc:
     menus: list[Pgc]
     titlesets: list[Titleset]
     provider: str = ""
+    menu_vobus: list[int] = field(default_factory=list)
+    menu_cells: list[tuple[int, int, int, int]] = field(default_factory=list)
 
 
 def _video(attr: int) -> tuple[str, str, int]:
@@ -175,6 +183,23 @@ def _menus(b: bytes, sector: int) -> list[Pgc]:
     return menus
 
 
+def _vobu_map(b: bytes, sector: int) -> list[int]:
+    if not sector:
+        return []
+    at = sector * SECTOR
+    count = (_u32(b, at) - 3) // 4
+    return [_u32(b, at + 4 + 4 * k) for k in range(count)]
+
+
+def _cell_table(b: bytes, sector: int) -> list[tuple[int, int, int, int]]:
+    if not sector:
+        return []
+    at = sector * SECTOR
+    count = (_u32(b, at + 4) + 1 - 8) // 12
+    return [(_u16(b, at + 8 + 12 * k), b[at + 10 + 12 * k], _u32(b, at + 12 + 12 * k),
+             _u32(b, at + 16 + 12 * k)) for k in range(count)]  # fmt: skip
+
+
 def read_vmg(path: Path) -> Disc:
     b = Path(path).read_bytes()
     if b[:12] != b"DVDVIDEO-VMG":
@@ -187,7 +212,8 @@ def read_vmg(path: Path) -> Disc:
         e = tt + 8 + 12 * k
         titles.append(Title(k + 1, _u16(b, e + 2), b[e + 1], b[e + 6], b[e + 7]))
     provider = b[0x40:0x60].split(b"\0")[0].decode("ascii", errors="replace").strip()
-    return Disc(titles, first_play, _menus(b, _u32(b, 0xC8)), [], provider)
+    return Disc(titles, first_play, _menus(b, _u32(b, 0xC8)), [], provider,
+                _vobu_map(b, _u32(b, 0xDC)), _cell_table(b, _u32(b, 0xD8)))  # fmt: skip
 
 
 def read_vts(path: Path, number: int = 0) -> Titleset:
@@ -207,7 +233,9 @@ def read_vts(path: Path, number: int = 0) -> Titleset:
         stop = starts[k + 1] if k + 1 < count else end
         chapters.append([(_u16(b, ptt + o), _u16(b, ptt + o + 2)) for o in range(start, stop, 4)])
     return Titleset(number, standard, aspect, width, audio, subs, [p for _c, p in pgcs],
-                    [c & 0x7F for c, _p in pgcs], chapters, _menus(b, _u32(b, 0xD0)))  # fmt: skip
+                    [c & 0x7F for c, _p in pgcs], chapters, _menus(b, _u32(b, 0xD0)),
+                    _vobu_map(b, _u32(b, 0xE4)), _cell_table(b, _u32(b, 0xE0)),
+                    _vobu_map(b, _u32(b, 0xDC)), _cell_table(b, _u32(b, 0xD8)))  # fmt: skip
 
 
 def read_disc(video_ts: Path) -> Disc:

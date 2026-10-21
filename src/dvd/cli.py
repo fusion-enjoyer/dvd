@@ -373,6 +373,23 @@ def ifo(
         typer.echo(line)
 
 
+@app.command()
+def validate(
+    path: Path = typer.Argument(..., help="VIDEO_TS folder (or a disc folder holding one)"),
+) -> None:
+    """Check a finished DVD-Video folder against the rules players rely on."""
+    from dvd.qa.validate import validate as check
+
+    folder = path / "VIDEO_TS" if (path / "VIDEO_TS").is_dir() else path
+    found = check(folder)
+    for f in found:
+        typer.echo(str(f))
+    errors = sum(f.level == "error" for f in found)
+    typer.echo(f"{errors} errors, {len(found) - errors} warnings")
+    if errors:
+        raise typer.Exit(1)
+
+
 template_app = typer.Typer(help="List, export and import menu templates.", no_args_is_help=True)
 app.add_typer(template_app, name="template")
 
