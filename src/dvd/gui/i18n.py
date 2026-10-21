@@ -149,6 +149,13 @@ TEXTS: dict[str, dict[str, str]] = {
         "disc.at_end.menu": "Menüye dön",
         "disc.at_end.stop": "Dur",
         "disc.at_end.repeat": "Baştan oynat",
+        "disc.authoring": "Diski yazan",
+        "disc.authoring.dvdauthor": "dvdauthor",
+        "disc.authoring.own": "Kendi motorumuz (deneme)",
+        "disc.authoring_hint": (
+            "Kendi motorumuz testlerde dvdauthor'la aynı diski yazıyor; gerçek oynatıcılarda "
+            "denenene kadar varsayılan dvdauthor."
+        ),
         "disc.intros": "GİRİŞ VİDEOLARI",
         "disc.intro_locked": "Atlanamaz",
         "disc.intro_locked_hint": (

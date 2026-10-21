@@ -311,11 +311,13 @@ def test_disc_page_edits_disc_settings_and_intros(app, tmp_path: Path):
     page.name.setText("Yaz Tatili 2026")
     page.name.editingFinished.emit()
     page.at_end.setCurrentIndex(page.at_end.findData("repeat"))
+    page.authoring.setCurrentIndex(page.authoring.findData("own"))
     page.media.setCurrentIndex(page.media.findData("dvd9"))
     page.add_intro(tmp_path / "logo.mkv")
     saved = load(project_file)
     assert saved.disc.name == "Yaz Tatili 2026" and saved.disc.media == "dvd9"
     assert saved.at_end == "repeat" and saved.first_play == [Intro(file="logo.mkv")]
+    assert saved.disc.authoring == "own"
     from PySide6.QtWidgets import QCheckBox
 
     lock = next(b for b in page.findChildren(QCheckBox) if b.text() == t("disc.intro_locked"))

@@ -8,6 +8,7 @@ language unit, pages made by spumux) come from `menu_write.py`.
 
 from __future__ import annotations
 
+from bisect import bisect_right
 from dataclasses import dataclass, field
 from fractions import Fraction
 from pathlib import Path
@@ -17,7 +18,7 @@ from dvd.author.menu_write import Button, MenuSource, MenuSpec, button_info
 from dvd.author.menu_write import layout as menu_layout
 from dvd.author.nav import CellMap, nav_pack
 from dvd.author.spu_colors import ColorRemapper, Palette
-from dvd.author.vobu import scan_stream
+from dvd.author.vobu import Scan, scan_stream
 
 PACK = 2048
 VOB_FILE_SECTORS = 524272  # just under 1 GB
@@ -193,3 +194,92 @@ def author_disc(spec: TitlesetSpec, sources: list[Path], menus: list[MenuInput],
     (video_ts / "VIDEO_TS.IFO").write_bytes(vmg)
     (video_ts / "VIDEO_TS.BUP").write_bytes(vmg)
     return video_ts
+
+
+def chapter_cells(scan: Scan, chapters: list[float]) -> list[int]:
+    """The VOBU each chapter starts on: the one whose start is nearest the chapter time
+    (dvdauthor's findnearestvobu, ties to the earlier one). Times in seconds from the start."""
+    starts = [v.start_pts for v in scan.vobus]
+    first = starts[0]
+    cells: list[int] = []
+    for t in chapters:
+        pts = int(t * 90000 + 0.5) + first
+        if pts >= scan.vobus[-1].end_pts:
+            continue  # past the end: dvdauthor drops it
+        i = max(bisect_right(starts, pts) - 1, 0)
+        if i + 1 < len(starts) and abs(pts - starts[i + 1]) < abs(pts - starts[i]):
+            i += 1
+        if i not in cells:
+            cells.append(i)
+    return sorted(cells) or [0]
+
+
+def _seconds(timecode: str) -> float:
+    total = 0.0
+    for part in timecode.split(":"):
+        total = total * 60 + float(part)
+    return total
+
+
+def _menu_inputs(element, work: Path) -> list[MenuInput]:
+    if element is None:
+        return []
+    out = []
+    for pgc in element.findall("pgc"):
+        vobs = pgc.findall("vob")
+        stills = [255 if v.get("pause") == "inf" else int(v.get("pause") or 0) for v in vobs]
+        commands = {b.get("name"): b.text or "" for b in pgc.findall("button")}
+        out.append(MenuInput([work / v.get("file") for v in vobs], stills, pgc.get("entry"),
+                             pgc.findtext("pre") or "", pgc.findtext("post") or "",
+                             commands))  # fmt: skip
+    return out
+
+
+def author_xml(xml_path: Path, out_dir: Path, provider: str = PROVIDER,
+               uops: dict[tuple[int, int], int] | None = None) -> Path:  # fmt: skip
+    """The disc a dvdauthor.xml describes (the subset `dvdauthor.dvdauthor_xml` writes),
+    authored by us. Stream attributes come from the program streams as dvdauthor reads them;
+    `uops`: (titleset, title PGC) from 1 -> what the viewer may not do."""
+    import xml.etree.ElementTree as ET
+
+    from dvd.author.ifo_write import AudioAttr, SubpictureAttr, TitleSpec
+
+    work = Path(xml_path).parent
+    root = ET.parse(xml_path).getroot()
+    inputs = []
+    for n, titleset in enumerate(root.findall("titleset"), start=1):
+        block = titleset.find("titles")
+        video = block.find("video")
+        standard = video.get("format", "pal").lower()
+        fps = Fraction(25) if standard == "pal" else Fraction(30000, 1001)
+        titles, sources = [], []
+        for k, pgc in enumerate(block.findall("pgc"), start=1):
+            vob = pgc.find("vob")
+            path = work / vob.get("file")
+            scan = scan_stream(path, fps)
+            marks = [_seconds(c) for c in (vob.get("chapters") or "0").split(",")]
+            titles.append(TitleSpec(scan, chapter_cells(scan, marks), pgc.findtext("pre") or "",
+                                    pgc.findtext("post") or "",
+                                    uops=(uops or {}).get((n, k), 0)))  # fmt: skip
+            sources.append(path)
+        langs = [a.get("lang") for a in block.findall("audio")]
+        sub_langs = [s.get("lang") for s in block.findall("subpicture")]
+        formats = {k: f for t in reversed(titles) for k, f in t.scan.audio_formats.items()}
+        streams = sorted(formats) if formats else []
+        audio = [AudioAttr(formats[k].coding, langs[i] if i < len(langs) else None,
+                           formats[k].channels, k, formats[k].surround)
+                 for i, k in enumerate(streams)]  # fmt: skip
+        found = {k for t in titles for k in t.scan.subpictures}
+        count = max(len(sub_langs), max(found) + 1 if found else 0)
+        subs = [SubpictureAttr(sub_langs[k] if k < len(sub_langs) else None, k)
+                for k in range(count)]  # fmt: skip
+        spec = TitlesetSpec(standard, video.get("aspect", "4:3"), titles, audio, subs)
+        inputs.append(TitlesetInput(spec, sources, _menu_inputs(titleset.find("menus"), work)))
+    vmgm = root.find("vmgm")
+    first_play = (vmgm.findtext("fpc") or "") if vmgm is not None else ""
+    disc_menus = _menu_inputs(vmgm.find("menus"), work) if vmgm is not None else []
+    one = inputs[0]
+    if len(inputs) == 1 and not one.menus and not disc_menus:
+        return author_titles(one.spec, one.sources, out_dir, first_play, provider)
+    return author_disc(one.spec, one.sources, one.menus, out_dir, first_play, provider,
+                       more=inputs[1:], disc_menus=disc_menus)  # fmt: skip

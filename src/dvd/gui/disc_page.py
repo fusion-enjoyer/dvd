@@ -1,4 +1,5 @@
-"""Disc page (pro mode): name, media and TV standard, intro clips, what happens at the end."""
+"""Disc page (pro mode): name, media and TV standard, intro clips, what happens at the end,
+who writes VIDEO_TS."""
 
 from __future__ import annotations
 
@@ -70,6 +71,13 @@ class DiscPage(QWidget):
         self.at_end.currentIndexChanged.connect(lambda _i: self._field(
             self.project, "at_end", self.at_end))  # fmt: skip
         form.addRow(t("disc.at_end"), self.at_end)
+        self.authoring = QComboBox()
+        for key in ("dvdauthor", "own"):
+            self.authoring.addItem(t(f"disc.authoring.{key}"), key)
+        self.authoring.setToolTip(t("disc.authoring_hint"))
+        self.authoring.currentIndexChanged.connect(lambda _i: self._field(
+            self.project.disc, "authoring", self.authoring))  # fmt: skip
+        form.addRow(t("disc.authoring"), self.authoring)
         box.addWidget(holder)
         box.addSpacing(8)
         box.addWidget(_label(t("disc.intros"), "sectionLabel"))
@@ -88,13 +96,14 @@ class DiscPage(QWidget):
 
     def show_project(self, project: Project, project_dir: Path) -> None:
         self.project, self.project_dir = project, project_dir
-        widgets = (self.name, self.media, self.standard, self.at_end)
+        widgets = (self.name, self.media, self.standard, self.at_end, self.authoring)
         for w in widgets:
             w.blockSignals(True)
         self.name.setText(project.disc.name)
         self.media.setCurrentIndex(self.media.findData(project.disc.media))
         self.standard.setCurrentIndex(self.standard.findData(project.disc.standard))
         self.at_end.setCurrentIndex(self.at_end.findData(project.at_end))
+        self.authoring.setCurrentIndex(self.authoring.findData(project.disc.authoring))
         for w in widgets:
             w.blockSignals(False)
         while self.grid.count():

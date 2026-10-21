@@ -459,6 +459,44 @@ def test_hidden_clip_is_a_title_reached_through_the_vmg_menu(tmp_path: Path):
 
 
 @pytest.mark.skipif(not READY, reason="toolchain not installed")
+def test_build_with_our_own_authoring(tmp_path: Path):
+    from dvd.author.uops import NO_SKIP, read_masks
+    from dvd.project.model import HiddenClip, Intro
+
+    src = _sample(tmp_path, seconds=6)
+    for name in ("logo.mkv", "gizli.mkv"):
+        subprocess.run(
+            [str(FFMPEG), "-v", "error", "-y", "-f", "lavfi",
+             "-i", "testsrc=size=640x360:rate=25:duration=2", "-c:v", "libx264",
+             "-preset", "ultrafast", str(tmp_path / name)],
+            check=True,
+        )  # fmt: skip
+    project = new_project(probe(src), tmp_path)
+    project.titles[0].video.overrides = {"encoder": "ffmpeg"}
+    project.first_play = [Intro(file="logo.mkv", skippable=False)]
+    project.menus.pages[0].hidden = [HiddenClip(file="gizli.mkv", after="play")]
+    project.disc.authoring = "own"
+    project_file = tmp_path / "kendi.dvd.yaml"
+    save(project, project_file)
+    assert load(project_file).disc.authoring == "own"
+
+    result = build(project_file, make_iso=False)
+
+    problems = [w for w in result.warnings if w.startswith(("disc check", "disc rules"))]
+    assert not problems, problems
+    assert not list(tmp_path.rglob("dvdauthor.log"))  # dvdauthor never ran
+    names = {p.name for p in result.video_ts.iterdir()}
+    assert {"VIDEO_TS.VOB", "VTS_01_0.VOB", "VTS_01_1.VOB", "VTS_02_1.VOB"} <= names
+    assert read_masks(result.video_ts / "VTS_02_0.IFO") == [NO_SKIP, 0]  # intro, hidden clip
+    for title, seconds in ((1, 6 * 24000 / 1001 / 25), (2, 2), (3, 2)):
+        out = subprocess.run([str(FFPROBE), "-v", "error", "-f", "dvdvideo",
+                              "-title", str(title), "-show_entries", "format=duration",
+                              "-of", "csv=p=0", "-i", str(result.video_ts)],
+                             capture_output=True, text=True)  # fmt: skip
+        assert out.returncode == 0 and float(out.stdout) == pytest.approx(seconds, abs=0.3)
+
+
+@pytest.mark.skipif(not READY, reason="toolchain not installed")
 def test_moving_menu_loops_the_film_behind_the_buttons(tmp_path: Path):
     from dvd.project.model import MenuBackground
 

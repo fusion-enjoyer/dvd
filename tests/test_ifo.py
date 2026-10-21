@@ -263,28 +263,18 @@ def test_vobu_scan_matches_dvdauthor_nav_packs(tmp_path: Path):
 
 
 def assert_own_disc_matches(work: Path, video_ts: Path, fps, out: Path) -> None:
-    """Our own authoring of the same title: IFOs and VOB as dvdauthor wrote them."""
+    """Our own authoring of the same dvdauthor.xml: IFOs and VOB as dvdauthor wrote them
+    (stream attributes and chapter cells found by us, as dvdauthor finds them)."""
     import re
 
     from dvd.author import ifo_write
-    from dvd.author.ifo_write import AudioAttr, SubpictureAttr, TitlesetSpec, TitleSpec
-    from dvd.author.own import author_titles
+    from dvd.author.own import author_xml
     from dvd.author.vobu import scan_stream
-    from dvd.ifo import read_disc
 
-    text = next(work.rglob("dvdauthor.xml")).read_text("utf-8")
-    xml_dir = next(work.rglob("dvdauthor.xml")).parent
-    vob_in = xml_dir / re.search(r'<vob file="([^"]+)" chapters', text)[1]
-    ts = read_disc(video_ts).titlesets[0]
+    xml = next(work.rglob("dvdauthor.xml"))
+    vob_in = xml.parent / re.search(r'<vob file="([^"]+)" chapters', xml.read_text("utf-8"))[1]
     scan = scan_stream(vob_in, fps)
-    firsts = {c.first_sector for c in ts.titles[0].cells}
-    post = re.search(r"<titles>.*?<post>(.*?)</post>", text, re.S)
-    title = TitleSpec(scan, [i for i, v in enumerate(scan.vobus) if v.sector in firsts], "",
-                      post[1] if post else "")  # fmt: skip
-    audio = [AudioAttr(a.coding, a.language, a.channels, k) for k, a in enumerate(ts.audio)]
-    subs = [SubpictureAttr(s.language, k) for k, s in enumerate(ts.subpictures)]
-    spec = TitlesetSpec(ts.standard, ts.aspect, [title], audio, subs)
-    ours = author_titles(spec, [vob_in], out, provider="DVDAuthor 0.7.2+")
+    ours = author_xml(xml, out, provider="DVDAuthor 0.7.2+")
     for name in ("VIDEO_TS.IFO", "VIDEO_TS.BUP", "VTS_01_0.IFO", "VTS_01_0.BUP"):
         assert (ours / name).read_bytes() == (video_ts / name).read_bytes(), name
     mine, theirs = (ours / "VTS_01_1.VOB").read_bytes(), (video_ts / "VTS_01_1.VOB").read_bytes()

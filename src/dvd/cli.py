@@ -112,6 +112,9 @@ def build_cmd(
     path: Path = typer.Argument(..., help="Project file"),
     out: Path | None = typer.Option(None, "--out", "-o", help="Folder for VIDEO_TS and the ISO"),
     no_iso: bool = typer.Option(False, "--no-iso", help="Stop after writing VIDEO_TS"),
+    authoring: str | None = typer.Option(
+        None, "--authoring", help="dvdauthor | own (our own authoring); default: the project's"
+    ),
 ) -> None:
     """Encode and author the disc into a VIDEO_TS folder and a disc image."""
     from dvd.audio.ac3 import AudioError
@@ -121,6 +124,9 @@ def build_cmd(
     from dvd.video.hcenc import EncodeError
     from dvd.video.pipeline import UnsupportedSource
 
+    if authoring not in (None, "dvdauthor", "own"):
+        typer.echo("--authoring must be dvdauthor or own", err=True)
+        raise typer.Exit(1)
     try:
         problems = check_sources(project.load(path), path)
     except project.ProjectError as exc:
@@ -142,7 +148,7 @@ def build_cmd(
         BuildError, AudioError, AuthorError, EncodeError, UnsupportedSource, ProbeError, IsoError
     )  # fmt: skip
     try:
-        result = build(path, out_dir=out, progress=show, make_iso=not no_iso)
+        result = build(path, out_dir=out, progress=show, make_iso=not no_iso, authoring=authoring)
     except errors as exc:
         typer.echo(f"build failed: {exc}", err=True)
         raise typer.Exit(1) from None

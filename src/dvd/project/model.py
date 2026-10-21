@@ -98,6 +98,9 @@ class Disc(Strict):
     standard: Standard
     media: Media = "dvd9"
     profiles: Profiles = Field(default_factory=Profiles)
+    # Who writes VIDEO_TS: dvdauthor, or our own authoring (author/own.py), which gives the
+    # same disc; dvdauthor stays the default until ours has been tried on real players.
+    authoring: Literal["dvdauthor", "own"] = "dvdauthor"
 
 
 class Crop(Strict):

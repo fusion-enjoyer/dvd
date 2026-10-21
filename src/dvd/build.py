@@ -11,7 +11,8 @@ from pathlib import Path
 import vapoursynth as vs
 
 from dvd.audio.ac3 import can_copy, encode_ac3
-from dvd.author.dvdauthor import AuthorTitle, author, mux, timecode
+from dvd.author.dvdauthor import AuthorTitle, author, dvdauthor_xml, mux, timecode
+from dvd.author.own import author_xml
 from dvd.author.pscheck import check as check_mux
 from dvd.author.uops import NO_SKIP, restrict
 from dvd.budget.planner import Plan, plan
@@ -344,7 +345,9 @@ def build(
     work_dir: Path | None = None,
     progress: Progress | None = None,
     make_iso: bool = True,
+    authoring: str | None = None,
 ) -> BuildResult:
+    """`authoring`: "dvdauthor" or "own", in place of the project's choice."""
     project_file = Path(project_file).resolve()
     project = load(project_file)
     name = safe_name(project.disc.name)
@@ -506,12 +509,20 @@ def build(
         black.fill(QColor(16, 16, 16))
         still_mpg(black, project.disc.standard, t.dar, work_dir / VMGM_STILL)
     report("authoring", 0.0)
-    video_ts = author(author_titles, project.disc.standard, work_dir, out_dir, menus=menus,
-                      intros=intros, at_end=project.at_end, hidden=hidden)  # fmt: skip
     locked = {k: NO_SKIP for k, intro in enumerate(project.first_play, start=1)
               if not intro.skippable}  # fmt: skip
-    if locked:  # intros are titleset 2 (titleset 1 holds the film), one PGC each
-        restrict(video_ts, 2, locked)
+    if (authoring or project.disc.authoring) == "own":
+        xml = work_dir / "dvdauthor.xml"  # the same description dvdauthor would get
+        xml.write_text(dvdauthor_xml(author_titles, project.disc.standard, menus=menus,
+                                     intros=intros, at_end=project.at_end, hidden=hidden),
+                       encoding="utf-8")  # fmt: skip
+        # Intros are titleset 2 (titleset 1 holds the film), one PGC each.
+        video_ts = author_xml(xml, out_dir, uops={(2, k): m for k, m in locked.items()})
+    else:
+        video_ts = author(author_titles, project.disc.standard, work_dir, out_dir, menus=menus,
+                          intros=intros, at_end=project.at_end, hidden=hidden)  # fmt: skip
+        if locked:  # dvdauthor writes no UOP masks: patch them in
+            restrict(video_ts, 2, locked)
     expected = [(len(t.chapters or [0]), q.duration) for t, q in zip(author_titles, prepared,
                                                                      strict=True)]  # fmt: skip
     warnings += check_disc(video_ts, expected, len(intros) + len(hidden), menus is not None,

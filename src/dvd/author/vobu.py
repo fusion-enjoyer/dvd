@@ -39,6 +39,15 @@ class Scan:
     audio_end: int = -1  # when the last audio packet with a time stamp stops playing
     # Per subpicture stream (0-31): (sector, shown from, shown until) of each subpicture.
     subpictures: dict[int, list[tuple[int, int, int]]] = field(default_factory=dict)
+    # Per audio stream: what the IFO says about it, read from the first frame header.
+    audio_formats: dict[int, AudioFormat] = field(default_factory=dict)
+
+
+@dataclass
+class AudioFormat:
+    coding: str  # "ac3" | "dts" | "lpcm" | "mpeg1"
+    channels: int = 2  # with the LFE channel
+    surround: bool = False  # stereo carrying Dolby Surround
 
 
 def _ts(b: bytes) -> int:
@@ -110,6 +119,8 @@ def scan_stream(path: Path, fps: Fraction) -> Scan:
                 elif (kind := _audio_stream(sid, body)) is not None:
                     has_pts = body[1] & 0x80 and len(body) >= 8
                     if kind[0] == "audio":
+                        if kind[1] not in result.audio_formats:
+                            _audio_format(result, kind[1], sid, body)
                         if has_pts:
                             pts = _ts(body[3:8])
                             result.audio.setdefault(kind[1], []).append((sector, pts))
@@ -158,6 +169,42 @@ def scan_stream(path: Path, fps: Fraction) -> Scan:
     if vobus and vobus[-1].end_pts is not None and result.audio_end > vobus[-1].end_pts:
         vobus[-1].end_pts = result.audio_end  # sound that outlasts the picture still plays
     return result
+
+
+def _audio_format(result: Scan, stream: int, sid: int, body: bytes) -> None:
+    """The stream's coding and channels; AC-3 channels from the frame header as dvdauthor
+    reads them (acmod, LFE, Dolby Surround mode)."""
+    if sid != 0xBD:
+        result.audio_formats[stream] = AudioFormat("mpeg1")
+        return
+    data = 3 + body[2]
+    sub = body[data]
+    if 0x88 <= sub <= 0x8F:
+        result.audio_formats[stream] = AudioFormat("dts")
+        return
+    if 0xA0 <= sub <= 0xA7:
+        result.audio_formats[stream] = AudioFormat("lpcm")
+        return
+    first = int.from_bytes(body[data + 2 : data + 4], "big")  # first frame, from data + 3
+    sync = data + 4 + first - 1
+    if first == 0 or len(body) < sync + 8 or body[sync : sync + 2] != b"w":
+        return  # no frame starts here; the next packet tells
+    bits = int.from_bytes(body[sync + 4 : sync + 8], "big") << 8 & 0xFFFFFFFF  # past fscod
+    if bits >> 27 not in (6, 8):
+        return
+    bits = bits << 8 & 0xFFFFFFFF  # bsid, bsmod
+    acmod = bits >> 29
+    bits = bits << 3 & 0xFFFFFFFF
+    if acmod & 1 and acmod != 1:
+        bits = bits << 2 & 0xFFFFFFFF  # cmixlev
+    if acmod & 4:
+        bits = bits << 2 & 0xFFFFFFFF  # surmixlev
+    surround = False
+    if acmod == 2:
+        surround = bits >> 30 == 2
+        bits = bits << 2 & 0xFFFFFFFF
+    channels = [2, 1, 2, 3, 3, 4, 4, 5][acmod] + (bits >> 31)
+    result.audio_formats[stream] = AudioFormat("ac3", channels, surround)
 
 
 def _audio_ticks(body: bytes) -> int:
