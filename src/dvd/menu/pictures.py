@@ -22,18 +22,20 @@ def to_qimage(rgb, n: int) -> QImage:
 
 def frame_images(source: Path, info: SourceInfo, times: list[float],
                  size: tuple[int, int]) -> dict[float, QImage]:  # fmt: skip
-    """Frames at source times, scaled to `size` (square pixels), tone mapped like the disc."""
+    """Frames at source times, scaled to `size` (square pixels), tone mapped like the disc.
+    Each is taken by seeking, so no index of the whole file is needed."""
     import vapoursynth as vs
 
-    from dvd.video.pipeline import open_source, scale_to_sd
+    from dvd.video.frames import grab
+    from dvd.video.pipeline import scale_to_sd
 
     v = info.main_video
-    clip = open_source(source, v)
     w, h = size
-    small = scale_to_sd(clip, v, w, h, "bicubic", "709", vs.YUV444P16)
-    rgb = vs.core.resize.Point(small, format=vs.RGB24, matrix_in_s="709")
-    fps = clip.fps_num / clip.fps_den
-    return {at: to_qimage(rgb, min(rgb.num_frames - 1, round(at * fps))) for at in times}
+    out = {}
+    for at in times:
+        small = scale_to_sd(grab(source, v, at), v, w, h, "bicubic", "709", vs.YUV444P16)
+        out[at] = to_qimage(vs.core.resize.Point(small, format=vs.RGB24, matrix_in_s="709"), 0)
+    return out
 
 
 def lively(image: QImage) -> float:

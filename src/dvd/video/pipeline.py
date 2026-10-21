@@ -228,11 +228,13 @@ def build_clip(
     target: Target,
     video: Video,
     pre: Preprocess = DEFAULT_PREPROCESS,
+    clip: vs.VideoNode | None = None,
 ) -> vs.VideoNode:
     """Source -> DVD frame. Scaling, matrix conversion, deband and bars run at 16 bits; the
-    single step down to 8 bits is the final dither, so no stage adds its own rounding bands."""
+    single step down to 8 bits is the final dither, so no stage adds its own rounding bands.
+    `clip`: a few source frames already taken (previews), instead of the whole file."""
     check_supported(v)
-    clip = open_source(source, v)
+    clip = clip if clip is not None else open_source(source, v)
     crop = target.crop
     if any((crop.left, crop.right, crop.top, crop.bottom)):
         clip = core.std.Crop(clip, crop.left, crop.right, crop.top, crop.bottom)

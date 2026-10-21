@@ -38,21 +38,31 @@ def bars_in_frame(luma: np.ndarray, black: float, white: float) -> tuple[int, in
     return _run(cols), _run(cols[::-1]), _run(rows), _run(rows[::-1])  # left, right, top, bottom
 
 
-def detect_crop(source: Path, v: VideoTrack, samples: int = SAMPLES) -> Crop | None:
+def detect_crop(source: Path, v: VideoTrack, samples: int = SAMPLES,
+                duration: float | None = None) -> Crop | None:  # fmt: skip
     """Bars present in all bright-enough sampled frames, rounded down to even sizes.
 
     None when too few frames are bright enough to tell (a very dark film or a short clip).
+    With `duration` the frames are taken by seeking (fast, no index of the whole file).
     """
-    clip = core.bs.VideoSource(str(source), track=v.index)
-    depth = clip.format.bits_per_sample
+    if duration:
+        from dvd.video.frames import grab
+
+        times = [duration * (0.05 + 0.9 * i / max(1, samples - 1)) for i in range(samples)]
+        clips = [grab(source, v, at) for at in times]
+    else:
+        clip = core.bs.VideoSource(str(source), track=v.index)
+        n = clip.num_frames
+        picks = sorted({int(n * (0.05 + 0.9 * i / max(1, samples - 1))) for i in range(samples)})
+        clips = [clip[min(p, n - 1)] for p in picks]
+    depth = clips[0].format.bits_per_sample
     scale = 1 << (depth - 8)
     full = v.color_range == "pc"
     black, white = (0, 255 * scale) if full else (16 * scale, 235 * scale)
-    n = clip.num_frames
-    positions = sorted({int(n * (0.05 + 0.9 * i / max(1, samples - 1))) for i in range(samples)})
+    positions = clips
     found = []
-    for pos in positions:
-        with clip.get_frame(min(pos, n - 1)) as f:
+    for one in clips:
+        with one.get_frame(0) as f:
             luma = np.asarray(f[0], dtype=np.float32)
         if (luma.mean() - black) / (white - black) < DARK_FRAME:
             continue

@@ -6,6 +6,7 @@ the downscale lost."""
 from __future__ import annotations
 
 from dataclasses import dataclass
+from fractions import Fraction
 from pathlib import Path
 
 import vapoursynth as vs
@@ -19,7 +20,6 @@ from dvd.video.pipeline import (
     UnsupportedSource,
     build_clip,
     check_supported,
-    open_source,
     plan_target,
     scale_to_sd,
 )
@@ -48,6 +48,25 @@ def _matrix(v) -> str:
     return "709" if (v.color_matrix == "bt709" or v.height > 576) else "170m"
 
 
+_crops: dict[tuple[str, int, int], Crop | None] = {}  # (file, size, track): detected bars
+
+
+def _detected(source: Path, v, duration: float) -> Crop | None:
+    """Crop detection once per file: every preview frame and frame step reuses it."""
+    key = (str(source), source.stat().st_size if source.exists() else 0, v.index)
+    if key not in _crops:
+        _crops[key] = detect_crop(source, v, samples=12, duration=duration or None)
+    return _crops[key]
+
+
+def _source_frames(target) -> int:
+    """Source frames to take so the disc picture can be built: two for interlaced output
+    (one per field), a full cycle when frames are picked for PAL (30/60 fps)."""
+    if target.cadence:
+        return target.cadence[0] * 2 + 2
+    return 2 if target.interlaced else 1
+
+
 def preview_frames(
     source: Path,
     info: SourceInfo,
@@ -57,33 +76,43 @@ def preview_frames(
     position: float = 0.4,
     frame: int | None = None,
 ) -> PreviewFrames:
-    """The frame at `position` (0..1 of the film), or frame number `frame` when given."""
+    """The frame at `position` (0..1 of the film), or disc frame number `frame` when given.
+
+    The frames are taken by seeking (see `dvd.video.frames`), so opening a large file does
+    not wait for an index of the whole film."""
+    from dvd.video.frames import grab
+
     v = info.main_video
+    duration = info.duration or 0.0
     detected = None
     try:
         if title.video.crop == "auto":
             check_supported(v)
-            detected = detect_crop(source, v)
+            detected = _detected(source, v, duration)
         target = plan_target(v, standard, title.video, detected)
         pre = resolve(profiles or Profiles(), title.video.overrides)
-        disc = build_clip(source, v, target, title.video, pre)
     except UnsupportedSource:
-        raw = open_source(source, v)
-        rgb = core.resize.Bicubic(raw, format=vs.RGB24, matrix_in_s=_matrix(v))
-        n = _frame_number(rgb.num_frames, position, frame)
-        image = to_qimage(rgb, n)
-        return PreviewFrames(
-            image, image, float(v.dar), None, n, n / float(raw.fps), raw.num_frames
-        )
+        rate = v.playback_fps or v.fps or Fraction(25)
+        total = max(1, round(duration * rate))
+        n = _frame_number(total, position, frame)
+        raw = grab(source, v, n / float(rate))
+        image = to_qimage(core.resize.Bicubic(raw, format=vs.RGB24, matrix_in_s=_matrix(v)), 0)
+        return PreviewFrames(image, image, float(v.dar), None, n, n / float(rate), total)
 
-    n = _frame_number(disc.num_frames, position, frame)
+    fps = Fraction(target.fps)
+    total = max(1, round(duration / float(target.speedup) * fps))
+    n = _frame_number(total, position, frame)
+    seconds = n / float(fps)
+    at = seconds * float(target.speedup)  # where that disc frame is in the source
+    raw = grab(source, v, at, _source_frames(target))
+    disc = build_clip(source, v, target, title.video, pre, clip=raw)
     aspect = float(target.dar)
     sd_matrix = "470bg" if standard == "pal" else "170m"
     disc_rgb = core.resize.Point(disc, format=vs.RGB24, matrix_in_s=sd_matrix)
     # The source through the same crop and bars, at about its own line count: the whole frame
     # is `scale` times the disc frame in height and has the display aspect.
     c = target.crop
-    raw = open_source(source, v)
+    raw = raw[0]
     if any((c.left, c.right, c.top, c.bottom)):
         raw = core.std.Crop(raw, c.left, c.right, c.top, c.bottom)
     scale = max(1.0, raw.height / target.active_height)
@@ -102,6 +131,5 @@ def preview_frames(
     src_rgb = core.std.AddBorders(src_rgb, left=left, right=width - active_w - left, top=top,
                                   bottom=height - active_h - top)  # fmt: skip
     return PreviewFrames(
-        to_qimage(src_rgb, n), to_qimage(disc_rgb, n), aspect, detected, n,
-        n / float(target.fps), disc.num_frames,
+        to_qimage(src_rgb, 0), to_qimage(disc_rgb, 0), aspect, detected, n, seconds, total,
     )  # fmt: skip
