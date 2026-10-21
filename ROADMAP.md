@@ -188,6 +188,8 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
   - [x] Okuyucu ve komut çözücü: `dvd/ifo` VIDEO_TS.IFO ve VTS IFO'larını okur (başlıklar, bölümler, titleset görüntü/ses/altyazı, menü PGC'leri ve giriş türleri, hücreler ve süreleri, kumanda kısıtlamaları, palet, pre/post/hücre komutları); `ifo/vm.py` 8 baytlık VM komutlarını metne çevirir; `dvd ifo <klasör> [-c]`. İlk bulgusu: dvdauthor'da yalın `call menu` bölüm menüsünü çağırıyormuş, düzeltildi
   - [ ] Uygulamada referans analizörü (menü ağacı görünümü), ripler gelince referans DVD'lerle doğrulama
 - [ ] IFO yazıcı: VMG, VTS, PGC, program/cell tabloları, VM komutları
+  - [x] Menüsüz titleset IFO'su (`author/ifo_write.py`): VTSI_MAT ve akış özellikleri, PTT, başlık PGC'leri (komutlar, program haritası, hücre oynatma/konum), zaman haritası, hücre adres tablosu, VOBU adres haritası; NTSC+altyazılı test diskinde dvdauthor'ınkiyle bayt bayt aynı
+  - [ ] Menülü titleset (VTSM tabloları, buton komutlarının jumppad düzeni), VMG IFO'su, VOB dosyalarını yazma
 - [ ] VOB multiplexer: NAV pack (PCI/DSI), VOBU sınırları, zaman damgaları
   - [x] VOBU tarayıcı (`author/vobu.py`): program akışından VOBU başlangıç/bitiş sektörleri, ilk üç referans resmin bittiği sektörler, sunum zamanları; yalnız dolgu paketleri sayılmaz. dvdauthor'ın NAV paketlerine yazdığıyla (PAL, NTSC pulldown, altyazılı) birebir test ediliyor
   - [x] Başlık VOB'larının NAV paketleri (`author/nav.py`): PCI genel bilgisi, DSI (sektörler, referans resimler, hücre, 0,5–120 sn arama tablosu, ses ve altyazı senkron adresleri); alan sayımıyla (pulldown dahil) VOBU bitiş zamanları. PAL ve NTSC+altyazılı test disklerinde dvdauthor'ınkiyle bayt bayt aynı (dvdauthor'ın ilk altyazıdan önceki kararsız değeri hariç)

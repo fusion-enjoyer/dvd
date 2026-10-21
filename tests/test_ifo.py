@@ -12,6 +12,37 @@ READY = all(toolchain.find_executable([n], DIRS) for n in ("dvdauthor.exe", "spu
     and FFMPEG is not None  # fmt: skip
 
 
+def assert_vts_ifo_matches(work: Path, video_ts: Path, fps) -> None:
+    """Our VTS_01_0.IFO for a titleset without menus equals dvdauthor's, byte for byte."""
+    import re
+
+    from dvd.author.ifo_write import (
+        AudioAttr,
+        SubpictureAttr,
+        TitlesetSpec,
+        TitleSpec,
+        write_vts,
+    )
+    from dvd.author.vobu import scan_stream
+    from dvd.ifo import read_disc
+
+    text = next(work.rglob("dvdauthor.xml")).read_text("utf-8")
+    xml_dir = next(work.rglob("dvdauthor.xml")).parent
+    vob_in = xml_dir / re.search(r'<vob file="([^"]+)" chapters', text)[1]
+    ts = read_disc(video_ts).titlesets[0]
+    scan = scan_stream(vob_in, fps)
+    pgc = ts.titles[0]
+    firsts = {c.first_sector for c in pgc.cells}
+    post = re.search(r"<titles>.*?<post>(.*?)</post>", text, re.S)
+    title = TitleSpec(scan, [i for i, v in enumerate(scan.vobus) if v.sector in firsts], "",
+                      post[1] if post else "",
+                      [(y << 16) | (cr << 8) | cb for y, cr, cb in pgc.palette])  # fmt: skip
+    audio = [AudioAttr(a.coding, a.language, a.channels, k) for k, a in enumerate(ts.audio)]
+    subs = [SubpictureAttr(s.language, k) for k, s in enumerate(ts.subpictures)]
+    spec = TitlesetSpec(ts.standard, ts.aspect, [title], audio, subs)
+    assert write_vts(spec) == (video_ts / "VTS_01_0.IFO").read_bytes()
+
+
 def assert_nav_packs_match(work: Path, video_ts: Path, fps) -> None:
     """Our NAV packs for the film title equal the ones dvdauthor wrote, byte for byte."""
     import re
@@ -220,3 +251,4 @@ def test_vobu_scan_matches_dvdauthor_nav_packs(tmp_path: Path):
         assert (o.sector, o.last_sector - o.sector, tuple(o.ref_ends)) == (t.lbn, t.end, t.refs)
     assert ours[1].start_pts == ours[0].end_pts  # units follow each other without a gap
     assert_nav_packs_match(tmp_path, result.video_ts, Fraction(24000, 1001))
+    assert_vts_ifo_matches(tmp_path, result.video_ts, Fraction(24000, 1001))
