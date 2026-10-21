@@ -121,3 +121,12 @@ def test_ntsc_film_with_subtitles_on_our_own_engine(tmp_path: Path):
                           "format=duration", "-of", "csv=p=0", "-i", str(result.video_ts)],
                          capture_output=True, text=True)  # fmt: skip
     assert out.returncode == 0 and float(out.stdout) == pytest.approx(6.0, abs=0.3)
+
+
+@pytest.mark.skipif(FFMPEG is None, reason="ffmpeg not installed")
+def test_ffmpegs_mux_starts_the_sound_with_the_first_picture(tmp_path: Path):
+    from dvd.author.dvdauthor import first_times, mux
+
+    video, audio = _streams(tmp_path)
+    shown, heard = first_times(mux(video, [audio], tmp_path / "ff.mpg"))
+    assert shown == heard == 45_000 + 3600  # FFmpeg alone puts the sound at 45000

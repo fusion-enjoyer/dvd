@@ -29,6 +29,7 @@ class Vobu:
     pictures: int = 0
     seq_end: bool = False  # holds the sequence end code (the last unit of a video)
     fields: int = 0  # fields shown: 2 per frame picture, 3 with repeat_first_field (pulldown)
+    video_end: int | None = None  # end of the pictures (end_pts may run on with the sound)
 
 
 @dataclass
@@ -170,6 +171,8 @@ def scan_stream(path: Path, fps: Fraction) -> Scan:
     for v in vobus:  # counted fields give the exact end (also for the last unit)
         if v.start_pts is not None and v.fields:
             v.end_pts = (2 * v.start_pts + v.fields * frame_ticks) // 2
+    for v in vobus:
+        v.video_end = v.end_pts
     if vobus and vobus[-1].end_pts is not None and result.audio_end > vobus[-1].end_pts:
         vobus[-1].end_pts = result.audio_end  # sound that outlasts the picture still plays
     return result

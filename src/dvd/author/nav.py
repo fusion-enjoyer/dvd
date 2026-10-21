@@ -136,7 +136,7 @@ def nav_pack(header: bytes, scan: Scan, cells: CellMap, index: int, pal: bool,
     _w(buf, 0x39, v.start_pts)
     _w(buf, 0x3D, v.end_pts)
     if v.seq_end:
-        _w(buf, 0x41, v.end_pts)
+        _w(buf, 0x41, v.video_end if v.video_end is not None else v.end_pts)
     _w(buf, 0x45, elapsed)
     # DSI general information
     _w(buf, 0x407, v.scr)

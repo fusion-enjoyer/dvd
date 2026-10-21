@@ -40,22 +40,59 @@ def mux(video: Path, audio: list[Path], out: Path, ffmpeg: Path | None = None) -
     ffmpeg = ffmpeg or toolchain.find_executable(["ffmpeg.exe", "ffmpeg"], toolchain.tool_dirs())
     if ffmpeg is None:
         raise AuthorError("ffmpeg not found")
+
     # A raw .m2v has no timestamps on most frames. The DVD muxer starts a new VOBU (with a
     # NAV pack) on an I-frame only by comparing timestamps, so without +genpts the whole film
     # becomes one VOBU: chapters collapse to the start and seeking breaks.
-    args = [str(ffmpeg), "-v", "error", "-y", "-fflags", "+genpts", "-i", str(video)]
-    for a in audio:
-        args += ["-i", str(a)]
-    args += ["-map", "0:v"]
-    for i in range(len(audio)):
-        args += ["-map", f"{i + 1}:a"]
-    # FFmpeg derives the mux rate from the streams and can declare more than DVD allows; fix it
-    # at the DVD rate so an overloaded stream shows up as late packets (author/pscheck.py).
-    args += ["-c", "copy", "-muxrate", "10080000", "-f", "dvd", str(out)]
-    proc = subprocess.run(args, capture_output=True, creationflags=_NO_WINDOW)
-    if proc.returncode != 0:
-        raise AuthorError("mux failed: " + proc.stderr.decode("utf-8", errors="replace").strip())
+    def run(audio_offset: int) -> None:
+        args = [str(ffmpeg), "-v", "error", "-y", "-fflags", "+genpts", "-i", str(video)]
+        for a in audio:
+            if audio_offset:
+                args += ["-itsoffset", f"{audio_offset / 90_000:.6f}"]
+            args += ["-i", str(a)]
+        args += ["-map", "0:v"]
+        for i in range(len(audio)):
+            args += ["-map", f"{i + 1}:a"]
+        # FFmpeg derives the mux rate from the streams and can declare more than DVD allows;
+        # fix it at the DVD rate so an overloaded stream shows up as late packets (pscheck).
+        args += ["-c", "copy", "-muxrate", "10080000", "-f", "dvd", str(out)]
+        proc = subprocess.run(args, capture_output=True, creationflags=_NO_WINDOW)
+        if proc.returncode != 0:
+            raise AuthorError("mux failed: "
+                              + proc.stderr.decode("utf-8", errors="replace").strip())  # fmt: skip
+
+    run(0)
+    # With B pictures FFmpeg shows the first picture one frame after the sound starts (the
+    # reorder delay counts from the first decode time); move the sound to the picture.
+    shown, heard = first_times(out)
+    if audio and shown is not None and heard is not None and shown > heard:
+        run(shown - heard)
     return out
+
+
+def first_times(mpg: Path, packs: int = 512) -> tuple[int | None, int | None]:
+    """The first picture's and the first audio frame's presentation time (90 kHz) in a
+    program stream, from its first packs."""
+    video, sound = None, None
+    with Path(mpg).open("rb") as f:
+        data = f.read(2048 * packs)
+    for at in range(0, len(data) - 2047, 2048):
+        pack = data[at : at + 2048]
+        pos = 14 + (pack[13] & 7)
+        while pos + 9 <= 2048 and pack[pos : pos + 3] == b"\x00\x00\x01":
+            sid = pack[pos + 3]
+            length = int.from_bytes(pack[pos + 4 : pos + 6], "big")
+            if (0xE0 <= sid <= 0xEF or sid in (0xBD, 0xC0)) and pack[pos + 7] & 0x80:
+                b = pack[pos + 9 : pos + 14]
+                pts = (((b[0] >> 1) & 7) << 30) | (b[1] << 22) | ((b[2] >> 1) << 15) \
+                    | (b[3] << 7) | (b[4] >> 1)  # fmt: skip
+                header = pos + 9 + pack[pos + 8]
+                if 0xE0 <= sid <= 0xEF:
+                    video = pts if video is None else min(video, pts)
+                elif sid == 0xC0 or 0x80 <= pack[header] <= 0x8F:
+                    sound = pts if sound is None else min(sound, pts)
+            pos += 6 + length
+    return video, sound
 
 
 @dataclass(frozen=True)
