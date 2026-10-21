@@ -354,6 +354,25 @@ def profile_import(file: Path) -> None:
     typer.echo(f"wrote {save_user_profile(file.stem, settings)}")
 
 
+@app.command()
+def ifo(
+    path: Path = typer.Argument(..., help="VIDEO_TS folder (or a disc folder holding one)"),
+    commands: bool = typer.Option(False, "--commands", "-c", help="Show the VM commands"),
+) -> None:
+    """Show what a DVD's IFO files hold: titles, menus, cells, restrictions, commands."""
+    from dvd.ifo import IfoError, read_disc
+    from dvd.ifo.report import describe
+
+    folder = path / "VIDEO_TS" if (path / "VIDEO_TS").is_dir() else path
+    try:
+        disc = read_disc(folder)
+    except (IfoError, OSError, IndexError) as exc:
+        typer.echo(f"cannot read {folder}: {exc}", err=True)
+        raise typer.Exit(1) from None
+    for line in describe(disc, commands):
+        typer.echo(line)
+
+
 template_app = typer.Typer(help="List, export and import menu templates.", no_args_is_help=True)
 app.add_typer(template_app, name="template")
 
