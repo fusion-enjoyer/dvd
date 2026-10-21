@@ -29,6 +29,7 @@ from dvd.project.model import (
     Video,
     parse_timecode,
 )
+from dvd.qa.disc_check import check_disc
 from dvd.subs.extract import extract_text_track
 from dvd.subs.pgs import BitmapCue, extract_pgs, parse_sup
 from dvd.subs.render import Placement
@@ -500,6 +501,10 @@ def build(
               if not intro.skippable}  # fmt: skip
     if locked:  # intros are titleset 2 (titleset 1 holds the film), one PGC each
         restrict(video_ts, 2, locked)
+    expected = [(len(t.chapters or [0]), q.duration) for t, q in zip(author_titles, prepared,
+                                                                     strict=True)]  # fmt: skip
+    warnings += check_disc(video_ts, expected, len(intros) + len(hidden), menus is not None,
+                           project.at_end, locked)  # fmt: skip
     iso = None
     if make_iso:
         iso = write_iso(

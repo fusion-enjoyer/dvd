@@ -118,6 +118,7 @@ def test_series_disc_builds_with_episode_menu(tmp_path: Path):
     assert load(project_file).series.discs == 2
 
     result = build(project_file, make_iso=False)
+    assert not [w for w in result.warnings if w.startswith("disc check")], result.warnings
 
     xml = next(tmp_path.rglob("dvdauthor.xml")).read_text(encoding="utf-8")
     assert "<post>if (g1 == 1) jump title 2; call menu entry root;</post>" in xml

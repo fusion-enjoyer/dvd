@@ -345,6 +345,7 @@ def test_build_disc_with_menus(tmp_path: Path):
 
     result = build(project_file)
 
+    assert not [w for w in result.warnings if w.startswith("disc check")], result.warnings
     names = sorted(p.name for p in result.video_ts.iterdir())
     assert "VTS_01_0.VOB" in names  # the titleset menus
     xml = (next(tmp_path.rglob("dvdauthor.xml"))).read_text(encoding="utf-8")
@@ -388,6 +389,7 @@ def test_intro_plays_before_the_menu(tmp_path: Path):
 
     result = build(project_file)
 
+    assert not [w for w in result.warnings if w.startswith("disc check")], result.warnings
     names = sorted(p.name for p in result.video_ts.iterdir())
     assert "VTS_02_1.VOB" in names  # the intro titleset
     xml = next(tmp_path.rglob("dvdauthor.xml")).read_text(encoding="utf-8")

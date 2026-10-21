@@ -86,3 +86,11 @@ def test_read_a_built_disc(tmp_path: Path):
     assert out.exit_code == 0, out.output
     assert "titleset 2: PAL 16:9" in out.output and "blocked: title_or_time_play" in out.output
     assert "CallSS VTSM root, resume cell 1" in out.output
+
+    from dvd.qa.disc_check import check_disc
+
+    assert check_disc(result.video_ts, [(2, 6.0)], 1, True, "menu", {1: NO_SKIP}) == []
+    found = check_disc(result.video_ts, [(3, 9.0)], 0, True, "menu")
+    assert "disc check: 2 titles on the disc, 1 expected" in found
+    assert "disc check: title 1 has 2 chapters, 3 expected" in found
+    assert any("lasts 6.0 s, 9.0 s expected" in f for f in found)
