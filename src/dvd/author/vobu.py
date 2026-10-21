@@ -36,6 +36,7 @@ class Scan:
     vobus: list[Vobu]
     # Per audio stream (0-7): (sector, pts) of each packet that starts a frame (has a PTS).
     audio: dict[int, list[tuple[int, int]]] = field(default_factory=dict)
+    audio_end: int = -1  # when the last audio packet with a time stamp stops playing
     # Per subpicture stream (0-31): (sector, shown from, shown until) of each subpicture.
     subpictures: dict[int, list[tuple[int, int, int]]] = field(default_factory=dict)
 
@@ -110,7 +111,9 @@ def scan_stream(path: Path, fps: Fraction) -> Scan:
                     has_pts = body[1] & 0x80 and len(body) >= 8
                     if kind[0] == "audio":
                         if has_pts:
-                            result.audio.setdefault(kind[1], []).append((sector, _ts(body[3:8])))
+                            pts = _ts(body[3:8])
+                            result.audio.setdefault(kind[1], []).append((sector, pts))
+                            result.audio_end = max(result.audio_end, pts + _audio_ticks(body))
                     else:
                         _subpicture(result, units, kind[1], sector, body, has_pts)
                 elif 0xE0 <= sid <= 0xEF and vobus:
@@ -152,7 +155,23 @@ def scan_stream(path: Path, fps: Fraction) -> Scan:
     for v in vobus:  # counted fields give the exact end (also for the last unit)
         if v.start_pts is not None and v.fields:
             v.end_pts = (2 * v.start_pts + v.fields * frame_ticks) // 2
+    if vobus and vobus[-1].end_pts is not None and result.audio_end > vobus[-1].end_pts:
+        vobus[-1].end_pts = result.audio_end  # sound that outlasts the picture still plays
     return result
+
+
+def _audio_ticks(body: bytes) -> int:
+    """How long the audio frames starting in this packet play (90 kHz): AC-3 frames last
+    2880 ticks, LPCM frames 150; the DVD private header counts the frames."""
+    data = 3 + body[2]
+    if len(body) <= data + 1:
+        return 0
+    sub, frames = body[data], body[data + 1]
+    if 0x80 <= sub <= 0x87:
+        return 2880 * frames
+    if 0xA0 <= sub <= 0xA7:
+        return 150 * frames
+    return 0
 
 
 def _subpicture(result: Scan, units: dict, stream: int, sector: int, body: bytes,

@@ -184,7 +184,10 @@ def compile_program(text: str, domain: str) -> list[bytes]:
     """A whole pre/post/button program. Line numbers for Goto count from 1."""
     out: list[bytes] = []
 
-    def emit(part: str) -> None:
+    def emit(part) -> None:
+        if isinstance(part, bytes):  # already compiled (see _merged)
+            out.append(part)
+            return
         m = _IF.fullmatch(" ".join(part.split()) if "{" not in part else part.strip())
         if m is None:
             out.append(statement(part, domain))
@@ -201,7 +204,7 @@ def compile_program(text: str, domain: str) -> list[bytes]:
                 return
             at = len(out)
             out.append(b"")  # the skip, filled in once the block's length is known
-            for inner in _split(body):
+            for inner in _merged(_split(body), domain):
                 emit(inner)
             out[at] = _goto(len(out) + 1, (left, OPPOSITE[cmp], right))
             return
@@ -214,6 +217,24 @@ def compile_program(text: str, domain: str) -> list[bytes]:
             out.append(_goto(len(out) + 3, (left, OPPOSITE[cmp], right)))
             out.append(statement(rest.rstrip(";"), domain))
 
-    for part in _split(text):
+    for part in _merged(_split(text), domain):
         emit(part)
+    return out
+
+
+def _merged(parts: list[str], domain: str) -> list:
+    """`button = N` followed by `jump menu M` becomes one command (a system set may carry a
+    link), as dvdauthor's optimizer does: one command instead of two counts toward the 128."""
+    out: list = []
+    for part in parts:
+        flat = " ".join(part.split())
+        jump = re.fullmatch(r"jump menu (\d+)", flat)
+        before = " ".join(out[-1].split()) if out and isinstance(out[-1], str) else ""
+        if jump and re.fullmatch(r"button = \d+", before):
+            combined = bytearray(statement(out[-1], domain))
+            combined[1] |= 4  # link: LinkPGCN
+            combined[6:8] = int(jump.group(1)).to_bytes(2, "big")
+            out[-1] = bytes(combined)
+            continue
+        out.append(part)
     return out

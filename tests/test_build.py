@@ -364,6 +364,14 @@ def test_build_disc_with_menus(tmp_path: Path):
         capture_output=True, text=True, check=True,
     ).stdout  # fmt: skip
     assert float(duration) == pytest.approx(12 * 24000 / 1001 / 25, abs=0.4)
+    # Our own authoring of the same menus and title gives the same disc, file for file.
+    from fractions import Fraction
+
+    sys.path.insert(0, str(Path(__file__).parent))
+    from own_author import reauthor, same_files
+
+    ours = reauthor(tmp_path, result.video_ts, tmp_path / "own", Fraction(25))
+    assert same_files(ours, result.video_ts) == []
 
 
 @pytest.mark.skipif(not READY, reason="toolchain not installed")

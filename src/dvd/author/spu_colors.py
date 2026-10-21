@@ -150,12 +150,21 @@ class _Remap:
             i += 1
 
 
+def _cstring(data: bytes, at: int) -> tuple[str, int]:
+    end = data.index(0, at)
+    return data[at:end].decode("latin-1"), end + 1
+
+
 class ColorRemapper:
     """Per VOB: rewrite subpicture colours of every pack into `palette`."""
 
     def __init__(self, palette: Palette) -> None:
         self.palette = palette
         self.streams = [_Remap() for _ in range(32)]
+        # Menus: the buttons spumux placed (name, auto, group, x1, y1, x2, y2, up, down,
+        # left, right) and their highlight colours, colour numbers already in `palette`.
+        self.buttons: list[tuple] = []
+        self.button_colors = bytes(24)
 
     def info_packet(self, pack: bytes) -> bool:
         """Read a spumux "dvdauthor-data" padding packet; True when it was one."""
@@ -172,14 +181,27 @@ class ColorRemapper:
                 stream.new = [UNUSED | int.from_bytes(pack[i + 2 + 3 * j : i + 5 + 3 * j], "big")
                               for j in range(count)] + list(range(count, 16))  # fmt: skip
                 i += 2 + 3 * count
-            elif cmd == 2:  # button colours (menus): kept for later
+            elif cmd == 2:  # button highlight colours: colours (not contrasts) renumbered
+                colors = bytearray(pack[i + 2 : i + 2 + 8 * count])
+                for j in range(count):
+                    for k in (0, 1, 4, 5):
+                        colors[8 * j + k] = stream.byte(colors[8 * j + k])
+                self.button_colors = bytes(colors).ljust(24, b"\0")
                 i += 2 + 8 * count
-            elif cmd == 3:  # button positions (menus)
+            elif cmd == 3:  # button positions
                 i += 2
                 for _ in range(count):
-                    i = pack.index(0, i) + 1 + 2 + 1 + 9  # name, modifier, auto, group, box
-                    for _ in range(4):  # neighbour names
-                        i = pack.index(0, i) + 1
+                    name, i = _cstring(pack, i)
+                    i += 2  # modifier
+                    auto, group = pack[i] != 0, pack[i + 1]
+                    box = [int.from_bytes(pack[i + 2 + 2 * k : i + 4 + 2 * k], "big")
+                           for k in range(4)]  # x1, y1, x2, y2  # fmt: skip
+                    i += 10
+                    near = []
+                    for _ in range(4):
+                        text, i = _cstring(pack, i)
+                        near.append(text)
+                    self.buttons.append((name, auto, group, *box, *near))
             else:
                 raise ValueError(f"unknown spumux information command {cmd}")
         return True

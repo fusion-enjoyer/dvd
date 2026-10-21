@@ -273,26 +273,42 @@ def vob_bases(spec: TitlesetSpec) -> list[int]:
     return bases
 
 
-def write_vts(spec: TitlesetSpec) -> bytes:
-    """The whole VTS_nn_0.IFO (the .BUP is the same bytes)."""
+def write_vts(spec: TitlesetSpec, menus: list | None = None) -> bytes:
+    """The whole VTS_nn_0.IFO (the .BUP is the same bytes). `menus`: the titleset's menu
+    pages (`menu_write.MenuSpec`), whose VOB is VTS_nn_0.VOB."""
+    from dvd.author import menu_write
+
     bases = vob_bases(spec)
-    parts = [ptt_srpt(spec), pgcit(spec, bases), tmapti(spec, bases), c_adt(spec, bases),
-             vobu_admap(spec, bases)]  # fmt: skip
+    pal, wide = spec.standard == "pal", spec.aspect == "16:9"
+    tables = [(0xC8, ptt_srpt(spec)), (0xCC, pgcit(spec, bases))]
+    if menus:
+        tables.append((0xD0, _sectors(menu_write.pgci_ut(menus, pal, wide, 1, 1))))
+    tables.append((0xD4, tmapti(spec, bases)))
+    if menus:
+        tables.append((0xD8, _sectors(menu_write.c_adt(menus))))
+        tables.append((0xDC, _sectors(menu_write.vobu_admap(menus))))
+    tables += [(0xE0, c_adt(spec, bases)), (0xE4, vobu_admap(spec, bases))]
     head = bytearray(SECTOR)
     head[:12] = b"DVDVIDEO-VTS"
     head[33] = 0x11  # version 1.1
     _w(head, 128, 0x7FF)  # end of VTSI_MAT
     at = 1
-    for offset, part in zip((0xC8, 0xCC, 0xD4, 0xE0, 0xE4), parts, strict=True):
+    for offset, part in tables:
         _w(head, offset, at)
         at += len(part) // SECTOR
     ifo_last = at - 1
     _w(head, 28, ifo_last)
-    _w(head, 0xC4, at)  # title VOBs start right after the IFO
+    menu_sectors = menu_write.layout(menus)[2] if menus else 0
+    if menus:
+        _w(head, 0xC0, at)  # the menu VOB follows the IFO, then the title VOBs
+    _w(head, 0xC4, at + menu_sectors)
     vobs = bases[-1] + spec.titles[-1].scan.vobus[-1].last_sector + 1
-    _w(head, 12, at + vobs + ifo_last)  # last sector of the titleset (end of the BUP)
+    _w(head, 12, at + menu_sectors + vobs + ifo_last)  # last sector (end of the BUP)
+    if menus:  # menu streams: the page's silent stereo AC-3 and its button subpicture
+        av_info(head, 0x100, TitlesetSpec(spec.standard, spec.aspect, [], [AudioAttr()],
+                                          [SubpictureAttr()]))  # fmt: skip
     av_info(head, 0x200, spec)
-    return bytes(head) + b"".join(parts)
+    return bytes(head) + b"".join(part for _o, part in tables)
 
 
 MIN_IFO_SECTORS = 16
