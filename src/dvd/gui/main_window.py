@@ -813,6 +813,9 @@ class MainWindow(QMainWindow):
         lines = [t("build.wrote", path=result.video_ts)]
         if result.iso:
             lines.append(t("build.wrote", path=result.iso))
+        if result.layer_break is not None:
+            b = result.layer_break
+            lines.append(t("build.layer_break", sector=b.sector, title=b.title, cell=b.cell))
         self.build_page.finished(result.video_ts.parent, lines, result.warnings)
 
     def _build_failed(self, message: str) -> None:

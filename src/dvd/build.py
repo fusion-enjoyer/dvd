@@ -18,6 +18,8 @@ from dvd.author.pscheck import check as check_mux
 from dvd.author.uops import NO_SKIP, restrict
 from dvd.budget.planner import Plan, plan
 from dvd.output.iso import write_iso
+from dvd.output.layerbreak import LayerBreak, write_dvd_file
+from dvd.output.layerbreak import choose as choose_layer_break
 from dvd.probe import SourceInfo, probe
 from dvd.profiles import resolve as resolve_profiles
 from dvd.project import load, source_path
@@ -67,6 +69,7 @@ class BuildResult:
     plan: Plan
     warnings: list[str] = field(default_factory=list)
     iso: Path | None = None
+    layer_break: LayerBreak | None = None  # DVD-9 image larger than one layer
 
 
 @dataclass
@@ -550,5 +553,12 @@ def build(
             project.disc.name,
             progress=lambda f: report("iso", f),
         )
+    brk = None
+    if iso is not None and project.disc.media == "dvd9":
+        brk, why = choose_layer_break(video_ts)
+        if brk is not None:
+            write_dvd_file(iso, brk)
+        elif why:
+            warnings.append(f"layer break: {why}; choose it in the burning program")
     report("done", 1.0)
-    return BuildResult(video_ts, budget, warnings, iso)
+    return BuildResult(video_ts, budget, warnings, iso, brk)

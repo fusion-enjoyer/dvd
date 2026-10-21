@@ -190,6 +190,10 @@ TEXTS: dict[str, dict[str, str]] = {
         "inspect.cells": "Hücreler:",
         "inspect.sectors": "sektör {first}–{last}",
         "inspect.cell_command": "hücre komutu {n}",
+        "build.layer_break": "Katman geçişi: sektör {sector} (başlık {title}, hücre {cell}); "
+        "yakma programı için .dvd dosyasına yazıldı",
+        "warning.layer_break": "Katman geçişi için uygun yer bulunamadı ({value}); yakma "
+        "programında elle seçin.",
         "disc.authoring": "Diski yazan",
         "disc.authoring.dvdauthor": "dvdauthor",
         "disc.authoring.own": "Kendi motorumuz (deneme)",

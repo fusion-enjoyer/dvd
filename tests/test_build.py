@@ -125,6 +125,16 @@ def test_build_menuless_pal_disc(tmp_path: Path):
     ).stdout  # fmt: skip
     assert float(duration) == pytest.approx(vob.duration, abs=0.3)
     assert load(project_file).titles[0].audio[1].default
+    # Layer break candidates are the cells' first sectors in the image: NAV packs there.
+    from dvd.output.layerbreak import candidates
+
+    total, cells = candidates(result.video_ts)
+    assert total * 2048 == result.iso.stat().st_size and len(cells) == 2  # two chapters
+    with result.iso.open("rb") as f:
+        for sector, title, _cell in cells:
+            f.seek(sector * 2048)
+            pack = f.read(2048)
+            assert title == 1 and pack[14:18] == b"\x00\x00\x01\xbb" and pack[0x406] == 1
 
 
 def count_nav_packs(mpg: Path) -> int:

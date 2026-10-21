@@ -171,3 +171,17 @@ def test_missing_backup_ifo_is_rejected(two_titleset_disc: Path, tmp_path: Path)
     (copy / "VTS_02_0.BUP").unlink()
     with pytest.raises(IsoError, match="BUP is missing"):
         dvd_layout(copy)
+
+
+def test_layer_break_takes_the_cell_nearest_the_middle_on_an_ecc_block():
+    from dvd.output.layerbreak import pick
+
+    total = 3_000_000
+    cells = [(0, 1, 1), (1_400_000, 1, 2), (1_500_016, 1, 3), (1_500_008, 1, 4),
+             (1_600_000, 1, 5), (2_090_000, 1, 6)]  # fmt: skip
+    brk, why = pick(total, cells)
+    assert (brk.sector, brk.cell, brk.layer1, why) == (1_500_016, 3, 1_499_984, "")
+    assert pick(2_000_000, cells) == (None, "")  # fits on one layer
+    brk, why = pick(total, [(1_500_008, 1, 1)])
+    assert brk is None and "none on a 16-sector boundary" in why
+    assert "larger than two layers" in pick(5_000_000, cells)[1]

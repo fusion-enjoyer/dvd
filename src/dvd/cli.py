@@ -162,6 +162,10 @@ def build_cmd(
     typer.echo(f"wrote {result.video_ts}")
     if result.iso:
         typer.echo(f"wrote {result.iso}")
+    if result.layer_break is not None:
+        b = result.layer_break
+        typer.echo(f"layer break at sector {b.sector} (title {b.title} cell {b.cell}), "
+                   f"written to {result.iso.with_suffix('.dvd').name}")  # fmt: skip
 
 
 @app.command("iso")
