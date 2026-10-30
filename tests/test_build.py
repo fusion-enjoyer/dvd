@@ -692,3 +692,21 @@ def test_a_second_build_reuses_what_did_not_change(tmp_path: Path):
     assert third.reused == ["title 1 audio 1", "title 1 audio 2"]
     assert m2v.stat().st_mtime_ns != made
     assert build(project_file, make_iso=False, fresh=True).reused == []
+
+
+@pytest.mark.skipif(not READY, reason="toolchain not installed")
+def test_build_stops_before_encoding_when_the_disk_is_full(tmp_path: Path, monkeypatch):
+    import shutil
+    from collections import namedtuple
+
+    from dvd.build import BuildError
+
+    src = _sample(tmp_path, seconds=6)
+    project = new_project(probe(src), tmp_path)
+    project.menus = None
+    project_file = tmp_path / "dolu.dvd.yaml"
+    save(project, project_file)
+    monkeypatch.setattr(shutil, "disk_usage", lambda p: namedtuple("U", "total used free")(0, 0, 1))
+    with pytest.raises(BuildError, match="not enough free space"):
+        build(project_file, make_iso=False)
+    assert not list(tmp_path.rglob("*.m2v"))  # nothing was encoded

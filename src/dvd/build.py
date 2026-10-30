@@ -18,6 +18,8 @@ from dvd.author.own import author_xml
 from dvd.author.pscheck import check as check_mux
 from dvd.author.uops import NO_SKIP, restrict
 from dvd.budget.planner import Plan, plan
+from dvd.budget.space import gb
+from dvd.budget.space import needs as disk_needs
 from dvd.output.iso import write_iso
 from dvd.output.layerbreak import LayerBreak, split_point, write_dvd_file
 from dvd.output.layerbreak import choose as choose_layer_break
@@ -443,6 +445,11 @@ def build(
     warnings += budget.warnings
     if not budget.fits or budget.video_kbps <= 0:
         raise BuildError(f"the titles do not fit on {project.disc.media.upper()}")
+    iso_path = out_dir / f"{name}.iso" if make_iso else None
+    for need in disk_needs(budget.estimated_bytes, work_dir, out_dir, iso_path):
+        if not need.enough:
+            raise BuildError(f"not enough free space on {need.drive}: the build needs about "
+                             f"{gb(need.needed)}, {gb(need.free)} is free")  # fmt: skip
 
     disc_settings = resolve_profiles(project.disc.profiles)
 
@@ -539,6 +546,7 @@ def build(
         for i, sub in enumerate(subs):
             cues = retime(_subtitle_cues(sub, p, project_file, work_dir / f"{tag}_s{i}.srt"),
                           float(p.target.speedup))  # fmt: skip
+            before = mpg
             mpg = add_subtitle_stream(
                 mpg,
                 work_dir / f"{tag}_s{i}.mpg",
@@ -554,6 +562,8 @@ def build(
                 band=sub.band,
                 keep_colour=sub.keep_colour,
             )
+            if before != mpg:
+                before.unlink(missing_ok=True)  # only the last stream of the chain is needed
         muxed = check_mux(mpg)
         if not muxed.ok:
             raise BuildError(f"title {n} program stream is not DVD compliant: "

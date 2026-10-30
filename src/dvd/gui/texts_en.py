@@ -265,6 +265,8 @@ EN: dict[str, str] = {
         "{names}. Put the video next to the archive and open it again."
     ),
     "build.reused": "{n} unchanged parts (picture, sound) were taken from the last build.",
+    "build.space": "Free space needed on {drive}: about {need} ({free} free).",
+    "build.space_short": "Not enough space on {drive}: about {need} needed, {free} free.",
     "settings.open": "Settings",
     "settings.title": "Settings",
     "settings.language": "Interface language",

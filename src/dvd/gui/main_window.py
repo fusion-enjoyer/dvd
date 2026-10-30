@@ -782,7 +782,7 @@ class MainWindow(QMainWindow):
         self.chapters_page.show_project(p, self.infos[0],
                                         proj.source_path(self.project_file, p.titles[0]),
                                         self._speedup())  # fmt: skip
-        self.build_page.set_summary(t("build.summary", folder=self._output_folder()))
+        self.build_page.set_summary(self._build_summary())
 
     def _open_menu_page(self, page_id: str) -> None:
         """From the disc map: the menu editor on that page."""
@@ -856,6 +856,24 @@ class MainWindow(QMainWindow):
                   lambda path: note.setText(t("archive.done", path=path,
                                               mb=f"{path.stat().st_size / 1e6:.1f}")),
                   note.setText)  # fmt: skip
+
+    def _build_summary(self) -> str:
+        from dvd.budget.space import gb, needs
+
+        folder = self._output_folder()
+        text = t("build.summary", folder=folder)
+        if self.plan is None:
+            return text
+        name = folder.name
+        work = self.project_file.parent / "build" / name
+        try:
+            found = needs(self.plan.estimated_bytes, work, folder, folder / f"{name}.iso")
+        except OSError:
+            return text
+        for need in found:
+            key = "build.space" if need.enough else "build.space_short"
+            text += "\n" + t(key, drive=need.drive, need=gb(need.needed), free=gb(need.free))
+        return text
 
     def _output_folder(self) -> Path:
         from dvd.build import safe_name

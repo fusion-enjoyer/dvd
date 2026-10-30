@@ -272,6 +272,10 @@ TEXTS: dict[str, dict[str, str]] = {
             "arşivin yanına koyup arşivi yeniden açın."
         ),
         "build.reused": "Değişmeyen {n} parça (görüntü, ses) önceki build'den alındı.",
+        "build.space": "{drive} sürücüsünde gereken boş alan yaklaşık {need} (boş: {free}).",
+        "build.space_short": (
+            "{drive} sürücüsünde yer yetmiyor: yaklaşık {need} gerekiyor, {free} boş."
+        ),
         "settings.open": "Ayarlar",
         "settings.title": "Ayarlar",
         "settings.language": "Arayüz dili",
