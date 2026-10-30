@@ -219,7 +219,7 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 - [ ] Doğrudan yakma (IMAPI2 / ImgBurn), yakma sonrası doğrulama
   - [x] `output/burn.py`, Çıktı sayfasında "Diske yaz…", `dvd drives|burn|verify-disc`: yazıcılar IMAPI2'den (salt okuma), yazma ImgBurn ile (DVD-9'da `.dvd` katman geçişi, hız, okuyarak doğrulama); ImgBurn yoksa Windows'un disk imajı yakıcısı açılır. Yakılan diskteki VIDEO_TS build edilenle bayt bayt karşılaştırılır
   - [ ] Gerçek yazıcı ve diskle deneme (bu bilgisayarda yazıcı yok)
-- [ ] Kapak ve disk etiketi tasarımı, yazdırılabilir PDF
+- [x] Kapak ve disk etiketi tasarımı, yazdırılabilir PDF: `output/cover.py`, Çıktı sayfasında "Kapak ve disk etiketi (PDF)", `dvd cover [--slim]`. Kutu kapağı 273 x 183 mm (ince kutu 267, 7 mm sırt), arka | sırt | ön, 3 mm taşma ve kesim işaretleri; disk etiketi 118 mm / 41 mm göbek, kesim çizgileri; A4. Resim menünün resmi ya da film karesi, başlık disk adı ya da menü logosu, arkada süre/görüntü/ses/altyazı/ortam
 - [x] İş kuyruğu, bitince bildirim/kapatma, duraklat-devam
   - [x] Motor ve komut satırı (`jobs.py`, `pause.py`): kuyruk dosyası (`%APPDATA%\DVD Studyo\queue.yaml`), projeler sırayla, hata kuyruğu durdurmaz, yarıda kalan iş sonra yeniden; bitince uyku ya da 2 dk sonra kapatma (`shutdown /a` iptal); duraklatma build'in başlattığı süreçleri askıya alır; `dvd queue add|list|remove|clear|run --then`
   - [x] Arayüz (`gui/queue_panel.py`): Çıktı sayfasında kuyruk listesi (bekliyor / build ediliyor / bitti / hata), bu projeyi kuyruğa ekle, başlat, duraklat/devam (tek disk build'inde de), bitenleri temizle, kuyruk bitince hiçbir şey / uyut / kapat (her seferinde seçilir, hatırlanmaz); bitince görev çubuğu düğmesi yanıp söner

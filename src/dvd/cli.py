@@ -215,6 +215,31 @@ def restore_cmd(
         raise typer.Exit(1)
 
 
+@app.command("cover")
+def cover_cmd(
+    path: Path = typer.Argument(..., help="Project file"),
+    out: Path | None = typer.Option(None, "--out", "-o", help="Folder for the PDFs"),
+    slim: bool = typer.Option(False, "--slim", help="For a slim case (7 mm spine)"),
+) -> None:
+    """A printable case cover and disc label (PDF) for the project."""
+    from dvd.build import safe_name
+    from dvd.output.cover import info_from, write_cover, write_label
+
+    try:
+        p = project.load(path)
+        infos = [probe(project.source_path(path, t)) for t in p.titles]
+    except (project.ProjectError, ProbeError) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from None
+    folder = out or path.parent / safe_name(p.disc.name)
+    folder.mkdir(parents=True, exist_ok=True)
+    info = info_from(p, path, infos)
+    name = safe_name(p.disc.name)
+    for written in (write_cover(info, folder / f"{name} - kapak.pdf", "slim" if slim else "case"),
+                    write_label(info, folder / f"{name} - etiket.pdf")):  # fmt: skip
+        typer.echo(f"wrote {written}")
+
+
 @app.command("drives")
 def drives_cmd() -> None:
     """DVD writers on this computer and the media they write."""

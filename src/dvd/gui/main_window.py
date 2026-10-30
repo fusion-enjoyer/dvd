@@ -440,6 +440,7 @@ class MainWindow(QMainWindow):
         self.audio_page = TracksPage("both")
         self.subs_page = TracksPage("subs")
         self.build_page = BuildPage()
+        self.build_page.cover_requested.connect(self._cover)
         queue = self.build_page.queue
         queue.add_requested.connect(self._queue_add)
         queue.start_requested.connect(self._queue_start)
@@ -797,6 +798,26 @@ class MainWindow(QMainWindow):
     def _source_position(self) -> float:
         """The preview frame's time in the source (the preview counts disc time)."""
         return getattr(self, "preview_seconds", 0.0) * self._speedup()
+
+    def _cover(self) -> None:
+        if self.project is None:
+            return
+        from dvd.output.cover import info_from, write_cover, write_label
+
+        project, project_file, infos = self.project, self.project_file, list(self.infos)
+        folder = self._output_folder()
+        name = folder.name
+
+        def work():
+            folder.mkdir(parents=True, exist_ok=True)
+            info = info_from(project, project_file, infos)
+            return [write_cover(info, folder / f"{name} - kapak.pdf"),
+                    write_label(info, folder / f"{name} - etiket.pdf")]  # fmt: skip
+
+        self.build_page.cover_note.setText(t("cover.making"))
+        tasks.run(work, lambda paths: self.build_page.cover_note.setText(
+            t("cover.done", folder=paths[0].parent)),
+                  lambda msg: self.build_page.cover_note.setText(msg))  # fmt: skip
 
     def _output_folder(self) -> Path:
         from dvd.build import safe_name

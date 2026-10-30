@@ -336,6 +336,7 @@ def stage_text(stage: str) -> str:
 
 class BuildPage(QWidget):
     start_requested = Signal()
+    cover_requested = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -364,6 +365,11 @@ class BuildPage(QWidget):
         self.burn = QPushButton(t("burn.open"))
         self.burn.clicked.connect(self._burn)
         self.iso: Path | None = None
+        cover = QPushButton(t("cover.open"))
+        cover.setObjectName("link")
+        cover.setToolTip(t("cover.hint"))
+        cover.clicked.connect(self.cover_requested)
+        self.cover_note = _label("", "muted", wrap=True)
         other = QPushButton(t("inspect.open_other"))
         other.setObjectName("link")
         other.clicked.connect(self._inspect_other)
@@ -376,6 +382,8 @@ class BuildPage(QWidget):
         row.addStretch()
         box.addLayout(row)
         box.addWidget(other, alignment=Qt.AlignmentFlag.AlignLeft)
+        box.addWidget(cover, alignment=Qt.AlignmentFlag.AlignLeft)
+        box.addWidget(self.cover_note)
         box.addSpacing(8)
         from dvd.gui.queue_panel import QueuePanel
 

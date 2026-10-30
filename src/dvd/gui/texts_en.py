@@ -242,6 +242,13 @@ EN: dict[str, str] = {
     "burn.failed": "It did not work: {error}",
     "burn.matches": "The disc is byte for byte the same as the built files.",
     "burn.differs": "{n} problems found; the first: {first}",
+    "cover.open": "Case cover and disc label (PDF)",
+    "cover.hint": (
+        "A DVD case cover (273 x 183 mm, with crop marks) and a disc label to "
+        "print on A4, with the menu's picture and the disc's audio and subtitles"
+    ),
+    "cover.making": "Making the cover and the label…",
+    "cover.done": "Cover and label written: {folder}",
     "settings.open": "Settings",
     "settings.title": "Settings",
     "settings.language": "Interface language",

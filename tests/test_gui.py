@@ -695,3 +695,23 @@ def test_burn_dialog_checks_a_disc_but_never_writes_in_a_test(app, tmp_path: Pat
     page = MainWindow(mode="pro").build_page
     page.finished(iso.parent, ["ok"], [])
     assert page.iso == iso and not page.burn.isHidden()
+
+
+def test_cover_and_label_from_the_output_page(app, tmp_path: Path):
+    src = tmp_path / "kapak.mkv"
+    subprocess.run(
+        [str(FFMPEG), "-v", "error", "-y", "-f", "lavfi",
+         "-i", "testsrc2=size=1280x720:rate=25:duration=2", "-f", "lavfi", "-i", "sine=duration=2",
+         "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "ac3", str(src)],
+        check=True,
+    )  # fmt: skip
+    w = MainWindow(mode="pro")
+    w._loaded(w._load(src))
+    QThreadPool.globalInstance().waitForDone(60000)
+    w.build_page.cover_requested.emit()
+    QThreadPool.globalInstance().waitForDone(60000)
+    app.processEvents()
+    folder = w._output_folder()
+    assert w.build_page.cover_note.text() == f"Kapak ve etiket yazıldı: {folder}"
+    assert sorted(p.suffix for p in folder.glob("*.pdf")) == [".pdf", ".pdf"]
+    w.close()

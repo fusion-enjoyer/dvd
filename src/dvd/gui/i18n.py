@@ -249,6 +249,13 @@ TEXTS: dict[str, dict[str, str]] = {
         "burn.failed": "Olmadı: {error}",
         "burn.matches": "Disk, build edilen dosyalarla bayt bayt aynı.",
         "burn.differs": "{n} sorun bulundu; ilki: {first}",
+        "cover.open": "Kapak ve disk etiketi (PDF)",
+        "cover.hint": (
+            "DVD kutusu kapağı (273 x 183 mm, kesim işaretli) ve disk etiketi, "
+            "A4'e yazdırmak için; menünün resmi ve diskteki ses/altyazı bilgisiyle"
+        ),
+        "cover.making": "Kapak ve etiket hazırlanıyor…",
+        "cover.done": "Kapak ve etiket yazıldı: {folder}",
         "settings.open": "Ayarlar",
         "settings.title": "Ayarlar",
         "settings.language": "Arayüz dili",
