@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from dvd import jobs
 from dvd import project as proj
 from dvd.budget.planner import Plan
 from dvd.build import estimate
@@ -37,6 +38,7 @@ from dvd.gui.series_dialog import SeriesDialog
 from dvd.gui.theme import DENSITY, stylesheet
 from dvd.gui.video_editor import VideoEditor
 from dvd.gui.widgets import BudgetBar, CompareWell, ModeSwitch
+from dvd.pause import Pause
 from dvd.probe import SourceInfo, probe
 from dvd.probe.report import fps_text, size_text, timecode
 from dvd.project.model import AudioProfile, ContentProfile, Project, ViewingProfile
@@ -438,6 +440,14 @@ class MainWindow(QMainWindow):
         self.audio_page = TracksPage("both")
         self.subs_page = TracksPage("subs")
         self.build_page = BuildPage()
+        queue = self.build_page.queue
+        queue.add_requested.connect(self._queue_add)
+        queue.start_requested.connect(self._queue_start)
+        queue.pause_toggled.connect(self._pause)
+        queue.remove_requested.connect(lambda i: (jobs.remove_job(i), self._show_queue()))
+        queue.clear_requested.connect(lambda: (jobs.clear_finished(), self._show_queue()))
+        self.pauser = Pause()
+        self._show_queue()
         for page in (self.audio_page, self.subs_page):
             page.changed.connect(self._tracks_changed)
             page.failed.connect(lambda msg: self.budget_label.setText(msg))
@@ -800,6 +810,7 @@ class MainWindow(QMainWindow):
         self.build_button.setEnabled(False)
         self.show_page("build")
         self.build_page.running()
+        self.build_page.queue.running(True)
         project_file = self.project_file
         tasks.run(
             lambda progress: build(project_file, progress=progress),
@@ -809,8 +820,7 @@ class MainWindow(QMainWindow):
         )
 
     def _built(self, result) -> None:
-        self.building = False
-        self.build_button.setEnabled(True)
+        self._stopped()
         lines = [t("build.wrote", path=result.video_ts)]
         if result.iso:
             lines.append(t("build.wrote", path=result.iso))
@@ -820,9 +830,71 @@ class MainWindow(QMainWindow):
         self.build_page.finished(result.video_ts.parent, lines, result.warnings)
 
     def _build_failed(self, message: str) -> None:
+        self._stopped()
+        self.build_page.failed(message)
+
+    def _stopped(self) -> None:
+        self.pauser.resume()
         self.building = False
         self.build_button.setEnabled(True)
-        self.build_page.failed(message)
+        self.build_page.queue.running(False)
+        self._show_queue()
+
+    # ---------------------------------------------------------------- queue
+
+    def _show_queue(self) -> None:
+        self.build_page.queue.show_jobs(jobs.load_jobs())
+
+    def _queue_add(self) -> None:
+        if self.project is None:
+            return
+        proj.save(self.project, self.project_file)
+        jobs.add_job(self.project_file)
+        self._show_queue()
+
+    def _queue_start(self) -> None:
+        if self.building:
+            return
+        self.building = True
+        self.build_button.setEnabled(False)
+        self.show_page("build")
+        self.build_page.running()
+        self.build_page.queue.running(True)
+
+        def work(progress):
+            # The job travels with the stage name so the list can mark the running one.
+            return jobs.run_queue(progress=lambda job, stage, f: progress(
+                f"queue|{job.project}|{stage}", f))  # fmt: skip
+
+        tasks.run(work, self._queue_done, self._build_failed, self._queue_progress)
+
+    def _queue_progress(self, stage: str, fraction: float) -> None:
+        if stage.startswith("queue|"):
+            _tag, project, stage = stage.split("|", 2)
+            if self.build_page.queue.current != project:
+                self.build_page.queue.current = project
+                self._show_queue()
+        self.build_page.progress(stage, fraction)
+
+    def _queue_done(self, ran) -> None:
+        self._stopped()
+        done = [j for j in ran if j.state == "done"]
+        failed = [j for j in ran if j.state == "failed"]
+        lines = [t("queue.summary", done=len(done), failed=len(failed))]
+        lines += [f"{Path(j.project).name}: {j.message}" for j in failed]
+        if done:
+            self.build_page.finished(Path(done[-1].message).parent, lines, [])
+        else:
+            self.build_page.failed("\n".join(lines))
+        QApplication.alert(self, 0)  # the taskbar button flashes; nothing opens
+        jobs.do_after(self.build_page.queue.after())
+
+    def _pause(self, on: bool) -> None:
+        if on:
+            self.pauser.pause()
+            self.build_page.stage.setText(t("queue.paused"))
+        else:
+            self.pauser.resume()
 
     # ---------------------------------------------------------------- drag and drop
 

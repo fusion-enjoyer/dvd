@@ -372,6 +372,11 @@ class BuildPage(QWidget):
         row.addStretch()
         box.addLayout(row)
         box.addWidget(other, alignment=Qt.AlignmentFlag.AlignLeft)
+        box.addSpacing(8)
+        from dvd.gui.queue_panel import QueuePanel
+
+        self.queue = QueuePanel()
+        box.addWidget(self.queue)
         box.addStretch()
         self.folder: Path | None = None
         self.reset()

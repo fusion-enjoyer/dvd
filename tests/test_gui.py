@@ -574,3 +574,44 @@ def test_disc_map_opens_a_menu_page(app, tmp_path: Path):
     assert "page:sayfa1" in w.map_page.canvas.boxes
     assert [p.id for p in load(w.project_file).menus.pages][-1] == "sayfa1"
     w.close()
+
+
+def test_queue_on_the_output_page(app, tmp_path: Path, monkeypatch):
+    from types import SimpleNamespace
+
+    from dvd import jobs
+
+    monkeypatch.setenv("DVD_QUEUE", str(tmp_path / "queue.yaml"))
+    after = []
+    monkeypatch.setattr(jobs, "do_after", after.append)  # never sleep or shut down in a test
+    import dvd.build
+
+    def fake_build(path, progress=None):
+        progress("title 1 video", 0.5)
+        return SimpleNamespace(iso=tmp_path / "out" / "disk.iso", video_ts=tmp_path / "out")
+
+    monkeypatch.setattr(dvd.build, "build", fake_build)
+    src = tmp_path / "kuyruk.mkv"
+    subprocess.run(
+        [str(FFMPEG), "-v", "error", "-y", "-f", "lavfi",
+         "-i", "testsrc2=size=1280x720:rate=25:duration=2", "-f", "lavfi", "-i", "sine=duration=2",
+         "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "ac3", str(src)],
+        check=True,
+    )  # fmt: skip
+    w = MainWindow(mode="pro")
+    w._loaded(w._load(src))
+    QThreadPool.globalInstance().waitForDone(60000)
+    queue = w.build_page.queue
+    assert not queue.start.isEnabled() and not queue.pause.isEnabled()
+    queue.add.click()
+    assert [j.state for j in jobs.load_jobs()] == ["waiting"] and queue.start.isEnabled()
+    assert [queue.after_box.itemData(i) for i in range(3)] == ["nothing", "sleep", "shutdown"]
+    queue.start.click()
+    QThreadPool.globalInstance().waitForDone(60000)
+    app.processEvents()
+    assert [j.state for j in jobs.load_jobs()] == ["done"]
+    assert "Kuyruk bitti: 1 disk hazır, 0 hata" in w.build_page.result.text()
+    assert after == ["nothing"] and not queue.pause.isEnabled()
+    queue.clear.click()
+    assert jobs.load_jobs() == []
+    w.close()

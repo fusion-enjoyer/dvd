@@ -218,9 +218,9 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 
 - [ ] Doğrudan yakma (IMAPI2 / ImgBurn), yakma sonrası doğrulama
 - [ ] Kapak ve disk etiketi tasarımı, yazdırılabilir PDF
-- [ ] İş kuyruğu, bitince bildirim/kapatma, duraklat-devam
+- [x] İş kuyruğu, bitince bildirim/kapatma, duraklat-devam
   - [x] Motor ve komut satırı (`jobs.py`, `pause.py`): kuyruk dosyası (`%APPDATA%\DVD Studyo\queue.yaml`), projeler sırayla, hata kuyruğu durdurmaz, yarıda kalan iş sonra yeniden; bitince uyku ya da 2 dk sonra kapatma (`shutdown /a` iptal); duraklatma build'in başlattığı süreçleri askıya alır; `dvd queue add|list|remove|clear|run --then`
-  - [ ] Arayüz: Çıktı sayfasında kuyruk listesi, kuyruğa ekle, başlat, duraklat/devam, bitince seçimi, bitince görev çubuğunda uyarı
+  - [x] Arayüz (`gui/queue_panel.py`): Çıktı sayfasında kuyruk listesi (bekliyor / build ediliyor / bitti / hata), bu projeyi kuyruğa ekle, başlat, duraklat/devam (tek disk build'inde de), bitenleri temizle, kuyruk bitince hiçbir şey / uyut / kapat (her seferinde seçilir, hatırlanmaz); bitince görev çubuğu düğmesi yanıp söner
 - [ ] Proje arşivi, Türkçe/İngilizce arayüz, tema, otomatik güncelleme
 
 ---
