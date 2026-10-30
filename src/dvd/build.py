@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from fractions import Fraction
 from pathlib import Path
 
@@ -18,7 +18,7 @@ from dvd.author.pscheck import check as check_mux
 from dvd.author.uops import NO_SKIP, restrict
 from dvd.budget.planner import Plan, plan
 from dvd.output.iso import write_iso
-from dvd.output.layerbreak import LayerBreak, write_dvd_file
+from dvd.output.layerbreak import LayerBreak, split_point, write_dvd_file
 from dvd.output.layerbreak import choose as choose_layer_break
 from dvd.probe import SourceInfo, probe
 from dvd.profiles import resolve as resolve_profiles
@@ -528,18 +528,36 @@ def build(
     report("authoring", 0.0)
     locked = {k: NO_SKIP for k, intro in enumerate(project.first_play, start=1)
               if not intro.skippable}  # fmt: skip
-    if project.disc.authoring == "own":
-        xml = work_dir / "dvdauthor.xml"  # the same description dvdauthor would get
-        xml.write_text(dvdauthor_xml(author_titles, project.disc.standard, menus=menus,
-                                     intros=intros, at_end=project.at_end, hidden=hidden),
-                       encoding="utf-8")  # fmt: skip
-        # Intros are titleset 2 (titleset 1 holds the film), one PGC each.
-        video_ts = author_xml(xml, out_dir, uops={(2, k): m for k, m in locked.items()})
-    else:
+
+    def author_disc() -> Path:
+        if project.disc.authoring == "own":
+            xml = work_dir / "dvdauthor.xml"  # the same description dvdauthor would get
+            xml.write_text(dvdauthor_xml(author_titles, project.disc.standard, menus=menus,
+                                         intros=intros, at_end=project.at_end, hidden=hidden),
+                           encoding="utf-8")  # fmt: skip
+            # Intros are titleset 2 (titleset 1 holds the film), one PGC each.
+            return author_xml(xml, out_dir, uops={(2, k): m for k, m in locked.items()})
         video_ts = author(author_titles, project.disc.standard, work_dir, out_dir, menus=menus,
                           intros=intros, at_end=project.at_end, hidden=hidden)  # fmt: skip
         if locked:  # dvdauthor writes no UOP masks: patch them in
             restrict(video_ts, 2, locked)
+        return video_ts
+
+    video_ts = author_disc()
+    brk, why = (None, "")
+    if project.disc.media == "dvd9":
+        brk, why = choose_layer_break(video_ts)
+        for _attempt in range(3):  # a new cell can grow the IFO and move the VOBs a little
+            if brk is not None or not why or "larger than two layers" in why:
+                break
+            point = split_point(video_ts)
+            if point is None or not 1 <= point[0] <= len(author_titles):
+                break
+            report("layer break", 0.0)
+            t = author_titles[point[0] - 1]
+            author_titles[point[0] - 1] = replace(t, cells=[*t.cells, timecode(point[1])])
+            video_ts = author_disc()
+            brk, why = choose_layer_break(video_ts)
     expected = [(len(t.chapters or [0]), q.duration) for t, q in zip(author_titles, prepared,
                                                                      strict=True)]  # fmt: skip
     warnings += check_disc(video_ts, expected, len(intros) + len(hidden), menus is not None,
@@ -553,12 +571,9 @@ def build(
             project.disc.name,
             progress=lambda f: report("iso", f),
         )
-    brk = None
-    if iso is not None and project.disc.media == "dvd9":
-        brk, why = choose_layer_break(video_ts)
-        if brk is not None:
-            write_dvd_file(iso, brk)
-        elif why:
-            warnings.append(f"layer break: {why}; choose it in the burning program")
+    if iso is not None and brk is not None:
+        write_dvd_file(iso, brk)
+    elif iso is not None and why:
+        warnings.append(f"layer break: {why}; choose it in the burning program")
     report("done", 1.0)
     return BuildResult(video_ts, budget, warnings, iso, brk)

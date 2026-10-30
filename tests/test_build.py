@@ -137,6 +137,44 @@ def test_build_menuless_pal_disc(tmp_path: Path):
             assert title == 1 and pack[14:18] == b"\x00\x00\x01\xbb" and pack[0x406] == 1
 
 
+@pytest.mark.skipif(not READY, reason="toolchain not installed")
+def test_dvd9_layer_break_gets_a_cell_of_its_own(tmp_path: Path, monkeypatch):
+    """No chapter starts in the second half of the film, so the build adds a cell (not a
+    chapter) on an ECC block there. The layer is shrunk to fit the short test film."""
+    from dvd.ifo import read_disc
+    from dvd.output import layerbreak
+
+    src = _sample(tmp_path, seconds=12)
+    project = new_project(probe(src), tmp_path)
+    project.menus = None
+    project.titles[0].video.overrides = {"encoder": "ffmpeg"}
+    project.disc.media = "dvd5"
+    project_file = tmp_path / "katman.dvd.yaml"
+    save(project, project_file)
+    total, _cells = layerbreak.candidates(build(project_file, make_iso=False).video_ts)
+    monkeypatch.setattr(layerbreak, "SAFE_LAYER", total - 16)
+    project.disc.media = "dvd9"
+    save(project, project_file)
+
+    result = build(project_file)
+
+    brk = result.layer_break
+    assert brk is not None and brk.title == 1 and brk.total == total, result.warnings
+    problems = [w for w in result.warnings if w.startswith(("disc check", "disc rules"))]
+    assert not problems, problems
+    assert result.iso.with_suffix(".dvd").read_text("utf-8") == \
+        f"LayerBreak={brk.sector}\n{result.iso.name}\n"  # fmt: skip
+    with result.iso.open("rb") as f:
+        f.seek(brk.sector * 2048)
+        pack = f.read(2048)
+    assert pack[14:18] == b"\x00\x00\x01\xbb" and pack[0x406] == 1  # a NAV pack starts there
+    pgc = read_disc(result.video_ts).titlesets[0].titles[0]
+    assert (len(pgc.programs), len(pgc.cells), brk.cell) == (2, 3, 3)  # still two chapters
+    xml = next(tmp_path.rglob("dvdauthor.xml")).read_text(encoding="utf-8")
+    assert 'chapter="0"/>' in xml
+    _same_when_we_author_it(tmp_path, result.video_ts)
+
+
 def count_nav_packs(mpg: Path) -> int:
     """NAV packs as dvdauthor detects them: private stream 2 at bytes 38 and 1024 of a pack."""
     data = mpg.read_bytes()

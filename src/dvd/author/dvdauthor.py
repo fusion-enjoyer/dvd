@@ -29,6 +29,28 @@ class AuthorTitle:
     chapters: list[str] = field(default_factory=list)  # "h:mm:ss.mmm", first is 0
     subtitle_langs: list[str] = field(default_factory=list)
     subtitles_on: bool = False  # show subtitle stream 1 when the title starts
+    cells: list[str] = field(default_factory=list)  # more cell starts, not chapters ("h:mm:ss.mmm")
+
+
+def seconds_of(timecode: str) -> float:
+    total = 0.0
+    for part in timecode.split(":"):
+        total = total * 60 + float(part)
+    return total
+
+
+def _vob(t: AuthorTitle) -> list[str]:
+    """The title's <vob>: chapters in one attribute, or with extra cells one <cell> each."""
+    chapters = t.chapters or ["0:00:00.000"]
+    if not t.cells:
+        return [f"        <vob file={quoteattr(t.vob)} chapters={quoteattr(','.join(chapters))}/>"]
+    marks = sorted({**{c: "0" for c in t.cells}, **{c: "1" for c in chapters}}.items(),
+                   key=lambda m: seconds_of(m[0]))  # fmt: skip
+    lines = [f"        <vob file={quoteattr(t.vob)}>"]
+    for k, (start, chapter) in enumerate(marks):
+        end = f" end={quoteattr(marks[k + 1][0])}" if k + 1 < len(marks) else ""
+        lines.append(f'          <cell start={quoteattr(start)}{end} chapter="{chapter}"/>')
+    return [*lines, "        </vob>"]
 
 
 def timecode(seconds: float) -> str:
@@ -186,11 +208,10 @@ def dvdauthor_xml(
     for n, t in enumerate(titles, start=1):
         if t.audio_langs != langs or t.subtitle_langs != sub_langs:
             raise AuthorError("all titles must have the same audio and subtitle languages for now")
-        chapters = ",".join(t.chapters or ["0:00:00.000"])
         lines.append("      <pgc>")
         if t.subtitles_on and t.subtitle_langs and not menus:
             lines.append("        <pre>subtitle=64;</pre>")  # 64 = display on, stream 0
-        lines.append(f"        <vob file={quoteattr(t.vob)} chapters={quoteattr(chapters)}/>")
+        lines += _vob(t)
         if n < len(titles) and menus:
             # Play all (g1 = 1) goes on; a single episode chosen in the menu returns to it.
             # "entry root": a bare "call menu" means the chapter menu to dvdauthor.

@@ -196,22 +196,36 @@ def author_disc(spec: TitlesetSpec, sources: list[Path], menus: list[MenuInput],
     return video_ts
 
 
-def chapter_cells(scan: Scan, chapters: list[float]) -> list[int]:
-    """The VOBU each chapter starts on: the one whose start is nearest the chapter time
-    (dvdauthor's findnearestvobu, ties to the earlier one). Times in seconds from the start."""
+def nearest_vobu(scan: Scan, seconds: float) -> int | None:
+    """The VOBU whose start is nearest `seconds` from the start (dvdauthor's
+    findnearestvobu, ties to the earlier one); None past the end (dvdauthor drops it)."""
     starts = [v.start_pts for v in scan.vobus]
-    first = starts[0]
-    cells: list[int] = []
-    for t in chapters:
-        pts = int(t * 90000 + 0.5) + first
-        if pts >= scan.vobus[-1].end_pts:
-            continue  # past the end: dvdauthor drops it
-        i = max(bisect_right(starts, pts) - 1, 0)
-        if i + 1 < len(starts) and abs(pts - starts[i + 1]) < abs(pts - starts[i]):
-            i += 1
-        if i not in cells:
-            cells.append(i)
+    pts = int(seconds * 90000 + 0.5) + starts[0]
+    if pts >= scan.vobus[-1].end_pts:
+        return None
+    i = max(bisect_right(starts, pts) - 1, 0)
+    if i + 1 < len(starts) and abs(pts - starts[i + 1]) < abs(pts - starts[i]):
+        i += 1
+    return i
+
+
+def chapter_cells(scan: Scan, chapters: list[float]) -> list[int]:
+    """The VOBU each chapter starts on. Times in seconds from the start."""
+    cells = {i for t in chapters if (i := nearest_vobu(scan, t)) is not None}
     return sorted(cells) or [0]
+
+
+def marked_cells(scan: Scan, marks: list[tuple[float, bool]]) -> tuple[list[int], list[int]]:
+    """Cells from (start, starts a chapter) marks: the first VOBU of each cell, and the
+    cells (from 0) that start a program."""
+    starts: dict[int, bool] = {}
+    for t, chapter in marks:
+        i = nearest_vobu(scan, t)
+        if i is not None:
+            starts[i] = starts.get(i, False) or chapter
+    starts.setdefault(0, True)
+    cells = sorted(starts)
+    return cells, [k for k, i in enumerate(cells) if starts[i] or k == 0]
 
 
 def _seconds(timecode: str) -> float:
@@ -257,10 +271,18 @@ def author_xml(xml_path: Path, out_dir: Path, provider: str = PROVIDER,
             vob = pgc.find("vob")
             path = work / vob.get("file")
             scan = scan_stream(path, fps)
-            marks = [_seconds(c) for c in (vob.get("chapters") or "0").split(",")]
-            titles.append(TitleSpec(scan, chapter_cells(scan, marks), pgc.findtext("pre") or "",
+            programs = None
+            if vob.findall("cell"):  # cells given one by one, not every one a chapter
+                cells, programs = marked_cells(scan, [
+                    (_seconds(c.get("start") or "0"), c.get("chapter", "1") != "0")
+                    for c in vob.findall("cell")])  # fmt: skip
+            else:
+                marks = [_seconds(c) for c in (vob.get("chapters") or "0").split(",")]
+                cells = chapter_cells(scan, marks)
+            titles.append(TitleSpec(scan, cells, pgc.findtext("pre") or "",
                                     pgc.findtext("post") or "",
-                                    uops=(uops or {}).get((n, k), 0)))  # fmt: skip
+                                    uops=(uops or {}).get((n, k), 0),
+                                    programs=programs))  # fmt: skip
             sources.append(path)
         langs = [a.get("lang") for a in block.findall("audio")]
         sub_langs = [s.get("lang") for s in block.findall("subpicture")]

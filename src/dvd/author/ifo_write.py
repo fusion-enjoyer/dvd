@@ -37,7 +37,8 @@ class SubpictureAttr:
 
 @dataclass
 class TitleSpec:
-    """One title: one PGC playing one VOB, a cell (and chapter) per entry of `cells`."""
+    """One title: one PGC playing one VOB, a cell per entry of `cells`; each program (a
+    chapter) starts on one of them."""
 
     scan: Scan
     cells: list[int]  # index of the first VOBU of each cell; cells[0] == 0
@@ -45,6 +46,13 @@ class TitleSpec:
     post: str = ""
     palette: list[int] = field(default_factory=list)  # 16 x 0xYYCrCb; empty: grey default
     uops: int = 0  # what the viewer may not do while it plays (`uops.UOP_BITS`)
+    # Cells (from 0) that start a program; None: every cell. A cell that starts none only
+    # splits a chapter (a layer break goes there).
+    programs: list[int] | None = None
+
+    @property
+    def program_cells(self) -> list[int]:
+        return list(range(len(self.cells))) if self.programs is None else self.programs
 
 
 @dataclass
@@ -113,7 +121,7 @@ def title_pgc(title: TitleSpec, spec: TitlesetSpec, vob_id: int, sector_base: in
     pal = spec.standard == "pal"
     cells = _cell_vobus(title)
     buf = bytearray(0xEC)
-    buf[2] = len(cells)  # every cell is a program (and a chapter)
+    buf[2] = len(title.program_cells)  # every program is a chapter
     buf[3] = len(cells)
     _w(buf, 4, bcd_time(_span(title), pal))
     _w(buf, 8, title.uops)
@@ -141,9 +149,9 @@ def title_pgc(title: TitleSpec, spec: TitlesetSpec, vob_id: int, sector_base: in
     _w(table, 6, 8 + len(commands) - 1, 2)
     _w(buf, 0xE4, 0xEC, 2)
     buf += table + commands
-    # Program map: cell k starts program k
+    # Program map: the cell each program starts with
     _w(buf, 0xE6, len(buf), 2)
-    buf += bytes(range(1, len(cells) + 1))
+    buf += bytes(c + 1 for c in title.program_cells)
     if len(buf) & 1:
         buf += b"\0"
     # Cell playback information
@@ -183,7 +191,7 @@ def ptt_srpt(spec: TitlesetSpec) -> bytes:
     _w(buf, 0, n, 2)
     for j, title in enumerate(spec.titles):
         _w(buf, 8 + 4 * j, len(buf))
-        for k in range(len(title.cells)):
+        for k in range(len(title.program_cells)):
             buf += bytes((0, j + 1, 0, k + 1))
     _w(buf, 4, len(buf) - 1)
     return _sectors(buf)
@@ -383,7 +391,7 @@ def write_vmg(titlesets: list[tuple[TitlesetSpec, bytes]], first_play: str = "",
             entry = bytearray(12)
             entry[0] = 0x3C  # one sequential PGC; jumps allowed everywhere
             entry[1] = 1  # angles
-            _w(entry, 2, len(title.cells), 2)
+            _w(entry, 2, len(title.program_cells), 2)
             entry[6], entry[7] = n, k
             _w(entry, 8, start)
             tt += entry

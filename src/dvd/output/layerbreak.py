@@ -55,9 +55,10 @@ def candidates(video_ts: Path) -> tuple[int, list[tuple[int, int, int]]]:
 
 
 def pick(total: int, cells: list[tuple[int, int, int]],
-         layer: int = SAFE_LAYER) -> tuple[LayerBreak | None, str]:  # fmt: skip
+         layer: int | None = None) -> tuple[LayerBreak | None, str]:  # fmt: skip
     """The break among `cells` (see `candidates`), or None with the reason; (None, "")
-    when the image fits on one layer."""
+    when the image fits on one layer. `layer`: sectors a layer holds (SAFE_LAYER)."""
+    layer = layer or SAFE_LAYER
     if total <= layer:
         return None, ""
     if total > 2 * layer:
@@ -73,9 +74,53 @@ def pick(total: int, cells: list[tuple[int, int, int]],
     return LayerBreak(sector, total, title, cell), ""
 
 
-def choose(video_ts: Path, layer: int = SAFE_LAYER) -> tuple[LayerBreak | None, str]:
+def choose(video_ts: Path, layer: int | None = None) -> tuple[LayerBreak | None, str]:
     """The layer break for the image of `video_ts` (see `pick`)."""
     return pick(*candidates(video_ts), layer)
+
+
+def split_point(video_ts: Path, layer: int | None = None) -> tuple[int, float] | None:
+    """Where a new cell (not a chapter) would give a layer break when no cell does: the film
+    VOBU (titleset 1) nearest the middle that starts on an ECC block inside the window, as
+    (disc title, seconds from the title's start). VOBU sectors do not move when a cell is
+    added, only the IFO changes."""
+    from dvd.qa.validate import _Vobs
+
+    layer = layer or SAFE_LAYER
+    image = _Image(Path(video_ts), "DVD", datetime.now(UTC))
+    total = image.total_sectors
+    offsets = {f.name: f.offset for f in image.files}
+    first = offsets.get("VTS_01_1.VOB")
+    disc = read_disc(video_ts)
+    if first is None or not disc.titlesets or total <= layer or total > 2 * layer:
+        return None
+    ts = disc.titlesets[0]
+    best = None
+    for title in disc.titles:
+        if title.titleset != 1 or title.titleset_title > len(ts.chapters):
+            continue
+        pgc = ts.titles[ts.chapters[title.titleset_title - 1][0][0] - 1]
+        if not pgc.cells:
+            continue
+        starts = {c.first_sector for c in pgc.cells}
+        lo, hi = pgc.cells[0].first_sector, pgc.cells[-1].last_sector
+        for v in ts.title_vobus:
+            lba = image.data_sector + first + v
+            if lo <= v <= hi and v not in starts and lba % ECC_BLOCK == 0 \
+                    and total - lba <= lba <= layer:  # fmt: skip
+                key = abs(lba - total / 2)
+                if best is None or key < best[0]:
+                    best = (key, title.number, lo, v)
+    if best is None:
+        return None
+    _key, number, lo, v = best
+    vobs = _Vobs([video_ts / f"VTS_01_{n}.VOB" for n in range(1, 10)])
+    try:
+        start, here = vobs.read(lo), vobs.read(v)
+    finally:
+        vobs.close()
+    ptm = int.from_bytes(here[0x39:0x3D], "big") - int.from_bytes(start[0x39:0x3D], "big")
+    return number, ptm / 90_000
 
 
 def write_dvd_file(iso: Path, brk: LayerBreak) -> Path:
