@@ -615,3 +615,31 @@ def test_queue_on_the_output_page(app, tmp_path: Path, monkeypatch):
     queue.clear.click()
     assert jobs.load_jobs() == []
     w.close()
+
+
+def test_english_interface_and_the_language_setting(app, tmp_path: Path, monkeypatch):
+    import re
+
+    from dvd import settings
+    from dvd.gui.i18n import TEXTS, set_language, startup_language
+    from dvd.gui.settings_dialog import SettingsDialog
+
+    tr, en = TEXTS["tr"], TEXTS["en"]
+    assert set(en) == set(tr)  # every string has its English
+    fields = lambda s: sorted(re.findall(r"\{(\w+)", s))  # noqa: E731
+    assert [k for k in tr if fields(tr[k]) != fields(en[k])] == []
+    monkeypatch.setenv("DVD_SETTINGS", str(tmp_path / "settings.yaml"))
+    monkeypatch.delenv("DVD_LANG", raising=False)
+    assert startup_language() == "tr"
+    dialog = SettingsDialog()
+    dialog.language.setCurrentIndex(dialog.language.findData("en"))
+    dialog.save()
+    assert settings.load()["language"] == "en" and startup_language() == "en"
+    set_language("en")
+    try:
+        w = MainWindow(mode="pro")
+        assert w.nav_buttons["disc"].text() == "Disc" and w.build_button.text() == "Build"
+        assert w.build_page.queue.start.text() == "Start the queue"
+        w.close()
+    finally:
+        set_language("tr")

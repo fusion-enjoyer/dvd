@@ -7,7 +7,7 @@ from pathlib import Path
 
 from PySide6.QtWidgets import QApplication
 
-from dvd.gui.i18n import t
+from dvd.gui.i18n import set_language, startup_language, t
 from dvd.gui.main_window import MainWindow
 from dvd.gui.theme import load_fonts
 
@@ -30,6 +30,7 @@ def _below_normal_priority() -> None:
 def main(argv: list[str] | None = None) -> int:
     argv = sys.argv if argv is None else argv
     _below_normal_priority()
+    set_language(startup_language())
     app = QApplication.instance() or QApplication(argv)
     app.setApplicationName(t("app.title"))
     load_fonts()

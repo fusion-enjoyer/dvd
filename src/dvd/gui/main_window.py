@@ -493,8 +493,17 @@ class MainWindow(QMainWindow):
         box.addWidget(self.summary)
         box.addStretch()
         box.addWidget(self.mode_switch)
+        settings_button = QPushButton(t("settings.open"))
+        settings_button.setObjectName("link")
+        settings_button.clicked.connect(self._settings)
+        box.addWidget(settings_button)
         box.addWidget(self.build_button)
         return bar
+
+    def _settings(self) -> None:
+        from dvd.gui.settings_dialog import SettingsDialog
+
+        SettingsDialog(self).exec()
 
     def _budget(self) -> QWidget:
         bar = panel("budget")

@@ -199,9 +199,10 @@ class TracksPage(QWidget):
             check.setChecked(s is not None)
             if not src.usable:
                 check.setEnabled(False)
-                check.setToolTip(t("tracks.bitmap_later"))
+                note = t("tracks.unsupported", codec=src.codec)
+                check.setToolTip(note)
                 grid.addWidget(check, row, 0)
-                grid.addWidget(_label(t("tracks.bitmap_later"), "hint"), row, 1, 1, 2)
+                grid.addWidget(_label(note, "hint"), row, 1, 1, 2)
                 row += 1
                 continue
             check.toggled.connect(lambda on, i=src.index, lang=src.language: self._edit(

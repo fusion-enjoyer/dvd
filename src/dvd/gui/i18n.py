@@ -1,9 +1,16 @@
 """Interface text (K11): Turkish first; every visible string goes through `t()`.
 
-English is added in v1 by filling the "en" table; missing keys fall back to Turkish.
+English lives in `texts_en.py`; a key missing there falls back to Turkish. The language is
+chosen in the settings (`language`, or DVD_LANG) and applies when the program starts.
 """
 
 from __future__ import annotations
+
+import os
+
+from dvd.gui.texts_en import EN
+
+LANGUAGES = ("tr", "en")
 
 TEXTS: dict[str, dict[str, str]] = {
     "tr": {
@@ -217,6 +224,12 @@ TEXTS: dict[str, dict[str, str]] = {
         "queue.state.done": "Bitti",
         "queue.state.failed": "Hata",
         "queue.summary": "Kuyruk bitti: {done} disk hazır, {failed} hata",
+        "settings.open": "Ayarlar",
+        "settings.title": "Ayarlar",
+        "settings.language": "Arayüz dili",
+        "settings.language.tr": "Türkçe",
+        "settings.language.en": "English",
+        "settings.restart": "Dil değişikliği program yeniden açılınca geçerli olur.",
         "disc.authoring": "Diski yazan",
         "disc.authoring.dvdauthor": "dvdauthor",
         "disc.authoring.own": "Kendi motorumuz (deneme)",
@@ -455,7 +468,7 @@ TEXTS: dict[str, dict[str, str]] = {
             "açıksa bant kesilebilir."
         ),
         "tracks.add_srt": "Altyazı dosyası ekle",
-        "tracks.bitmap_later": "DVB resim altyazıları henüz desteklenmiyor",
+        "tracks.unsupported": "Bu altyazı türü ({codec}) diske konamıyor",
         "build.title": "Diski oluştur",
         "build.start": "Oluşturmaya başla",
         "build.summary": "Çıktı: {folder}",
@@ -518,7 +531,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "audio.gece": "Gece modu",
         "audio.hepsi": "5.1 ve stereo",
     },
-    "en": {},
+    "en": EN,
 }
 
 _language = "tr"
@@ -532,3 +545,15 @@ def set_language(code: str) -> None:
 def t(key: str, **values: object) -> str:
     text = TEXTS[_language].get(key) or TEXTS["tr"].get(key) or key
     return text.format(**values) if values else text
+
+
+def current_language() -> str:
+    return _language
+
+
+def startup_language() -> str:
+    """DVD_LANG, else the saved setting, else Turkish."""
+    from dvd import settings
+
+    code = os.environ.get("DVD_LANG") or str(settings.load().get("language") or "tr")
+    return code if code in LANGUAGES else "tr"
