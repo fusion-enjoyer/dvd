@@ -405,6 +405,88 @@ def validate(
         raise typer.Exit(1)
 
 
+queue_app = typer.Typer(help="Build several projects one after another.", no_args_is_help=True)
+app.add_typer(queue_app, name="queue")
+
+
+@queue_app.command("add")
+def queue_add(paths: list[Path] = typer.Argument(..., help="Project files")) -> None:
+    """Put projects at the end of the queue."""
+    from dvd.jobs import add_job
+
+    for path in paths:
+        if not path.is_file():
+            typer.echo(f"{path}: no such project file", err=True)
+            raise typer.Exit(1)
+        add_job(path)
+        typer.echo(f"queued {path}")
+
+
+@queue_app.command("list")
+def queue_list() -> None:
+    """The jobs and their state."""
+    from dvd.jobs import load_jobs
+
+    jobs = load_jobs()
+    for n, job in enumerate(jobs, start=1):
+        tail = f"  {job.message}" if job.message else ""
+        typer.echo(f"{n:>3}  {job.state:<8} {job.project}{tail}")
+    if not jobs:
+        typer.echo("the queue is empty")
+
+
+@queue_app.command("remove")
+def queue_remove(number: int = typer.Argument(..., help="Job number (dvd queue list)")) -> None:
+    """Take one job out of the queue."""
+    from dvd.jobs import remove_job
+
+    try:
+        remove_job(number - 1)
+    except IndexError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from None
+
+
+@queue_app.command("clear")
+def queue_clear() -> None:
+    """Remove the finished and failed jobs."""
+    from dvd.jobs import clear_finished
+
+    clear_finished()
+
+
+@queue_app.command("run")
+def queue_run(
+    then: str = typer.Option(
+        "nothing",
+        "--then",
+        help="After the last job: nothing, sleep or shutdown (in 2 minutes; `shutdown /a` cancels)",
+    ),
+) -> None:
+    """Build the waiting jobs in order."""
+    from dvd.jobs import AFTER, do_after, run_queue
+
+    if then not in AFTER:
+        typer.echo(f"--then must be one of {', '.join(AFTER)}", err=True)
+        raise typer.Exit(1)
+    last: dict[str, int] = {}
+
+    def show(job, stage: str, fraction: float) -> None:
+        step = int(fraction * 10)
+        if last.get(stage) != step:
+            last[stage] = step
+            typer.echo(f"{Path(job.project).name}: {stage:<20} {fraction:>4.0%}")
+
+    ran = run_queue(progress=show)
+    for job in ran:
+        typer.echo(f"{job.state:<8} {job.project}  {job.message}")
+    failed = sum(j.state == "failed" for j in ran)
+    typer.echo(f"{len(ran) - failed} built, {failed} failed")
+    do_after(then)
+    if failed:
+        raise typer.Exit(1)
+
+
 template_app = typer.Typer(help="List, export and import menu templates.", no_args_is_help=True)
 app.add_typer(template_app, name="template")
 
