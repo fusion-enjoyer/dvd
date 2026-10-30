@@ -441,6 +441,7 @@ class MainWindow(QMainWindow):
         self.subs_page = TracksPage("subs")
         self.build_page = BuildPage()
         self.build_page.cover_requested.connect(self._cover)
+        self.build_page.archive_requested.connect(self._archive)
         queue = self.build_page.queue
         queue.add_requested.connect(self._queue_add)
         queue.start_requested.connect(self._queue_start)
@@ -572,7 +573,7 @@ class MainWindow(QMainWindow):
             self.open_path(Path(path))
 
     def choose_project(self) -> None:
-        pattern = f"*{proj.PROJECT_SUFFIX}"
+        pattern = f"{t('archive.project')} (*{proj.PROJECT_SUFFIX});;{t('archive.filter')}"
         path, _ = QFileDialog.getOpenFileName(self, t("empty.open_project"), "", pattern)
         if path:
             self.open_path(Path(path))
@@ -605,6 +606,19 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def _load(path: Path) -> tuple[Path, Project, list[SourceInfo]]:
+        if path.suffix.lower() == ".zip":  # a project archive: unpack next to it, then open
+            from dvd.project.archive import restore
+
+            folder = path.with_suffix("")
+            n = 2
+            while folder.exists():
+                folder = path.with_name(f"{path.stem} {n}")
+                n += 1
+            done = restore(path, folder, [path.parent])
+            if done.missing:
+                raise proj.ProjectError(t("archive.missing", names=", ".join(done.missing),
+                                          folder=folder))  # fmt: skip
+            path = done.project
         if path.name.endswith(proj.PROJECT_SUFFIX):
             project_file, project = path, proj.load(path)
         else:
@@ -819,6 +833,30 @@ class MainWindow(QMainWindow):
             t("cover.done", folder=paths[0].parent)),
                   lambda msg: self.build_page.cover_note.setText(msg))  # fmt: skip
 
+    def _archive(self, with_sources: bool, out: Path | None = None) -> None:
+        """Pack the project into a .zip (`out`, else asked for); see project/archive.py."""
+        if self.project is None:
+            return
+        from dvd.project.archive import archive
+
+        if out is None:
+            suggested = self.project_file.with_name(
+                self.project_file.name.removesuffix(proj.PROJECT_SUFFIX) + ".zip"
+            )
+            name, _ = QFileDialog.getSaveFileName(self, t("archive.open"), str(suggested),
+                                                  t("archive.filter"))  # fmt: skip
+            if not name:
+                return
+            out = Path(name)
+        proj.save(self.project, self.project_file)
+        project_file = self.project_file
+        note = self.build_page.archive_note
+        note.setText(t("archive.making"))
+        tasks.run(lambda: archive(project_file, out, with_sources),
+                  lambda path: note.setText(t("archive.done", path=path,
+                                              mb=f"{path.stat().st_size / 1e6:.1f}")),
+                  note.setText)  # fmt: skip
+
     def _output_folder(self) -> Path:
         from dvd.build import safe_name
 
@@ -935,7 +973,8 @@ class MainWindow(QMainWindow):
         path = Path(urls[0].toLocalFile())
         if path.is_dir() or path.suffix.lower() in VIDEO_SUFFIXES:
             return path
-        return path if path.name.endswith(proj.PROJECT_SUFFIX) else None
+        archive = path.suffix.lower() == ".zip"
+        return path if path.name.endswith(proj.PROJECT_SUFFIX) or archive else None
 
     def dragEnterEvent(self, event) -> None:  # noqa: N802 (Qt API)
         if self._dropped_path(event):

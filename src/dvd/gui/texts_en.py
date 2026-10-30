@@ -249,6 +249,21 @@ EN: dict[str, str] = {
     ),
     "cover.making": "Making the cover and the label…",
     "cover.done": "Cover and label written: {folder}",
+    "archive.open": "Archive the project…",
+    "archive.hint": (
+        "The project and the files it uses (subtitles, intro videos, menu pictures, "
+        "your own templates and styles) in one .zip; opened elsewhere with Open a "
+        "project"
+    ),
+    "archive.with_sources": "Put the source videos in too (large)",
+    "archive.making": "Writing the archive…",
+    "archive.done": "Archive written: {path} ({mb} MB)",
+    "archive.filter": "Project archive (*.zip)",
+    "archive.project": "Project",
+    "archive.missing": (
+        "The archive was unpacked into {folder} but a source video was not found: "
+        "{names}. Put the video next to the archive and open it again."
+    ),
     "settings.open": "Settings",
     "settings.title": "Settings",
     "settings.language": "Interface language",

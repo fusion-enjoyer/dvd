@@ -337,6 +337,7 @@ def stage_text(stage: str) -> str:
 class BuildPage(QWidget):
     start_requested = Signal()
     cover_requested = Signal()
+    archive_requested = Signal(bool)  # with the source videos
 
     def __init__(self) -> None:
         super().__init__()
@@ -370,6 +371,12 @@ class BuildPage(QWidget):
         cover.setToolTip(t("cover.hint"))
         cover.clicked.connect(self.cover_requested)
         self.cover_note = _label("", "muted", wrap=True)
+        archive = QPushButton(t("archive.open"))
+        archive.setObjectName("link")
+        archive.setToolTip(t("archive.hint"))
+        self.with_sources = QCheckBox(t("archive.with_sources"))
+        archive.clicked.connect(lambda: self.archive_requested.emit(self.with_sources.isChecked()))
+        self.archive_note = _label("", "muted", wrap=True)
         other = QPushButton(t("inspect.open_other"))
         other.setObjectName("link")
         other.clicked.connect(self._inspect_other)
@@ -384,6 +391,13 @@ class BuildPage(QWidget):
         box.addWidget(other, alignment=Qt.AlignmentFlag.AlignLeft)
         box.addWidget(cover, alignment=Qt.AlignmentFlag.AlignLeft)
         box.addWidget(self.cover_note)
+        archive_row = QHBoxLayout()
+        archive_row.setSpacing(12)
+        archive_row.addWidget(archive)
+        archive_row.addWidget(self.with_sources)
+        archive_row.addStretch()
+        box.addLayout(archive_row)
+        box.addWidget(self.archive_note)
         box.addSpacing(8)
         from dvd.gui.queue_panel import QueuePanel
 

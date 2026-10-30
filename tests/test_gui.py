@@ -715,3 +715,32 @@ def test_cover_and_label_from_the_output_page(app, tmp_path: Path):
     assert w.build_page.cover_note.text() == f"Kapak ve etiket yazıldı: {folder}"
     assert sorted(p.suffix for p in folder.glob("*.pdf")) == [".pdf", ".pdf"]
     w.close()
+
+
+def test_archive_from_the_output_page_and_open_it_again(app, tmp_path: Path):
+    from dvd.project import ProjectError
+
+    src = tmp_path / "arsiv.mkv"
+    subprocess.run(
+        [str(FFMPEG), "-v", "error", "-y", "-f", "lavfi",
+         "-i", "testsrc2=size=1280x720:rate=25:duration=2", "-f", "lavfi", "-i", "sine=duration=2",
+         "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "ac3", str(src)],
+        check=True,
+    )  # fmt: skip
+    w = MainWindow(mode="pro")
+    w._loaded(w._load(src))
+    QThreadPool.globalInstance().waitForDone(60000)
+    out = tmp_path / "paket" / "arsiv.zip"
+    out.parent.mkdir()
+    w._archive(False, out)
+    QThreadPool.globalInstance().waitForDone(60000)
+    app.processEvents()
+    assert w.build_page.archive_note.text().startswith(f"Arşiv yazıldı: {out}")
+    w.close()
+    # Opened again: unpacked next to the archive, the source found where it was.
+    project_file, project, infos = MainWindow._load(out)
+    assert project_file == tmp_path / "paket" / "arsiv" / "project.dvd.yaml"
+    assert infos[0].path == src and project.disc.name
+    src.unlink()
+    with pytest.raises(ProjectError, match="kaynak video bulunamadı: arsiv.mkv"):
+        MainWindow._load(out)

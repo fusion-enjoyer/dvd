@@ -256,6 +256,21 @@ TEXTS: dict[str, dict[str, str]] = {
         ),
         "cover.making": "Kapak ve etiket hazırlanıyor…",
         "cover.done": "Kapak ve etiket yazıldı: {folder}",
+        "archive.open": "Projeyi arşivle…",
+        "archive.hint": (
+            "Proje ve kullandığı dosyalar (altyazılar, giriş videoları, menü resimleri, "
+            "kendi şablon ve stilleriniz) tek bir .zip'e; başka bilgisayarda Proje aç ile "
+            "açılır"
+        ),
+        "archive.with_sources": "Kaynak videoları da koy (büyük olur)",
+        "archive.making": "Arşiv yazılıyor…",
+        "archive.done": "Arşiv yazıldı: {path} ({mb} MB)",
+        "archive.filter": "Proje arşivi (*.zip)",
+        "archive.project": "Proje",
+        "archive.missing": (
+            "Arşiv {folder} klasörüne açıldı ama kaynak video bulunamadı: {names}. Videoyu "
+            "arşivin yanına koyup arşivi yeniden açın."
+        ),
         "settings.open": "Ayarlar",
         "settings.title": "Ayarlar",
         "settings.language": "Arayüz dili",
