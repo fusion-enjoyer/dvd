@@ -890,6 +890,8 @@ class MainWindow(QMainWindow):
     def _built(self, result) -> None:
         self._stopped()
         lines = [t("build.wrote", path=result.video_ts)]
+        if result.reused:
+            lines.append(t("build.reused", n=len(result.reused)))
         if result.iso:
             lines.append(t("build.wrote", path=result.iso))
         if result.layer_break is not None:

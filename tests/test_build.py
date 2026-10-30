@@ -662,3 +662,33 @@ def test_pages_dissolve_into_each_other(tmp_path: Path):
     assert "ERR" not in log
     dissolve = probe(next(tmp_path.rglob("build/*/trans01.mpg")))
     assert dissolve.duration == pytest.approx(1.0, abs=0.2)
+
+
+@pytest.mark.skipif(not READY, reason="toolchain not installed")
+def test_a_second_build_reuses_what_did_not_change(tmp_path: Path):
+    from dvd.project.model import Menus
+
+    src = _sample(tmp_path, seconds=6)
+    project = new_project(probe(src), tmp_path)
+    project.titles[0].video.overrides = {"encoder": "ffmpeg"}
+    project.menus = None
+    project_file = tmp_path / "onbellek.dvd.yaml"
+    save(project, project_file)
+    first = build(project_file, make_iso=False)
+    assert first.reused == []
+    m2v = next(tmp_path.rglob("t01.m2v"))
+    made = m2v.stat().st_mtime_ns
+    # Menus added: the film and its sound are not encoded again.
+    project.menus = Menus()
+    save(project, project_file)
+    second = build(project_file, make_iso=False)
+    assert second.reused == ["title 1 audio 1", "title 1 audio 2", "title 1 video"]
+    assert m2v.stat().st_mtime_ns == made
+    assert not [w for w in second.warnings if w.startswith(("disc check", "disc rules"))]
+    # A picture setting changed: only the picture is encoded again.
+    project.titles[0].video.overrides = {"encoder": "ffmpeg", "deband": 0}
+    save(project, project_file)
+    third = build(project_file, make_iso=False)
+    assert third.reused == ["title 1 audio 1", "title 1 audio 2"]
+    assert m2v.stat().st_mtime_ns != made
+    assert build(project_file, make_iso=False, fresh=True).reused == []

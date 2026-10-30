@@ -271,6 +271,7 @@ TEXTS: dict[str, dict[str, str]] = {
             "Arşiv {folder} klasörüne açıldı ama kaynak video bulunamadı: {names}. Videoyu "
             "arşivin yanına koyup arşivi yeniden açın."
         ),
+        "build.reused": "Değişmeyen {n} parça (görüntü, ses) önceki build'den alındı.",
         "settings.open": "Ayarlar",
         "settings.title": "Ayarlar",
         "settings.language": "Arayüz dili",

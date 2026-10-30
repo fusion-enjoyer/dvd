@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
@@ -71,6 +72,7 @@ class BuildResult:
     warnings: list[str] = field(default_factory=list)
     iso: Path | None = None
     layer_break: LayerBreak | None = None  # DVD-9 image larger than one layer
+    reused: list[str] = field(default_factory=list)  # stages taken from the last build
 
 
 @dataclass
@@ -84,6 +86,40 @@ class _Prepared:
     @property
     def duration(self) -> float:
         return self.frames / float(self.target.fps)
+
+
+# Raise when the encode path changes in a way the inputs below do not show.
+CACHE_VERSION = 1
+
+
+def _key(**inputs) -> str:
+    """Everything an encoded file depends on, as one comparable text."""
+    from dvd import __version__
+
+    return json.dumps({"cache": CACHE_VERSION, "app": __version__, **inputs}, sort_keys=True,
+                      default=str)  # fmt: skip
+
+
+def _stamp(path: Path) -> dict:
+    st = path.stat()
+    return {"path": str(path.resolve()), "size": st.st_size, "mtime": st.st_mtime_ns}
+
+
+def _reusable(out: Path, key: str) -> bool:
+    """`out` was made from exactly these inputs by an earlier build (and finished)."""
+    mark = out.with_name(out.name + ".key")
+    try:
+        return out.is_file() and mark.read_text(encoding="utf-8") == key
+    except OSError:
+        return False
+
+
+def _forget(out: Path) -> None:
+    out.with_name(out.name + ".key").unlink(missing_ok=True)
+
+
+def _remember(out: Path, key: str) -> None:
+    out.with_name(out.name + ".key").write_text(key, encoding="utf-8")
 
 
 def safe_name(name: str) -> str:
@@ -367,8 +403,11 @@ def build(
     progress: Progress | None = None,
     make_iso: bool = True,
     authoring: str | None = None,
+    fresh: bool = False,
 ) -> BuildResult:
-    """`authoring`: "dvdauthor" or "own", in place of the project's choice."""
+    """`authoring`: "dvdauthor" or "own", in place of the project's choice. Encoded video
+    and audio whose inputs have not changed since the last build are used again (a menu
+    change does not encode the film again); `fresh` encodes everything anew."""
     project_file = Path(project_file).resolve()
     project = load(project_file)
     if authoring is not None:
@@ -415,6 +454,7 @@ def build(
         return for_viewing(base, disc_settings["subtitle_size"], disc_settings["safe_area"])
 
     author_titles = []
+    reused: list[str] = []
     for n, p in enumerate(prepared, start=1):
         tag = f"t{n:02}"
         tracks = disc_audio(p.title)
@@ -427,11 +467,21 @@ def build(
             offset = (source_track.start_time - p.info.main_video.start_time) * 1000
             delay = a.delay + offset
             copy = can_copy(source_track, a.channels, p.target.speedup, delay, night)
+            out = work_dir / f"{tag}_a{i}.ac3"
+            key = _key(source=_stamp(p.source), track=a.track, channels=a.channels,
+                       bitrate=a.bitrate, speedup=p.target.speedup,
+                       pitch=disc_settings["audio_pitch"], delay=delay, night=night,
+                       source_channels=source_track.channels, copy=copy)  # fmt: skip
+            if not fresh and _reusable(out, key):
+                reused.append(f"title {n} audio {i + 1}")
+                audio_files.append(out)
+                continue
+            _forget(out)
             audio_files.append(
                 encode_ac3(
                     p.source,
                     a.track,
-                    work_dir / f"{tag}_a{i}.ac3",
+                    out,
                     a.channels,
                     a.bitrate,
                     p.target.speedup,
@@ -442,6 +492,7 @@ def build(
                     copy=copy,
                 )  # fmt: skip
             )
+            _remember(out, key)
         chapters = chapter_frames(p.title, p.info, p.target, p.frames)
         settings = EncodeSettings(
             bitrate=budget.video_kbps,
@@ -452,19 +503,29 @@ def build(
             interlaced=p.target.interlaced,
             chapters=chapters,
         )
-        clip = disc_clip(project, p)
         title_settings = resolve_profiles(project.disc.profiles, p.title.video.overrides)
         encoder, note = encoders.choose(title_settings["encoder"])
         if note:
             warnings.append(f"title {n}: {note}")
-        m2v = encoders.encode(
-            encoder,
-            clip,
-            work_dir / f"{tag}.m2v",
-            settings,
-            work_dir / f"{tag}_{encoder}",
-            progress=lambda f, n=n: report(f"title {n} video", f),
-        )
+        m2v = work_dir / f"{tag}.m2v"
+        key = _key(source=_stamp(p.source), video=p.title.video.model_dump(mode="json"),
+                   profiles=project.disc.profiles.model_dump(mode="json"),
+                   settings=title_settings, target=p.target, frames=p.frames,
+                   encode=settings, encoder=encoder)  # fmt: skip
+        if not fresh and _reusable(m2v, key):
+            reused.append(f"title {n} video")
+            report(f"title {n} video", 1.0)
+        else:
+            _forget(m2v)
+            m2v = encoders.encode(
+                encoder,
+                disc_clip(project, p),
+                m2v,
+                settings,
+                work_dir / f"{tag}_{encoder}",
+                progress=lambda f, n=n: report(f"title {n} video", f),
+            )
+            _remember(m2v, key)
         report(f"title {n} check", 0.0)
         compliance = check_video(m2v, project.disc.standard)
         if not compliance.ok:
@@ -582,4 +643,4 @@ def build(
     elif iso is not None and why:
         warnings.append(f"layer break: {why}; choose it in the burning program")
     report("done", 1.0)
-    return BuildResult(video_ts, budget, warnings, iso, brk)
+    return BuildResult(video_ts, budget, warnings, iso, brk, reused)

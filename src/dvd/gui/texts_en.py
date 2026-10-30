@@ -264,6 +264,7 @@ EN: dict[str, str] = {
         "The archive was unpacked into {folder} but a source video was not found: "
         "{names}. Put the video next to the archive and open it again."
     ),
+    "build.reused": "{n} unchanged parts (picture, sound) were taken from the last build.",
     "settings.open": "Settings",
     "settings.title": "Settings",
     "settings.language": "Interface language",

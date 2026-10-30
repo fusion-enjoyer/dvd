@@ -115,6 +115,7 @@ def build_cmd(
     authoring: str | None = typer.Option(
         None, "--authoring", help="dvdauthor | own (our own authoring); default: the project's"
     ),
+    fresh: bool = typer.Option(False, "--fresh", help="Encode everything again, reuse nothing"),
 ) -> None:
     """Encode and author the disc into a VIDEO_TS folder and a disc image."""
     from dvd.audio.ac3 import AudioError
@@ -148,7 +149,9 @@ def build_cmd(
         BuildError, AudioError, AuthorError, EncodeError, UnsupportedSource, ProbeError, IsoError
     )  # fmt: skip
     try:
-        result = build(path, out_dir=out, progress=show, make_iso=not no_iso, authoring=authoring)
+        result = build(
+            path, out_dir=out, progress=show, make_iso=not no_iso, authoring=authoring, fresh=fresh
+        )
     except errors as exc:
         typer.echo(f"build failed: {exc}", err=True)
         raise typer.Exit(1) from None
@@ -159,6 +162,8 @@ def build_cmd(
         f"video {p.video_kbps / 1000:.2f} Mbps avg, {p.peak_kbps / 1000:.1f} peak | "
         f"estimated {p.estimated_bytes / 1e9:.2f} of {p.capacity_bytes / 1e9:.2f} GB"
     )
+    if result.reused:
+        typer.echo(f"unchanged since the last build, reused: {', '.join(result.reused)}")
     typer.echo(f"wrote {result.video_ts}")
     if result.iso:
         typer.echo(f"wrote {result.iso}")
