@@ -561,4 +561,16 @@ def test_disc_map_opens_a_menu_page(app, tmp_path: Path):
     app.processEvents()
     page = w.menu_page
     assert page.previews[page.page_list.currentIndex()][0].id == "languages"
+    # The right-click menu: a new page linked from the main page, saved with the project.
+    w.show_page("map")
+    app.processEvents()
+    fixed = w.map_page.edit_menu("languages").actions()
+    assert [a.text() for a in fixed][1] == "Bu sayfanın butonları projeden gelir"
+    menu = w.map_page.edit_menu("main")
+    texts = [a.text() for a in menu.actions()]
+    assert texts[:3] == ["Menü düzenleyicide aç", "Bağlantı ekle", "Bağlantıyı kaldır"]
+    next(a for a in menu.actions() if a.text() == "Yeni sayfa ekle ve bağla").trigger()
+    app.processEvents()
+    assert "page:sayfa1" in w.map_page.canvas.boxes
+    assert [p.id for p in load(w.project_file).menus.pages][-1] == "sayfa1"
     w.close()

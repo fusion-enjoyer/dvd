@@ -457,6 +457,7 @@ class MainWindow(QMainWindow):
         self.pages["disc"] = self.disc_page
         self.map_page = DiscMapPage()
         self.map_page.page_clicked.connect(self._open_menu_page)
+        self.map_page.changed.connect(self._tracks_changed)
         self.pages["map"] = self.map_page
         for page in self.pages.values():
             self.stack.addWidget(page)

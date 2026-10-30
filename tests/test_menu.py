@@ -530,3 +530,34 @@ def test_disc_map_follows_the_disc_commands():
     p.menus, p.at_end = None, "stop"
     m = disc_map(p, info)
     assert {(e.src, e.dst) for e in m.edges} >= {("intro2", "title1"), ("title1", "end")}
+
+
+def test_links_and_pages_change_from_the_disc_map():
+    from dvd.menu.discmap import disc_map
+    from dvd.menu.mapedit import MapEditError, add_link, add_page, links, remove_link, remove_page
+    from dvd.project.model import HiddenClip
+
+    p, info = project()
+    made = [(b.id, b.rect) for b in expand(p, info)[0].buttons]
+    assert links(p, info, "main") == ["title1", "page:chapters", "page:languages"]
+    new = add_page(p, info, "main")
+    assert new == "sayfa1"
+    main = next(pg for pg in expand(p, info) if pg.id == "main")
+    assert [(b.id, b.rect) for b in main.buttons][:3] == made  # the made-up buttons stayed put
+    last = made[-1][1]
+    assert main.buttons[-1].label == "Yeni sayfa" and main.buttons[-1].rect[1] > last[1]
+    add_link(p, info, "sayfa1", "title1")
+    edges = {(e.src, e.dst): e.text for e in disc_map(p, info).edges}
+    assert edges[("page:main", "page:sayfa1")] == "Yeni sayfa"
+    assert edges[("page:sayfa1", "page:main")] == "Geri"
+    assert edges[("page:sayfa1", "title1")] == "Başlık 1"
+    assert remove_link(p, info, "main", "page:languages") == 1
+    assert ("page:main", "page:languages") not in {(e.src, e.dst) for e in disc_map(p, info).edges}
+    with pytest.raises(MapEditError, match="chapters page"):
+        add_link(p, info, "chapters", "title1")
+    p.menus.pages[0].hidden = [HiddenClip(file="gizli.mkv", after="play")]
+    with pytest.raises(MapEditError, match="hidden clip"):
+        remove_link(p, info, "main", "title1")
+    remove_page(p, info, "sayfa1")
+    assert [pg.id for pg in p.menus.pages] == ["main", "chapters", "languages"]
+    assert links(p, info, "main") == ["title1", "page:chapters"]

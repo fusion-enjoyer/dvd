@@ -175,9 +175,9 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 - [x] Gizli içerik butonları, kumanda kısıtlamaları
   - [x] Kumanda kısıtlamaları: giriş videosu "Atlanamaz" (Disk sayfası); oynarken ileri sarma, bölüm atlama, doğrudan başlık/bölüm seçme ve menü tuşları kapalı. dvdauthor UOP yazamadığı için PGC maskesi authoring'den sonra IFO ve BUP'a yamanır (`author/uops.py`)
   - [x] Gizli içerik butonları: menü editöründe "+ Gizli video bu butonun yanına"; o butonda bir yöne basınca etiketsiz bir nokta seçilir (yanınca küçük işaret), Enter videoyu oynatır, bitince ana menü. Otomatik yönler bu noktaya hiç gitmez. Videolar ikinci titleset'te, VMG menüsü g4'e göre atlar; diskte en çok 8
-- [ ] **Disk haritası düzenleyicisi** (düğüm grafiği)
+- [x] **Disk haritası düzenleyicisi** (düğüm grafiği)
   - [x] Disk haritası görünümü (Profesyonel modda "Disk haritası"): disk takılınca → girişler → menü sayfaları → başlıklar ve gizli videolar; butonlar, bitince/beklenince/rastgele geçişler okla ve etiketle, diske giden komutlardan çıkarılır; menü sayfasına tıklayınca menü düzenleyicide açılır
-  - [ ] Haritada doğrudan düzenleme (bağlantı ekleme/silme)
+  - [x] Haritada doğrudan düzenleme (`menu/mapedit.py`): menü sayfasına sağ tıklayınca bağlantı ekle (başlığa ya da başka sayfaya buton) / kaldır, yeni sayfa ekle ve bağla, elle eklenen sayfayı sil; ana sayfanın hazır butonları ilk değişiklikte yerleriyle yazılır; bölüm/dil sayfaları projeden geldiği için değişmez
 - [x] Şablon editörü, şablon dışa/içe aktarma: Menü sayfasında "Şablonu düzenle…" (hazır ya da kendi şablonundan başla, yerleşim/renk/font/imleç, canlı önizleme, kaydet ve kullan, dosyaya aktar, dosyadan al); kullanıcı şablonları `%APPDATA%\DVD Studyo\templates`, temel şablondan farkları yazılır; `dvd template list|export|import`
 
 ---

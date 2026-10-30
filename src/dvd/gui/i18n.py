@@ -31,8 +31,14 @@ TEXTS: dict[str, dict[str, str]] = {
             "Disk takılınca neyin oynadığı, menü sayfalarının nereye götürdüğü ve her başlıktan "
             "sonra ne olduğu. Düz çizgi: buton ya da sıradaki adım; kesikli: kendiliğinden "
             "(bitince, beklenince); noktalı: rastgele. Menü sayfasına tıklayınca menü "
-            "düzenleyicide açılır."
+            "düzenleyicide açılır; sağ tıklayınca bağlantı ve sayfa eklenir, kaldırılır."
         ),
+        "map.open": "Menü düzenleyicide aç",
+        "map.fixed": "Bu sayfanın butonları projeden gelir",
+        "map.add_link": "Bağlantı ekle",
+        "map.remove_link": "Bağlantıyı kaldır",
+        "map.add_page": "Yeni sayfa ekle ve bağla",
+        "map.remove_page": "Sayfayı sil",
         "empty.title": "Videoyu buraya sürükleyin",
         "empty.body": (
             "MKV, M2TS, MP4, TS veya MOV. Blu-ray kopyası da olur, telefonla çekilmiş video da. "

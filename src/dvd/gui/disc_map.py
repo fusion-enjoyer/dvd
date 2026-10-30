@@ -6,10 +6,11 @@ from __future__ import annotations
 
 from PySide6.QtCore import QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import QFont, QPainter, QPainterPath, QPen
-from PySide6.QtWidgets import QLabel, QScrollArea, QSizePolicy, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QLabel, QMenu, QScrollArea, QSizePolicy, QVBoxLayout, QWidget
 
 from dvd.gui.i18n import t
 from dvd.gui.theme import color
+from dvd.menu import mapedit
 from dvd.menu.discmap import DiscMap, columns, disc_map
 
 NODE_W, NODE_H = 190, 50
@@ -20,6 +21,7 @@ KIND_COLOUR = {"start": "metin_3", "intro": "bilgi", "page": "amber", "title": "
 
 class MapCanvas(QWidget):
     page_clicked = Signal(str)  # menu page id
+    page_menu = Signal(str, QPointF)  # menu page id, where on the screen (right click)
 
     def __init__(self) -> None:
         super().__init__()
@@ -40,11 +42,21 @@ class MapCanvas(QWidget):
         self.setMinimumSize(int(right), int(bottom))
         self.update()
 
-    def mousePressEvent(self, event) -> None:  # noqa: N802 (Qt API)
+    def page_at(self, pos: QPointF) -> str | None:
         for node_id, box in self.boxes.items():
-            if box.contains(event.position()) and node_id.startswith("page:"):
-                self.page_clicked.emit(node_id.removeprefix("page:"))
-                return
+            if box.contains(pos) and node_id.startswith("page:"):
+                return node_id.removeprefix("page:")
+        return None
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802 (Qt API)
+        page = self.page_at(event.position())
+        if page is not None and event.button() == Qt.MouseButton.LeftButton:
+            self.page_clicked.emit(page)
+
+    def contextMenuEvent(self, event) -> None:  # noqa: N802
+        page = self.page_at(QPointF(event.pos()))
+        if page is not None:
+            self.page_menu.emit(page, QPointF(event.globalPos()))
 
     def paintEvent(self, event) -> None:  # noqa: N802
         p = QPainter(self)
@@ -156,6 +168,7 @@ class MapCanvas(QWidget):
 
 class DiscMapPage(QWidget):
     page_clicked = Signal(str)
+    changed = Signal()  # the project was changed from the map
 
     def __init__(self) -> None:
         super().__init__()
@@ -170,6 +183,8 @@ class DiscMapPage(QWidget):
         box.addWidget(hint)
         self.canvas = MapCanvas()
         self.canvas.page_clicked.connect(self.page_clicked)
+        self.canvas.page_menu.connect(self._page_menu)
+        self.project, self.infos = None, []
         scroll = QScrollArea()
         scroll.setWidget(self.canvas)
         scroll.setWidgetResizable(True)
@@ -180,9 +195,48 @@ class DiscMapPage(QWidget):
         box.addWidget(self.error)
 
     def show_project(self, project, infos: list) -> None:
+        self.project, self.infos = project, infos
         try:
             self.canvas.set_map(disc_map(project, infos))
             self.error.setText("")
         except (ValueError, KeyError) as exc:
             self.canvas.set_map(None)
             self.error.setText(str(exc))
+
+    def edit_menu(self, page_id: str) -> QMenu:
+        """What can be changed from the map on this page (also used by the tests)."""
+        menu = QMenu(self)
+        menu.addAction(t("map.open"), lambda: self.page_clicked.emit(page_id))
+        p = self.project
+        page = next((x for x in p.menus.pages if x.id == page_id), None) if p and p.menus else None
+        if page is None or page.kind not in mapedit.EDITABLE:
+            note = menu.addAction(t("map.fixed"))
+            note.setEnabled(False)
+            return menu
+        names = dict(mapedit.targets(p))
+        have = mapedit.links(p, self.infos, page_id)
+        add = menu.addMenu(t("map.add_link"))
+        for node, name in mapedit.targets(p):
+            if node != f"page:{page_id}":
+                add.addAction(name, lambda n=node: self._edit(mapedit.add_link, page_id, n))
+        remove = menu.addMenu(t("map.remove_link"))
+        remove.setEnabled(bool(have))
+        for node in have:
+            remove.addAction(names[node], lambda n=node: self._edit(mapedit.remove_link,
+                                                                   page_id, n))  # fmt: skip
+        menu.addSeparator()
+        menu.addAction(t("map.add_page"), lambda: self._edit(mapedit.add_page, page_id))
+        if page.kind == "custom":
+            menu.addAction(t("map.remove_page"), lambda: self._edit(mapedit.remove_page, page_id))
+        return menu
+
+    def _page_menu(self, page_id: str, where: QPointF) -> None:
+        self.edit_menu(page_id).exec(where.toPoint())
+
+    def _edit(self, change, *args) -> None:
+        try:
+            change(self.project, self.infos, *args)
+        except mapedit.MapEditError as exc:
+            self.error.setText(str(exc))
+            return
+        self.changed.emit()
