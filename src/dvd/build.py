@@ -35,6 +35,7 @@ from dvd.project.model import (
 )
 from dvd.qa.disc_check import check_disc
 from dvd.qa.validate import validate as validate_disc
+from dvd.subs.dvbsub import extract_dvbsub, to_video
 from dvd.subs.extract import extract_text_track
 from dvd.subs.pgs import BitmapCue, extract_pgs, parse_sup
 from dvd.subs.render import Placement
@@ -144,6 +145,11 @@ def _subtitle_cues(
         cues = extract_vobsub(p.source, sub.track, (v.width, v.height), v.start_time)
         if not cues:
             raise BuildError(f"DVD subtitle stream {sub.track} has no captions")
+        return cues
+    if track.codec == "dvb_subtitle":
+        cues = to_video(extract_dvbsub(p.source, sub.track, v.start_time), (v.width, v.height))
+        if not cues:
+            raise BuildError(f"DVB subtitle stream {sub.track} has no captions")
         return cues
     if track.kind != "text":
         raise BuildError(f"subtitle stream {sub.track} is {track.codec}, which is not supported")

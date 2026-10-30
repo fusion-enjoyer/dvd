@@ -110,12 +110,12 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 
 - [x] Çoklu ses izi, AC-3 passthrough, HD ses → 5.1 AC-3, stereo downmix, DRC/gece modu, delay: DVD'ye uyan AC-3 bit bit kopyalanır; stereo downmix Dolby Pro Logic II matrisiyle; gece modu sıkıştırıcı; gecikme iz başına (ms) ve dosyanın kendi ses/görüntü kayması otomatik korunur
 - [x] Altyazı render motoru: istenen font, anamorfik düzeltme, akıllı kenar yumuşatma (4 renk), Türkçe kodlama tespiti, stil editörü ve stil şablonları: hazır stiller (Varsayılan, Büyük, Sarı, İnce, Kalın), kendi stillerim (`%APPDATA%\DVD Studyo\styles`), iz başına stil seçimi, canlı önizlemeli düzenleyici
-- [ ] ASS, PGS, VobSub girişi; forced altyazılar; letterbox bandına altyazı
+- [x] ASS, PGS, VobSub girişi; forced altyazılar; letterbox bandına altyazı
   - [x] ASS/SSA/WebVTT dosyaları (metin olarak, kendi stilimizle çizilir); Blu-ray PGS: kendi .sup okuyucumuz, resim görüntüyle aynı crop/ölçekle DVD karesine taşınır, 4 renge indirilir; PGS'teki tek tek forced işaretleri diske geçer; PGS'te letterbox bandındaki altyazı bantta kalır
   - [x] VobSub (DVD) altyazıları: MKV/VOB içindeki `dvd_subtitle` izleri ve .idx/.sub dosyaları kendi SPU çözücümüzle; .sup dosyası da eklenebilir. Palet yoksa (VOB) dolgu ve kontur şekilden ayrılır
   - [x] Metin altyazıyı letterbox bandına yerleştirme seçeneği: iz başına "Siyah bantta" (Profesyonel), satırlar görüntünün hemen altına; bant inceyse her zamanki yer
   - [x] Renkli resim altyazıda (PGS, VobSub) rengi koruma: iz başına "Rengi koru"; dolgu rengi sarı / camgöbeği / yeşil / turuncu / pembe / kırmızıdan en yakınına yuvarlanır, gri-beyaz stilin rengi kalır
-  - [ ] DVB resim altyazıları
+  - [x] DVB resim altyazıları (`subs/dvbsub.py`, ETSI EN 300 743): TS/MKV kayıtlarındaki `dvb_subtitle` izleri kendi çözücümüzle; sayfa/bölge/CLUT/nesne segmentleri, 2-4-8 bit kod dizileri ve eşleme tabloları, iki alan, görüntü tanımı (yoksa 720x576), sayfa zaman aşımı; PGS/VobSub ile aynı yoldan diske
 - [x] Bölüm zaman çizelgesi: elle düzenleme, otomatik öneri, thumbnail karesi seçimi
   - [x] Bölümler sayfası: kaynaktan / aralıkla / elle / yok; elle listede zaman düzenleme, silme, önizlemedeki kareye ekleme; her bölümün karesi; sahne geçişlerine göre öneri (her N dakikada bir nokta, ±15 sn içindeki en belirgin kesmeye kaydırılır)
   - [x] Bölüm menüsü için ayrı thumbnail karesi seçimi: Bölümler sayfasında satır başına "Menü karesi: önizlemedeki kare" / "Otomatik"; otomatikte bölüm başı, +1, +2.5, +5 sn içinden ilk canlı (karanlık ya da düz olmayan) kare
@@ -128,7 +128,7 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 ## Faz 4 — Menü motoru ve editör v1
 
 - [x] Menü modeli: sayfalar, öğeler, butonlar, eylemler, navigasyon: proje dosyasında `menus` (sayfa türleri main / chapters / languages / audio / subtitles / custom; eylemler play / page / audio / subtitle); `menu/layout.py` standart sayfaları projeden doldurur (bölümler 6'şar sayfalanır)
-- [ ] Render: arka plan + 3 durumlu highlight subpicture'ları (4 renk sınırı)
+- [x] Render: arka plan + 3 durumlu highlight subpicture'ları (4 renk sınırı)
   - [x] `menu/render.py`: etiketler, başlık ve bölüm kareleri arka plan videosunda; vurgu (amber) ve seçim (beyaz) katmanları en çok 3 renk + saydam; kare piksel çizim, 720'ye anamorfik sıkıştırma; buton alanları çift sayılı ve çakışmasız; arka plan film karesi / resim / düz renk
   - [x] Diske yazma: sayfa başına 1 sn MPEG-2 durağan video + sessiz AC-3, spumux ile buton katmanı, dvdauthor titleset menüleri; root / ptt / audio giriş noktaları, film sonunda menüye dönüş, ses/altyazı seçince imleç aynı butonda kalır
   - [x] Menü sayfası (arayüz): menü açık/kapalı, Bölümler / Dil ayarları sayfaları, arka plan (filmden kare: önizlemedeki kare / resim / düz renk), her sayfanın diske gidecek hâliyle önizlemesi (normal ve ilk buton seçili)
@@ -188,13 +188,13 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
   - [x] Okuyucu ve komut çözücü: `dvd/ifo` VIDEO_TS.IFO ve VTS IFO'larını okur (başlıklar, bölümler, titleset görüntü/ses/altyazı, menü PGC'leri ve giriş türleri, hücreler ve süreleri, kumanda kısıtlamaları, palet, pre/post/hücre komutları); `ifo/vm.py` 8 baytlık VM komutlarını metne çevirir; `dvd ifo <klasör> [-c]`. İlk bulgusu: dvdauthor'da yalın `call menu` bölüm menüsünü çağırıyormuş, düzeltildi
   - [x] Uygulamada disk inceleme (`gui/disc_inspector.py`, Çıktı sayfasında "Diski incele" ve "Başka bir diski incele…"): disk açılışı, disk menüleri, başlıklar, titleset'ler ve menüleri/PGC'leri ağaç olarak; seçilen parçanın komutları, butonları (NAV paketinden: yer, ok tuşları, komut — `ifo/buttons.py`), hücreleri ve kapalı tuşları; denetim bulguları
   - [ ] Ripler gelince referans DVD'lerle doğrulama
-- [ ] IFO yazıcı: VMG, VTS, PGC, program/cell tabloları, VM komutları
+- [x] IFO yazıcı: VMG, VTS, PGC, program/cell tabloları, VM komutları
   - [x] Menüsüz titleset IFO'su (`author/ifo_write.py`): VTSI_MAT ve akış özellikleri, PTT, başlık PGC'leri (komutlar, program haritası, hücre oynatma/konum), zaman haritası, hücre adres tablosu, VOBU adres haritası; NTSC+altyazılı test diskinde dvdauthor'ınkiyle bayt bayt aynı
   - [x] Menüsüz disk baştan sona (`author/own.py`): VMG IFO'su, VOB dosyaları (dolgu paketleri çıkarılır, 524272 sektörde bölünür, NAV paketleri bizden), spumux'un altyazı renklerinin PGC paletine numaralanması (`spu_colors.py`); NTSC+altyazılı test diskinde tüm dosyalar dvdauthor'ınkiyle aynı, FFmpeg'in DVD okuyucusu (libdvdnav) diski açıyor. Build hâlâ dvdauthor kullanıyor
   - [x] Menülü titleset (`menu_write.py`): menü PGC'leri ve giriş türleri, buton bilgisi (spumux'un yerleşimi ve vurgu renkleri, PGC paletine numaralanmış), tek komuta sığmayan butonlar için g15/g14 geçiş tablosu, menü VOB'u ve adres tabloları; son VOBU sesin bittiği yere kadar sürer. Menülü test diski (3 sayfa) tüm dosyalarıyla dvdauthor'ınkiyle aynı
   - [x] VMG menüsü (VIDEO_TS.VOB, VMGM tabloları), ikinci titleset, çok başlıklı titleset, başlık PGC'sinde kumanda kısıtlaması (UOP yama gerekmeden): giriş videolu, gizli videolu ve iki bölümlü dizi test diskleri tüm dosyalarıyla dvdauthor'ınkiyle aynı
   - [x] Build'de kendi authoring'i seçme: `disc.authoring: own` (Disk sayfasında "Diski yazan", `dvd build --authoring own`); build'in dvdauthor'a verdiği XML'den ses biçimi, kanal sayısı ve bölüm hücrelerini dvdauthor gibi bularak yazar (`own.author_xml`), atlanamaz girişin kısıtlaması doğrudan IFO'ya. Varsayılan dvdauthor
-- [ ] VOB multiplexer: NAV pack (PCI/DSI), VOBU sınırları, zaman damgaları
+- [x] VOB multiplexer: NAV pack (PCI/DSI), VOBU sınırları, zaman damgaları
   - [x] VOBU tarayıcı (`author/vobu.py`): program akışından VOBU başlangıç/bitiş sektörleri, ilk üç referans resmin bittiği sektörler, sunum zamanları; yalnız dolgu paketleri sayılmaz. dvdauthor'ın NAV paketlerine yazdığıyla (PAL, NTSC pulldown, altyazılı) birebir test ediliyor
   - [x] Başlık VOB'larının NAV paketleri (`author/nav.py`): PCI genel bilgisi, DSI (sektörler, referans resimler, hücre, 0,5–120 sn arama tablosu, ses ve altyazı senkron adresleri); alan sayımıyla (pulldown dahil) VOBU bitiş zamanları. PAL ve NTSC+altyazılı test disklerinde dvdauthor'ınkiyle bayt bayt aynı (dvdauthor'ın ilk altyazıdan önceki kararsız değeri hariç)
   - [x] Menü NAV paketleri (buton/vurgu bilgisi), ses bitişinin son VOBU'ya etkisi (`menu_write.py`, menülü disklerde dvdauthor'la aynı)
