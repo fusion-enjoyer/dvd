@@ -665,3 +665,33 @@ def test_light_theme_from_the_settings(app, tmp_path: Path, monkeypatch):
         theme.set_theme("dark")
         app.setStyleSheet(theme.stylesheet("pro"))
         w.close()
+
+
+def test_burn_dialog_checks_a_disc_but_never_writes_in_a_test(app, tmp_path: Path, monkeypatch):
+    import shutil
+
+    from dvd.gui.burn_dialog import BurnDialog
+    from dvd.output import burn
+
+    built = tmp_path / "Film" / "VIDEO_TS"
+    built.mkdir(parents=True)
+    (built / "VIDEO_TS.IFO").write_bytes(b"ifo")
+    iso = tmp_path / "Film" / "Film.iso"
+    iso.write_bytes(b"iso")
+    disc = tmp_path / "E"
+    shutil.copytree(built, disc / "VIDEO_TS")
+    monkeypatch.setattr(burn, "drives", lambda: [burn.Drive(str(disc), "Yazıcı", ("DVD+R",))])
+    monkeypatch.setattr(burn, "burn", lambda *a: pytest.fail("a test must not burn"))
+    dialog = BurnDialog(iso, built)
+    assert dialog.drive.currentData() == str(disc) and dialog.speed.currentData() == "4"
+    assert dialog.verify.isChecked() and dialog.write.isEnabled()
+    dialog.check.click()
+    QThreadPool.globalInstance().waitForDone(30000)
+    app.processEvents()
+    assert dialog.status.text() == "Disk, build edilen dosyalarla bayt bayt aynı."
+    monkeypatch.setattr(burn, "drives", lambda: [])
+    empty = BurnDialog(iso, built)
+    assert not empty.drive.isEnabled() and not empty.write.isEnabled()
+    page = MainWindow(mode="pro").build_page
+    page.finished(iso.parent, ["ok"], [])
+    assert page.iso == iso and not page.burn.isHidden()

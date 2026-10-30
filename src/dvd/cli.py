@@ -215,6 +215,56 @@ def restore_cmd(
         raise typer.Exit(1)
 
 
+@app.command("drives")
+def drives_cmd() -> None:
+    """DVD writers on this computer and the media they write."""
+    from dvd.output.burn import drives
+
+    found = drives()
+    for d in found:
+        typer.echo(f"{d.path}  {d.name}  ({', '.join(d.media)})")
+    if not found:
+        typer.echo("no DVD writer found")
+
+
+@app.command("burn")
+def burn_cmd(
+    iso: Path = typer.Argument(..., help="Disc image made by `dvd build`"),
+    drive: str = typer.Option(..., "--drive", "-d", help="Writer, e.g. E:"),
+    speed: str = typer.Option("auto", "--speed", help="auto, 2, 4, 8 or 16"),
+    verify: bool = typer.Option(True, "--verify/--no-verify", help="Read the disc back"),
+) -> None:
+    """Write the image to a disc (ImgBurn when installed, else Windows' own burner)."""
+    from dvd.output.burn import BurnError, burn
+
+    if not iso.is_file():
+        typer.echo(f"{iso}: no such image", err=True)
+        raise typer.Exit(1)
+    try:
+        used = burn(iso, drive, speed, verify)
+    except BurnError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from None
+    typer.echo("written with ImgBurn" if used == "imgburn" else
+               "Windows' disc image burner is open; finish there")  # fmt: skip
+
+
+@app.command("verify-disc")
+def verify_disc_cmd(
+    drive: Path = typer.Argument(..., help="The burnt disc, e.g. E:\\"),
+    video_ts: Path = typer.Argument(..., help="The VIDEO_TS folder that was built"),
+) -> None:
+    """Compare a burnt disc with the VIDEO_TS it was made from, byte for byte."""
+    from dvd.output.burn import verify_disc
+
+    problems = verify_disc(drive, video_ts)
+    for line in problems:
+        typer.echo(line)
+    typer.echo("the disc matches" if not problems else f"{len(problems)} problems")
+    if problems:
+        raise typer.Exit(1)
+
+
 @app.command("iso")
 def iso_cmd(
     video_ts: Path = typer.Argument(..., help="VIDEO_TS folder"),

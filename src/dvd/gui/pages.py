@@ -361,6 +361,9 @@ class BuildPage(QWidget):
         self.open_folder.clicked.connect(self._open_folder)
         self.inspect = QPushButton(t("inspect.open"))
         self.inspect.clicked.connect(lambda: self._inspect(self.folder / "VIDEO_TS"))
+        self.burn = QPushButton(t("burn.open"))
+        self.burn.clicked.connect(self._burn)
+        self.iso: Path | None = None
         other = QPushButton(t("inspect.open_other"))
         other.setObjectName("link")
         other.clicked.connect(self._inspect_other)
@@ -368,7 +371,7 @@ class BuildPage(QWidget):
             box.addWidget(w)
         row = QHBoxLayout()
         row.setSpacing(8)
-        for w in (self.open_folder, self.inspect):
+        for w in (self.open_folder, self.inspect, self.burn):
             row.addWidget(w)
         row.addStretch()
         box.addLayout(row)
@@ -390,6 +393,7 @@ class BuildPage(QWidget):
         self.warnings.setText("")
         self.open_folder.hide()
         self.inspect.hide()
+        self.burn.hide()
         self.finished_stages: list[str] = []
 
     def set_summary(self, text: str) -> None:
@@ -419,6 +423,8 @@ class BuildPage(QWidget):
         self.warnings.setText("\n".join(translate_warning(w) for w in warnings))
         self.open_folder.show()
         self.inspect.show()
+        self.iso = next(folder.glob("*.iso"), None)
+        self.burn.setVisible(self.iso is not None)
 
     def failed(self, message: str) -> None:
         self.start.setEnabled(True)
@@ -426,6 +432,12 @@ class BuildPage(QWidget):
         self.result.setObjectName("error")
         self.result.setText(f"{t('build.failed')}\n{message}")
         self.result.style().polish(self.result)
+
+    def _burn(self) -> None:
+        from dvd.gui.burn_dialog import BurnDialog
+
+        if self.iso is not None and self.folder is not None:
+            BurnDialog(self.iso, self.folder / "VIDEO_TS", self).exec()
 
     def _inspect(self, video_ts: Path) -> None:
         from dvd.gui.disc_inspector import DiscInspector

@@ -217,6 +217,31 @@ EN: dict[str, str] = {
     "queue.state.done": "Done",
     "queue.state.failed": "Failed",
     "queue.summary": "The queue is done: {done} discs ready, {failed} failed",
+    "burn.open": "Write to disc…",
+    "burn.title": "Write to disc",
+    "burn.image": "Disc image",
+    "burn.drive": "Writer",
+    "burn.no_drive": "No DVD writer was found on this computer",
+    "burn.no_dl": " (cannot write dual layer)",
+    "burn.speed": "Speed",
+    "burn.speed_auto": "Highest",
+    "burn.verify": "Read the disc back and compare it with the image",
+    "burn.with_imgburn": (
+        "Written with ImgBurn; on DVD-9 the layer break goes where the build chose."
+    ),
+    "burn.with_windows": (
+        "ImgBurn is not installed: Windows' disc image burner opens (it has no layer "
+        'break choice or read-back). Check the disc with "Check the disc" afterwards.'
+    ),
+    "burn.write": "Write",
+    "burn.check": "Check the disc",
+    "burn.writing": "Writing… ImgBurn shows the progress in its own window.",
+    "burn.checking": "Reading the disc and comparing…",
+    "burn.done_imgburn": "The disc is written and checked.",
+    "burn.done_windows": "Windows' burner is open; finish there, then check the disc.",
+    "burn.failed": "It did not work: {error}",
+    "burn.matches": "The disc is byte for byte the same as the built files.",
+    "burn.differs": "{n} problems found; the first: {first}",
     "settings.open": "Settings",
     "settings.title": "Settings",
     "settings.language": "Interface language",

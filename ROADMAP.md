@@ -217,6 +217,8 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 ## Faz 8 — Çıktı ve cila
 
 - [ ] Doğrudan yakma (IMAPI2 / ImgBurn), yakma sonrası doğrulama
+  - [x] `output/burn.py`, Çıktı sayfasında "Diske yaz…", `dvd drives|burn|verify-disc`: yazıcılar IMAPI2'den (salt okuma), yazma ImgBurn ile (DVD-9'da `.dvd` katman geçişi, hız, okuyarak doğrulama); ImgBurn yoksa Windows'un disk imajı yakıcısı açılır. Yakılan diskteki VIDEO_TS build edilenle bayt bayt karşılaştırılır
+  - [ ] Gerçek yazıcı ve diskle deneme (bu bilgisayarda yazıcı yok)
 - [ ] Kapak ve disk etiketi tasarımı, yazdırılabilir PDF
 - [x] İş kuyruğu, bitince bildirim/kapatma, duraklat-devam
   - [x] Motor ve komut satırı (`jobs.py`, `pause.py`): kuyruk dosyası (`%APPDATA%\DVD Studyo\queue.yaml`), projeler sırayla, hata kuyruğu durdurmaz, yarıda kalan iş sonra yeniden; bitince uyku ya da 2 dk sonra kapatma (`shutdown /a` iptal); duraklatma build'in başlattığı süreçleri askıya alır; `dvd queue add|list|remove|clear|run --then`

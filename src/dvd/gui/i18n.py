@@ -224,6 +224,31 @@ TEXTS: dict[str, dict[str, str]] = {
         "queue.state.done": "Bitti",
         "queue.state.failed": "Hata",
         "queue.summary": "Kuyruk bitti: {done} disk hazır, {failed} hata",
+        "burn.open": "Diske yaz…",
+        "burn.title": "Diske yaz",
+        "burn.image": "Disk imajı",
+        "burn.drive": "Yazıcı",
+        "burn.no_drive": "Bu bilgisayarda DVD yazıcı bulunamadı",
+        "burn.no_dl": " (çift katman yazamaz)",
+        "burn.speed": "Hız",
+        "burn.speed_auto": "En yüksek",
+        "burn.verify": "Yazdıktan sonra diski okuyup imajla karşılaştır",
+        "burn.with_imgburn": (
+            "ImgBurn ile yazılır; DVD-9'da katman geçişi build'in seçtiği yerde olur."
+        ),
+        "burn.with_windows": (
+            "ImgBurn kurulu değil: Windows'un disk imajı yakıcısı açılır (katman geçişi ve "
+            'okuma denetimi onda yok). Yazınca "Diski doğrula" ile denetleyin.'
+        ),
+        "burn.write": "Yaz",
+        "burn.check": "Diski doğrula",
+        "burn.writing": "Yazılıyor… ImgBurn kendi penceresinde ilerlemeyi gösterir.",
+        "burn.checking": "Disk okunuyor ve karşılaştırılıyor…",
+        "burn.done_imgburn": "Disk yazıldı ve doğrulandı.",
+        "burn.done_windows": "Windows'un yakıcısı açıldı; orada bitirin, sonra diski doğrulayın.",
+        "burn.failed": "Olmadı: {error}",
+        "burn.matches": "Disk, build edilen dosyalarla bayt bayt aynı.",
+        "burn.differs": "{n} sorun bulundu; ilki: {first}",
         "settings.open": "Ayarlar",
         "settings.title": "Ayarlar",
         "settings.language": "Arayüz dili",
