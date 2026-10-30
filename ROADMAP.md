@@ -223,6 +223,7 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
   - [x] Arayüz (`gui/queue_panel.py`): Çıktı sayfasında kuyruk listesi (bekliyor / build ediliyor / bitti / hata), bu projeyi kuyruğa ekle, başlat, duraklat/devam (tek disk build'inde de), bitenleri temizle, kuyruk bitince hiçbir şey / uyut / kapat (her seferinde seçilir, hatırlanmaz); bitince görev çubuğu düğmesi yanıp söner
 - [ ] Proje arşivi, Türkçe/İngilizce arayüz, tema, otomatik güncelleme
   - [x] Türkçe/İngilizce arayüz: tüm metinlerin İngilizcesi (`gui/texts_en.py`, anahtar ve yer tutucuları Türkçeyle aynı, testle denetleniyor); üst çubukta Ayarlar → arayüz dili (`settings.yaml` / DVD_LANG), program yeniden açılınca geçerli. Disk haritasındaki düğüm adları ve diske yazılan menü yazıları şimdilik Türkçe
+  - [x] Proje arşivi (`project/archive.py`, `dvd archive` / `dvd restore`): tek .zip içinde proje (yollar arşivin içini gösterir), kullandığı küçük dosyalar (altyazı, giriş/gizli videolar, menü resimleri, logo), kullanıcının şablonu/stilleri/profili, kaynakların boyut ve parmak izi; kaynaklar istenirse (`--with-sources`). Açarken eksik kaynak verilen klasörlerde parmak iziyle bulunur, kullanıcı dosyaları yalnız yoksa kurulur
 
 ---
 

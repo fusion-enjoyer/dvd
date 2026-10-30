@@ -168,6 +168,53 @@ def build_cmd(
                    f"written to {result.iso.with_suffix('.dvd').name}")  # fmt: skip
 
 
+@app.command("archive")
+def archive_cmd(
+    path: Path = typer.Argument(..., help="Project file"),
+    out: Path | None = typer.Option(None, "--out", "-o", help="Archive file (.zip)"),
+    with_sources: bool = typer.Option(
+        False, "--with-sources", help="Put the source videos in too (large)"
+    ),
+) -> None:
+    """Pack a project with everything it uses into one .zip, to make the disc elsewhere."""
+    from dvd.project.archive import ArchiveError, archive
+
+    out = out or path.with_name(path.name.removesuffix(".dvd.yaml") + ".zip")
+    try:
+        written = archive(path, out, with_sources)
+    except (ArchiveError, project.ProjectError) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from None
+    typer.echo(f"wrote {written} ({written.stat().st_size / 1e6:.1f} MB)")
+
+
+@app.command("restore")
+def restore_cmd(
+    archive_file: Path = typer.Argument(..., help="Archive made by `dvd archive`"),
+    folder: Path = typer.Argument(..., help="New project folder"),
+    search: list[Path] = typer.Option(
+        [], "--search", "-s", help="Folder to look in for the source videos"
+    ),
+) -> None:
+    """Unpack a project archive; find source videos left out of it by their fingerprint."""
+    from dvd.project.archive import ArchiveError, restore
+
+    try:
+        done = restore(archive_file, folder, search)
+    except (ArchiveError, OSError) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from None
+    typer.echo(f"project: {done.project}")
+    for name in done.installed:
+        typer.echo(f"installed {name}")
+    for name in done.kept:
+        typer.echo(f"kept your own {name} (the archive's differs)")
+    for name in done.missing:
+        typer.echo(f"source not found: {name} (give its folder with --search)", err=True)
+    if done.missing:
+        raise typer.Exit(1)
+
+
 @app.command("iso")
 def iso_cmd(
     video_ts: Path = typer.Argument(..., help="VIDEO_TS folder"),
