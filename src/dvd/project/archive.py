@@ -62,6 +62,8 @@ def _file_fields(project: Project):
     if menus is not None:
         if menus.logo:
             yield menus, "logo"
+        if menus.music:
+            yield menus, "music"
         if menus.background.image:
             yield menus.background, "image"
         for page in menus.pages:

@@ -366,6 +366,9 @@ class Menus(Strict):
     template: str = Field("minimal", pattern=r"^[\w\- ]{1,40}$")
     background: MenuBackground = Field(default_factory=MenuBackground)
     logo: str | None = None  # picture drawn on the main page instead of the title text
+    # Sound file looping behind the opening page while it waits (up to a minute of it);
+    # a moving background keeps the film's own sound.
+    music: str | None = None
     tmdb_id: int | None = None  # the film on themoviedb.org the pictures came from
     pages: list[Annotated[MenuPage, BeforeValidator(_page)]] = Field(
         default_factory=_standard_pages, min_length=1

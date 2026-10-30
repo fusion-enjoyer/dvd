@@ -118,6 +118,40 @@ def spumux_menu_xml(rendered: RenderedPage, standard: str) -> str:
     return "\n".join(lines) + "\n"
 
 
+MUSIC_MAX = 60  # seconds of the music file a menu loop uses
+
+
+def music_mpg(image: QImage, music: Path, seconds: float, standard: str, aspect: Fraction,
+              out: Path) -> Path:  # fmt: skip
+    """`image` held for `seconds` with the start of `music` under it (faded in and out, so
+    the loop joins quietly), as a program stream ready for the buttons."""
+    ffmpeg = toolchain.find_executable(["ffmpeg.exe", "ffmpeg"], toolchain.tool_dirs())
+    if ffmpeg is None:
+        raise AuthorError("ffmpeg not found; run `dvd doctor`")
+    png = out.with_suffix(".png")
+    image.save(str(png))
+    pal = standard == "pal"
+    rate = "25" if pal else "30000/1001"
+    sd = "bt470bg" if pal else "smpte170m"
+    fade = min(1.0, seconds / 4)
+    proc = subprocess.run(
+        [str(ffmpeg), "-v", "error", "-y", "-loop", "1", "-framerate", rate, "-i", str(png),
+         "-i", str(music), "-map", "0:v", "-map", "1:a:0", "-t", f"{seconds:.3f}",
+         "-vf", f"scale=out_color_matrix=bt601:out_range=tv,format=yuv420p,"
+                f"setparams=field_mode=prog:color_primaries={sd}:color_trc={sd}:colorspace={sd}",
+         "-af", f"afade=t=in:d=0.3,afade=t=out:st={seconds - fade:.3f}:d={fade:.3f}",
+         "-c:v", "mpeg2video", "-q:v", "2", "-maxrate", "8000k", "-bufsize", "1835k",
+         "-g", "15" if pal else "18", "-bf", "0", "-flags", "+ildct+cgop",
+         "-sc_threshold", "1000000000", "-aspect", "16:9" if aspect > Fraction(3, 2) else "4:3",
+         "-ar", "48000", "-ac", "2", "-c:a", "ac3", "-b:a", "192k", "-muxrate", "10080000",
+         "-f", "dvd", str(out)],
+        capture_output=True, creationflags=_NO_WINDOW,
+    )  # fmt: skip
+    if proc.returncode != 0:
+        raise AuthorError("menu music failed: " + proc.stderr.decode("utf-8", "replace")[-1500:])
+    return out
+
+
 def still_mpg(image: QImage, standard: str, aspect: Fraction, out: Path) -> Path:
     """A one-second program stream of `image` (disc frame size) with silent AC-3."""
     ffmpeg = toolchain.find_executable(["ffmpeg.exe", "ffmpeg"], toolchain.tool_dirs())

@@ -189,6 +189,15 @@ class MenuEditorPage(QWidget):
         self.transition.setToolTip(t("menu.transition_hint"))
         self.transition.toggled.connect(lambda on: self._set_menus(transition=1.0 if on else None))
         play_row.addWidget(self.transition)
+        self.music = QPushButton()
+        self.music.setToolTip(t("menu.music_hint"))
+        self.music.clicked.connect(self._pick_music)
+        self.music_off = QPushButton(t("tracks.remove"))
+        self.music_off.setObjectName("link")
+        self.music_off.clicked.connect(lambda: self._set_menus(music=None))
+        play_row.addSpacing(16)
+        play_row.addWidget(self.music)
+        play_row.addWidget(self.music_off)
         play_row.addSpacing(16)
         play_row.addWidget(QLabel(t("menu.timeout")))
         play_row.addWidget(self.timeout)
@@ -301,6 +310,9 @@ class MenuEditorPage(QWidget):
             self.timeout.setValue(menus.timeout or 0)
             self.moving_thumbs.setChecked(menus.moving_thumbs is not None)
             self.transition.setChecked(menus.transition is not None)
+            self.music.setText(t("menu.music_file", name=Path(menus.music).name) if menus.music
+                               else t("menu.music"))  # fmt: skip
+            self.music_off.setVisible(bool(menus.music))
             bg = menus.background
             key = ("motion" if bg.motion else "frame" if bg.frame else
                    "image" if bg.image else "color")  # fmt: skip
@@ -741,6 +753,19 @@ class MenuEditorPage(QWidget):
         if bg.motion and (bg.motion, bg.intro) != (wanted["motion"], wanted["intro"]):
             self.project.menus.background = bg.model_copy(update=wanted)
             self._changed()
+
+    def _pick_music(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(self, t("menu.music"), str(self.project_dir),
+                                              t("menu.music_filter"))  # fmt: skip
+        if path:
+            self._set_menus(music=self._stored(Path(path)))
+
+    def _stored(self, path: Path) -> str:
+        """A path next to the project kept relative (the project folder can move)."""
+        try:
+            return path.resolve().relative_to(self.project_dir.resolve()).as_posix()
+        except ValueError:
+            return path.resolve().as_posix()
 
     def _pick_image(self) -> None:
         path, _ = QFileDialog.getOpenFileName(self, t("menu.bg.pick_image"), str(self.project_dir),

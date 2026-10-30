@@ -276,6 +276,13 @@ TEXTS: dict[str, dict[str, str]] = {
         "build.space_short": (
             "{drive} sürücüsünde yer yetmiyor: yaklaşık {need} gerekiyor, {free} boş."
         ),
+        "menu.music": "Menü müziği…",
+        "menu.music_file": "Müzik: {name}",
+        "menu.music_hint": (
+            "Açılış sayfası beklerken arkada döner (dosyanın ilk dakikasına kadar, başı ve "
+            "sonu yumuşak). Hareketli arka planda filmin sesi kalır."
+        ),
+        "menu.music_filter": "Ses (*.mp3 *.flac *.wav *.m4a *.aac *.ogg *.opus *.ac3 *.mka)",
         "settings.open": "Ayarlar",
         "settings.title": "Ayarlar",
         "settings.language": "Arayüz dili",

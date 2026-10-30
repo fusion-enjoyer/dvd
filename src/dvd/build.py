@@ -319,6 +319,23 @@ def _menus(project: Project, prepared: list[_Prepared], project_dir: Path, work_
                          over.background, work_dir / "motion", "menu", wanted,
                          p.target.crop)  # fmt: skip
         videos[first.id] = (mpg, bg.motion / float(p.target.speedup))
+    if project.menus.music and project.menus.first not in videos:
+        from dvd.menu.author import MUSIC_MAX, music_mpg
+
+        music = Path(project.menus.music)
+        music = music if music.is_absolute() else project_dir / music
+        try:
+            length = probe(music).duration or 0.0
+        except Exception as exc:  # noqa: BLE001 (any unreadable file: say which)
+            raise BuildError(f"menu music {music.name} cannot be read: {exc}") from None
+        if length < 2:
+            raise BuildError(f"menu music {music.name} is too short")
+        seconds = min(length, MUSIC_MAX)
+        first = project.menus.first
+        (work_dir / "motion").mkdir(parents=True, exist_ok=True)
+        mpg = music_mpg(rendered[first].background, music, seconds, project.disc.standard,
+                        p.target.dar, work_dir / "motion" / "music.mpg")  # fmt: skip
+        videos[first] = (mpg, seconds)
     if project.menus.moving_thumbs:
         from dvd.menu.motion import thumb_rects, thumbs_mpg
 

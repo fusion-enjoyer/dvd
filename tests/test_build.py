@@ -710,3 +710,32 @@ def test_build_stops_before_encoding_when_the_disk_is_full(tmp_path: Path, monke
     with pytest.raises(BuildError, match="not enough free space"):
         build(project_file, make_iso=False)
     assert not list(tmp_path.rglob("*.m2v"))  # nothing was encoded
+
+
+@pytest.mark.skipif(not READY, reason="toolchain not installed")
+def test_menu_music_loops_behind_the_opening_page(tmp_path: Path):
+    src = _sample(tmp_path, seconds=6)
+    subprocess.run(
+        [str(FFMPEG), "-v", "error", "-y", "-f", "lavfi",
+         "-i", "sine=frequency=330:sample_rate=44100:duration=10", str(tmp_path / "muzik.wav")],
+        check=True,
+    )  # fmt: skip
+    project = new_project(probe(src), tmp_path)
+    project.titles[0].video.overrides = {"encoder": "ffmpeg"}
+    project.menus.music = "muzik.wav"
+    project.menus.timeout = 25
+    project_file = tmp_path / "muzik.dvd.yaml"
+    save(project, project_file)
+    assert load(project_file).menus.music == "muzik.wav"
+
+    result = build(project_file, make_iso=False)
+
+    problems = [w for w in result.warnings if w.startswith(("disc check", "disc rules"))]
+    assert not problems, problems
+    xml = next(tmp_path.rglob("dvdauthor.xml")).read_text(encoding="utf-8")
+    main = xml.split('<pgc entry="root">')[1].split("</pgc>")[0]
+    assert 'pause="inf"' not in main and "jump cell 1;</post>" in main  # a loop, not a still
+    assert "if (g5 == 3)" in main  # 25 s of waiting: three 10 s loops, then the film
+    music = probe(next(tmp_path.rglob("motion/music.mpg")))
+    assert music.duration == pytest.approx(10, abs=0.3)
+    assert [(a.codec, a.channels) for a in music.audio] == [("ac3", 2)]

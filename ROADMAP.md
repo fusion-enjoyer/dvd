@@ -178,6 +178,7 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 - [x] **Disk haritası düzenleyicisi** (düğüm grafiği)
   - [x] Disk haritası görünümü (Profesyonel modda "Disk haritası"): disk takılınca → girişler → menü sayfaları → başlıklar ve gizli videolar; butonlar, bitince/beklenince/rastgele geçişler okla ve etiketle, diske giden komutlardan çıkarılır; menü sayfasına tıklayınca menü düzenleyicide açılır
   - [x] Haritada doğrudan düzenleme (`menu/mapedit.py`): menü sayfasına sağ tıklayınca bağlantı ekle (başlığa ya da başka sayfaya buton) / kaldır, yeni sayfa ekle ve bağla, elle eklenen sayfayı sil; ana sayfanın hazır butonları ilk değişiklikte yerleriyle yazılır; bölüm/dil sayfaları projeden geldiği için değişmez
+- [x] Menü müziği (`menus.music`, Menüler sayfasında "Menü müziği…"): açılış sayfası beklerken bir ses dosyasının ilk dakikasına kadarı döngüyle çalar (baş ve son yumuşak); "Kimse dokunmazsa oynat" döngü sayısına çevrilir. Hareketli arka planda filmin sesi kalır; arşive girer
 - [x] Şablon editörü, şablon dışa/içe aktarma: Menü sayfasında "Şablonu düzenle…" (hazır ya da kendi şablonundan başla, yerleşim/renk/font/imleç, canlı önizleme, kaydet ve kullan, dosyaya aktar, dosyadan al); kullanıcı şablonları `%APPDATA%\DVD Studyo\templates`, temel şablondan farkları yazılır; `dvd template list|export|import`
 
 ---

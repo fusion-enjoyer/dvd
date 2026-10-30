@@ -267,6 +267,13 @@ EN: dict[str, str] = {
     "build.reused": "{n} unchanged parts (picture, sound) were taken from the last build.",
     "build.space": "Free space needed on {drive}: about {need} ({free} free).",
     "build.space_short": "Not enough space on {drive}: about {need} needed, {free} free.",
+    "menu.music": "Menu music…",
+    "menu.music_file": "Music: {name}",
+    "menu.music_hint": (
+        "Loops behind the opening page while it waits (up to the first minute of the "
+        "file, faded in and out). A moving background keeps the film's sound."
+    ),
+    "menu.music_filter": "Sound (*.mp3 *.flac *.wav *.m4a *.aac *.ogg *.opus *.ac3 *.mka)",
     "settings.open": "Settings",
     "settings.title": "Settings",
     "settings.language": "Interface language",
