@@ -4,18 +4,24 @@ The video check (video/compliance.py) sees only the video. This one sees the who
 player reads it: 2048-byte packs, the declared mux rate, the rate over any one second of the
 system clock (all streams together, limit 10.08 Mbit/s), and packets that arrive after their
 own decode time, which is what happens when video and audio together do not fit and the
-muxer falls behind. Only pack and PES headers are read.
+muxer falls behind, and the video decoder buffer (232 KB on DVD) overflowing because
+pictures arrive too early. Only pack and PES headers are read: a picture's bytes are
+counted from the packet that carries its time stamp to the next one, and leave the
+buffer at its decode time. Where the clock starts again (titles muxed one by one and put
+in one VOB, a cell with a time discontinuity), rate and buffer start again too.
 """
 
 from __future__ import annotations
 
 import mmap
+from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
 
 PACK = 2048
 MUX_RATE = 10_080_000  # bit/s
 CLOCK = 90_000  # SCR base and PTS/DTS units
+VIDEO_BUFFER = 232 * 1024  # DVD-Video's video decoder buffer
 
 
 @dataclass
@@ -23,6 +29,7 @@ class StreamStats:
     bytes: int = 0
     late: int = 0
     worst_late: float = 0.0  # seconds
+    peak_fill: int = 0  # video: most bytes in the decoder buffer at once
 
 
 @dataclass
@@ -76,6 +83,9 @@ def check(path: Path) -> MuxReport:
     scrs: list[int] = []
     max_rate = 0
     misaligned = 0
+    pictures: deque[list[int]] = deque()  # video in the decoder buffer: [decode time, bytes]
+    filled = 0
+    segments = [0]  # where the clock starts (again)
     with path.open("rb") as f, mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as data:
         size = len(data)
         if size % PACK:
@@ -85,6 +95,10 @@ def check(path: Path) -> MuxReport:
                 misaligned += 1
                 continue
             scr = _scr(data[start + 4 : start + 9])
+            if scrs and scr < scrs[-1]:  # the clock starts again: a new stream follows
+                pictures.clear()
+                filled = 0
+                segments.append(len(scrs))
             scrs.append(scr)
             rate = (data[start + 10] << 14) | (data[start + 11] << 6) | (data[start + 12] >> 2)
             max_rate = max(max_rate, rate * 400)
@@ -104,28 +118,44 @@ def check(path: Path) -> MuxReport:
                 if name is not None:
                     st = streams.setdefault(name, StreamStats())
                     st.bytes += len(payload)
+                    due = None
                     if flags:
                         at = body + 3 + (5 if flags == 3 else 0)  # DTS when present, else PTS
                         due = _ts(data[at : at + 5])
                         if scr > due:
                             st.late += 1
                             st.worst_late = max(st.worst_late, (scr - due) / CLOCK)
+                    if name == "video":
+                        while pictures and pictures[0][0] <= scr:
+                            filled -= pictures.popleft()[1]
+                        if due is not None or not pictures:
+                            pictures.append([due if due is not None else scr, 0])
+                        pictures[-1][1] += len(payload)
+                        filled += len(payload)
+                        st.peak_fill = max(st.peak_fill, filled)
                 pos = nxt
     if misaligned:
         errors.append(f"{misaligned} {PACK}-byte block(s) do not start with a pack header")
     if max_rate > MUX_RATE:
         errors.append(f"declared mux rate {max_rate / 1e6:.2f} Mbps exceeds 10.08")
-    peak, lo = 0, 0
-    for hi, scr in enumerate(scrs):
-        while scr - scrs[lo] >= CLOCK:
-            lo += 1
-        peak = max(peak, (hi - lo + 1) * PACK * 8)
+    peak = 0
+    for first, last in zip(segments, [*segments[1:], len(scrs)], strict=True):
+        lo = first
+        for hi in range(first, last):
+            while scrs[hi] - scrs[lo] >= CLOCK:
+                lo += 1
+            peak = max(peak, (hi - lo + 1) * PACK * 8)
     # One pack of slack: a window can hold a pack at each edge.
     if peak > MUX_RATE + PACK * 8:
         errors.append(f"stream peaks at {peak / 1e6:.2f} Mbps over one second (limit 10.08)")
+    video = streams.get("video")
+    if video is not None and video.peak_fill > VIDEO_BUFFER + PACK:  # a pack of slack
+        errors.append(f"video: the decoder buffer holds up to {video.peak_fill // 1024} KB "
+                      f"(limit {VIDEO_BUFFER // 1024} KB); pictures arrive too early")  # fmt: skip
     for name, st in sorted(streams.items()):
         if st.late:
             errors.append(f"{name}: {st.late} packet(s) arrive after their decode time (up to "
                           f"{st.worst_late:.2f} s late); total bit rate is too high")  # fmt: skip
-    duration = (scrs[-1] - scrs[0]) / CLOCK if len(scrs) > 1 else 0.0
+    spans = zip(segments, [*segments[1:], len(scrs)], strict=True)
+    duration = sum((scrs[last - 1] - scrs[first]) / CLOCK for first, last in spans if last > first)
     return MuxReport(len(scrs), duration, peak, max_rate, streams, errors)

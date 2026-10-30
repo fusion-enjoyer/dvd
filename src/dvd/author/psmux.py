@@ -10,8 +10,9 @@ Time stamps: pictures are shown in temporal_reference order, each for its fields
 with repeat_first_field); a picture is decoded when the one before it in display order is
 shown, so B pictures are decoded as they are shown. The first decode time is 0.5 s after
 the clock starts, as with FFmpeg. Packs are scheduled at the DVD mux rate: each carries the
-stream whose next byte is needed soonest, as long as that stream's decoder buffer (230 KB
-video, 4 KB audio) has room; when no buffer has room the clock jumps ahead.
+stream whose next byte is needed soonest, as long as that stream's decoder buffer (video
+filled to 224 of its 232 KB, a margin for players; 4 KB audio) has room; when no buffer
+has room the clock jumps ahead.
 """
 
 from __future__ import annotations
@@ -29,7 +30,7 @@ MUX_RATE = 10_080_000  # bit/s
 TICK = 7 * 300  # one 90 kHz tick
 PACK_TIME = PACK * 8 * 27_000_000 * 7 // MUX_RATE  # 307200: a pack at the mux rate
 PRELOAD = 45_000  # first decode time (0.5 s)
-VIDEO_BUFFER = 230 * 1024
+VIDEO_BUFFER = 224 * 1024  # of the 232 KB a DVD player has (the header declares 230)
 AUDIO_BUFFER = 4 * 1024
 ROOM = PACK - 14  # bytes after the pack header
 # System header as FFmpeg's DVD muxer writes it (dvdauthor keeps it): rate bound, one audio

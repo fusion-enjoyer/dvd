@@ -207,7 +207,8 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 - [ ] Tam uyumluluk doğrulayıcı
   - [x] İlk sürüm (`qa/validate.py`, `dvd validate`, her build'in sonunda): IFO/BUP varlığı ve eşliği, VOB boyutları, başlık–titleset–bölüm–program–hücre bağlantıları, PGC başına 128 komut sınırı, komutların hedefleri (başlık, bölüm, PGC, satır, menü girişi), hücre sektörleri, VOBU adres haritası ile NAV paketleri (yer, bitiş, süre ≤ 1 sn, hücre, zaman sürekliliği), menüde 36 buton sınırı. Bozuk disklerle test ediliyor
   - [x] Akış düzeyi ilk kurallar: her VOBU'nun görüntüsü sequence header ve I resimle başlar (atlamadan sonra çözmenin başladığı yer), ses/altyazı paketleri IFO'da tanımlı akışlara ait; her VOBU'nun ilk 8 paketinden. Tampon modeli ve hız build'de mux sonrası (`author/pscheck.py`)
-  - [ ] Tampon modelini bitmiş VOB'larda da denetleme, ripler gelince ticari disklerle sınama
+  - [x] Tampon modeli: video çözücü tamponu (232 KB) taşması `author/pscheck.py`'de (mux sonrası her build'de); bitmiş diskte `dvd validate --full` her başlık VOB'unu baştan sona okur (hız, geç paket, tampon); saat yeniden başlayınca (art arda mux edilmiş başlıklar) ölçüm de yeniden başlar
+  - [ ] Ripler gelince ticari disklerle sınama
 
 **Bitti kriteri:** dvdauthor olmadan üretilen diskler tüm cihaz matrisinde çalışıyor.
 

@@ -8,7 +8,8 @@ with a NAV pack that knows its own place and time, units last at most a second a
 each other without gaps, and menu buttons stay within the limit of 36. From the first packs
 of every VOBU: its video starts with a sequence header and an I picture (where players
 start decoding after a jump), and its audio and subpicture packets belong to streams the
-IFO declares.
+IFO declares. With `full`, every title VOB is also read through for the mux rate, packets
+that arrive after their decode time and the video decoder buffer (`author/pscheck.py`).
 """
 
 from __future__ import annotations
@@ -226,7 +227,7 @@ def _check_vobus(found: list[Finding], where: str, vobs: _Vobs, vobus: list[int]
             found.append(Finding("error", name, f"{buttons} buttons, at most {MAX_BUTTONS}"))
 
 
-def validate(video_ts: Path) -> list[Finding]:
+def validate(video_ts: Path, full: bool = False) -> list[Finding]:
     video_ts = Path(video_ts)
     found: list[Finding] = []
     for name in ("VIDEO_TS.IFO", "VIDEO_TS.BUP"):
@@ -314,4 +315,9 @@ def validate(video_ts: Path) -> list[Finding]:
                          ts.menu_cells, True)  # fmt: skip
         titles.close()
         menus.close()
+        if full:
+            from dvd.author.pscheck import check
+
+            for vob in titles.files:
+                found += [Finding("error", vob.name, e) for e in check(vob).errors]
     return found

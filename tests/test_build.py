@@ -560,6 +560,9 @@ def test_build_with_our_own_authoring(tmp_path: Path):
     problems = [w for w in result.warnings if w.startswith(("disc check", "disc rules"))]
     assert not problems, problems
     assert not list(tmp_path.rglob("dvdauthor.log"))  # dvdauthor never ran
+    from dvd.qa.validate import validate
+
+    assert validate(result.video_ts, full=True) == []  # our mux: rate, buffer, timing
     names = {p.name for p in result.video_ts.iterdir()}
     assert {"VIDEO_TS.VOB", "VTS_01_0.VOB", "VTS_01_1.VOB", "VTS_02_1.VOB"} <= names
     assert read_masks(result.video_ts / "VTS_02_0.IFO") == [NO_SKIP, 0]  # intro, hidden clip

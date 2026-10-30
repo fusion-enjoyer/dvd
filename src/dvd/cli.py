@@ -386,12 +386,17 @@ def ifo(
 @app.command()
 def validate(
     path: Path = typer.Argument(..., help="VIDEO_TS folder (or a disc folder holding one)"),
+    full: bool = typer.Option(
+        False,
+        "--full",
+        help="Also read every title VOB through: mux rate, late packets, video decoder buffer",
+    ),
 ) -> None:
     """Check a finished DVD-Video folder against the rules players rely on."""
     from dvd.qa.validate import validate as check
 
     folder = path / "VIDEO_TS" if (path / "VIDEO_TS").is_dir() else path
-    found = check(folder)
+    found = check(folder, full=full)
     for f in found:
         typer.echo(str(f))
     errors = sum(f.level == "error" for f in found)

@@ -50,3 +50,35 @@ def test_not_a_program_stream(tmp_path: Path):
     junk = tmp_path / "d.mpg"
     junk.write_bytes(b"\x00" * 4096)
     assert "do not start with a pack header" in " ".join(check(junk).errors)
+
+
+def test_video_that_arrives_too_early_overflows_the_decoder_buffer(tmp_path: Path):
+    from dvd.author.psmux import PACK_TIME, _ts, pack_header
+
+    def video_pack(scr: int, dts: int | None) -> bytes:
+        stamp = (_ts(dts, 3) + _ts(dts, 1)) if dts is not None else b""
+        flags = 0xC0 if stamp else 0
+        body = bytes(2048 - 14 - 9 - len(stamp))
+        pes = b"\x00\x00\x01\xe0" + (3 + len(stamp) + len(body)).to_bytes(2, "big") \
+            + bytes([0x80, flags, len(stamp)]) + stamp + body  # fmt: skip
+        return pack_header(scr) + pes
+
+    # One 300 KB picture, all of it sent long before its decode time 10 s later.
+    packs = [video_pack(k * PACK_TIME, 900_000 if k == 0 else None) for k in range(150)]
+    path = tmp_path / "early.mpg"
+    path.write_bytes(b"".join(packs))
+    report = check(path)
+    assert report.streams["video"].peak_fill > 290 * 1024
+    assert any("decoder buffer holds up to" in e for e in report.errors)
+
+
+def test_two_streams_one_after_the_other_are_checked_each_on_its_own(tmp_path: Path):
+    """Intros and hidden clips are muxed one by one and share a VOB: the clock starts again."""
+    one = dvd_mpg(tmp_path, "one.mpg", ["-b:v", "6M", "-maxrate", "8M", "-bufsize", "1835k"])
+    single = check(one)
+    both = tmp_path / "both.mpg"
+    both.write_bytes(one.read_bytes() * 2)
+    report = check(both)
+    assert report.ok, report.errors
+    assert report.peak_bps == single.peak_bps
+    assert report.streams["video"].peak_fill == single.streams["video"].peak_fill

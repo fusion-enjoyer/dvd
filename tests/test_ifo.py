@@ -315,6 +315,7 @@ def test_validator_finds_broken_discs(tmp_path: Path):
     result = build(project_file, make_iso=False)
     assert not [w for w in result.warnings if w.startswith("disc rules")], result.warnings
     assert validate(result.video_ts) == []
+    assert validate(result.video_ts, full=True) == []  # every VOB read through
 
     def broken(name: str, change) -> list[str]:
         copy = tmp_path / name
