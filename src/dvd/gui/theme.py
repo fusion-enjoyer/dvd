@@ -1,4 +1,5 @@
-"""Design tokens from docs/tasarim-sistemi.html ("Sıcak stüdyo") as Qt stylesheets."""
+"""Design tokens from docs/tasarim-sistemi.html ("Sıcak stüdyo") as Qt stylesheets: the
+dark theme first (K14), and a light one with the same token names (`set_theme`)."""
 
 from __future__ import annotations
 
@@ -32,6 +33,54 @@ COLORS = {
     "menu_seg": "#C9A98A",
     "video": "#000000",
 }
+DARK = dict(COLORS)
+# Warm paper surfaces; text and accents darkened to keep 4.5:1 (secondary text 4:1, lines
+# and the amber accent 3:1 and more) on them. The video well stays black.
+LIGHT = {
+    "zemin": "#F3F0EA",
+    "panel": "#FAF8F4",
+    "girdi": "#FFFFFF",
+    "cizgi": "#CFC8BC",
+    "cizgi_zayif": "#E3DED5",
+    "metin": "#1F1C18",
+    "metin_2": "#5C554C",
+    "metin_3": "#7A7368",
+    "amber": "#9C650E",
+    "amber_hover": "#AD7418",
+    "amber_bas": "#85550A",
+    "on_amber": "#FFFFFF",
+    "basari": "#2C7F48",
+    "uyari": "#B4541F",
+    "hata": "#B8352D",
+    "bilgi": "#3567A0",
+    "menu_seg": "#86664A",
+    "video": "#000000",
+}
+THEMES = {"dark": DARK, "light": LIGHT}
+_theme = "dark"
+
+
+def set_theme(name: str) -> None:
+    """Switch the tokens; stylesheets made and widgets painted after this use them."""
+    global _theme
+    _theme = name if name in THEMES else "dark"
+    COLORS.clear()
+    COLORS.update(THEMES[_theme])
+
+
+def current_theme() -> str:
+    return _theme
+
+
+def startup_theme() -> str:
+    """DVD_THEME, else the saved setting, else dark."""
+    import os
+
+    from dvd import settings
+
+    name = os.environ.get("DVD_THEME") or str(settings.load().get("theme") or "dark")
+    return name if name in THEMES else "dark"
+
 
 DISPLAY_FONT = "Bricolage Grotesque"
 UI_FONT = "Source Sans 3"

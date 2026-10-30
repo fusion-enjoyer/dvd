@@ -224,6 +224,8 @@ Amaç: Tek film → oynatılabilir ISO. Kalite ikincil; boru hattı uçtan uca �
 - [ ] Proje arşivi, Türkçe/İngilizce arayüz, tema, otomatik güncelleme
   - [x] Türkçe/İngilizce arayüz: tüm metinlerin İngilizcesi (`gui/texts_en.py`, anahtar ve yer tutucuları Türkçeyle aynı, testle denetleniyor); üst çubukta Ayarlar → arayüz dili (`settings.yaml` / DVD_LANG), program yeniden açılınca geçerli. Disk haritasındaki düğüm adları ve diske yazılan menü yazıları şimdilik Türkçe
   - [x] Proje arşivi (`project/archive.py`, `dvd archive` / `dvd restore`): tek .zip içinde proje (yollar arşivin içini gösterir), kullandığı küçük dosyalar (altyazı, giriş/gizli videolar, menü resimleri, logo), kullanıcının şablonu/stilleri/profili, kaynakların boyut ve parmak izi; kaynaklar istenirse (`--with-sources`). Açarken eksik kaynak verilen klasörlerde parmak iziyle bulunur, kullanıcı dosyaları yalnız yoksa kurulur
+  - [x] Açık tema: aynı token adlarıyla açık palet (`gui/theme.py`, tasarım sisteminde "Açık tema" bölümü; kontrast oranları ölçülerek seçildi), Ayarlar'dan seçilir ve hemen uygulanır (`settings.yaml` / DVD_THEME)
+  - [ ] Otomatik güncelleme
 
 ---
 

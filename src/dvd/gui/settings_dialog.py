@@ -1,5 +1,5 @@
-"""Program settings shared by every project (`dvd/settings.py`): for now the interface
-language, which applies the next time the program starts."""
+"""Program settings shared by every project (`dvd/settings.py`): the interface language
+(applies the next time the program starts) and the theme (applies at once)."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QComboBox, QDialog, QDialogButtonBox, QFormLayout,
 
 from dvd import settings
 from dvd.gui.i18n import LANGUAGES, current_language, t
+from dvd.gui.theme import THEMES, current_theme, set_theme
 
 
 class SettingsDialog(QDialog):
@@ -21,6 +22,11 @@ class SettingsDialog(QDialog):
         saved = settings.load().get("language") or current_language()
         self.language.setCurrentIndex(max(0, self.language.findData(saved)))
         form.addRow(t("settings.language"), self.language)
+        self.theme = QComboBox()
+        for name in THEMES:
+            self.theme.addItem(t(f"settings.theme.{name}"), name)
+        self.theme.setCurrentIndex(max(0, self.theme.findData(current_theme())))
+        form.addRow(t("settings.theme"), self.theme)
         note = QLabel(t("settings.restart"))
         note.setObjectName("muted")
         note.setWordWrap(True)
@@ -32,5 +38,12 @@ class SettingsDialog(QDialog):
         form.addRow(buttons)
 
     def save(self) -> None:
-        settings.save({"language": self.language.currentData()})
+        theme = self.theme.currentData()
+        settings.save({"language": self.language.currentData(), "theme": theme})
+        if theme != current_theme():
+            set_theme(theme)
+            window = self.parent()
+            if window is not None and hasattr(window, "set_mode"):
+                window.set_mode(window.mode)  # the stylesheet again, with the new tokens
+                window.update()
         self.accept()

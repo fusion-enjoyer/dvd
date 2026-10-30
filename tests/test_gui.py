@@ -643,3 +643,25 @@ def test_english_interface_and_the_language_setting(app, tmp_path: Path, monkeyp
         w.close()
     finally:
         set_language("tr")
+
+
+def test_light_theme_from_the_settings(app, tmp_path: Path, monkeypatch):
+    from dvd import settings
+    from dvd.gui import theme
+    from dvd.gui.settings_dialog import SettingsDialog
+
+    monkeypatch.setenv("DVD_SETTINGS", str(tmp_path / "settings.yaml"))
+    monkeypatch.delenv("DVD_THEME", raising=False)
+    assert set(theme.LIGHT) == set(theme.DARK) and theme.startup_theme() == "dark"
+    w = MainWindow(mode="pro")
+    try:
+        dialog = SettingsDialog(w)
+        dialog.theme.setCurrentIndex(dialog.theme.findData("light"))
+        dialog.save()  # applies at once
+        assert settings.load()["theme"] == "light" and theme.startup_theme() == "light"
+        assert theme.color("zemin").name().upper() == theme.LIGHT["zemin"]
+        assert theme.LIGHT["zemin"] in app.styleSheet()
+    finally:
+        theme.set_theme("dark")
+        app.setStyleSheet(theme.stylesheet("pro"))
+        w.close()

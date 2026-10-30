@@ -5,7 +5,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=JetBrains+Mono:wght@400;500&family=Source+Sans+3:wght@400;500;600;700&display=swap">
 <style>
 /* Yerleşim: üstte tez, ortada iki modlu uygulama penceresi, altında renk / tip / bileşen / Qt aktarımı.
-   Uygulama yalnızca koyu temada tasarlandı (K14), bu sayfa da bilinçli olarak tek, koyu görünüm. */
+   Uygulama önce koyu temada tasarlandı (K14); açık temanın token'ları aşağıda ayrı bir bölümde. Bu sayfa koyu görünür. */
 :root {
   color-scheme: dark;
   --zemin: #161513;
@@ -366,7 +366,7 @@ pre .c { color: var(--metin-3); }
     <p>DVD authoring uygulamasının renk, font ve bileşen kuralları. Koyu tema, iki kullanım modu.</p>
     <div class="kunye">
       <span><b>Platform</b> Windows · PySide6 / Qt 6 · QSS</span>
-      <span><b>Tema</b> Koyu (K14)</span>
+      <span><b>Tema</b> Koyu (K14), açık seçenek</span>
       <span><b>Modlar</b> Basit · Profesyonel (K15)</span>
       <span><b>Tarih</b> 8 Ekim 2026</span>
     </div>
@@ -529,6 +529,30 @@ pre .c { color: var(--metin-3); }
         <div class="renk"><div class="ornek" style="background:var(--hata)"></div><div><b>Hata</b><code>#E5534B</code><small>Sığmıyor, başarısız</small></div></div>
         <div class="renk"><div class="ornek" style="background:var(--bilgi)"></div><div><b>Bilgi</b><code>#7AA8D8</code><small>Notlar; bütçede ses payı</small></div></div>
         <div class="renk"><div class="ornek" style="background:var(--video);"></div><div><b>Video kuyusu</b><code>#000000</code><small>Yalnızca önizleme alanı</small></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bolum" id="acik-tema">
+    <header>
+      <h2>Açık tema</h2>
+      <p>Koyu tema esas (K14); açık tema aynı token adlarıyla, Ayarlar'dan seçilir ve hemen uygulanır. Yüzeyler sıcak kâğıt tonu; metin ve vurgular zeminde en az 4.5:1 (soluk metin 4:1, amber 3:1 üstü) kalacak kadar koyulaştırıldı. Video önizleme alanı iki temada da nötr siyah.</p>
+    </header>
+    <div class="renk-grubu">
+      <div class="renkler">
+        <div class="renk"><div class="ornek" style="background:#F3F0EA"></div><div><b>Zemin</b><code>#F3F0EA</code><small>Pencere arka planı</small></div></div>
+        <div class="renk"><div class="ornek" style="background:#FAF8F4"></div><div><b>Panel</b><code>#FAF8F4</code><small>Gezinme, sağ panel, çubuklar</small></div></div>
+        <div class="renk"><div class="ornek" style="background:#FFFFFF"></div><div><b>Girdi</b><code>#FFFFFF</code><small>Alanlar, seçili satır</small></div></div>
+        <div class="renk"><div class="ornek" style="background:#CFC8BC"></div><div><b>Çizgi</b><code>#CFC8BC</code><small>1px ayraçlar, kenarlar</small></div></div>
+        <div class="renk"><div class="ornek" style="background:#1F1C18"></div><div><b>Metin</b><code>#1F1C18</code><small>Ana metin (zeminde 14.9:1)</small></div></div>
+        <div class="renk"><div class="ornek" style="background:#5C554C"></div><div><b>İkincil metin</b><code>#5C554C</code><small>Etiketler, açıklamalar (6.5:1)</small></div></div>
+        <div class="renk"><div class="ornek" style="background:#7A7368"></div><div><b>Soluk metin</b><code>#7A7368</code><small>İpuçları (4.1:1)</small></div></div>
+        <div class="renk"><div class="ornek" style="background:#9C650E"></div><div><b>Amber</b><code>#9C650E</code><small>Tek vurgu rengi; üstünde beyaz yazı (4.8:1)</small></div></div>
+        <div class="renk"><div class="ornek" style="background:#2C7F48"></div><div><b>Başarı</b><code>#2C7F48</code><small></small></div></div>
+        <div class="renk"><div class="ornek" style="background:#B4541F"></div><div><b>Uyarı</b><code>#B4541F</code><small></small></div></div>
+        <div class="renk"><div class="ornek" style="background:#B8352D"></div><div><b>Hata</b><code>#B8352D</code><small></small></div></div>
+        <div class="renk"><div class="ornek" style="background:#3567A0"></div><div><b>Bilgi</b><code>#3567A0</code><small></small></div></div>
+        <div class="renk"><div class="ornek" style="background:#000000"></div><div><b>Video kuyusu</b><code>#000000</code><small>Açık temada da siyah</small></div></div>
       </div>
     </div>
   </section>
