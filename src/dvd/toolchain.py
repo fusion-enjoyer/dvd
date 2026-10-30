@@ -47,10 +47,16 @@ class ExeTool:
 
 
 def tools_base() -> Path | None:
-    """`DVD_TOOLS_DIR`, else `tools/` of the installed app (beside its python/), else the repo's."""
+    """`DVD_TOOLS_DIR`, else the folder chosen in the settings, else `tools/` of the installed
+    app (beside its python/), else the repo's."""
     env = os.environ.get("DVD_TOOLS_DIR")
     if env:
         return Path(env)
+    from dvd.settings import tools_folder
+
+    chosen = tools_folder()
+    if chosen is not None and chosen.is_dir():
+        return chosen
     for base in (Path(sys.prefix).parent / "tools", REPO_TOOLS_DIR):
         if base.is_dir():
             return base

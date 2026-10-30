@@ -865,7 +865,9 @@ class MainWindow(QMainWindow):
         if self.plan is None:
             return text
         name = folder.name
-        work = self.project_file.parent / "build" / name
+        from dvd.build import default_work_dir
+
+        work = default_work_dir(self.project_file, name)
         try:
             found = needs(self.plan.estimated_bytes, work, folder, folder / f"{name}.iso")
         except OSError:

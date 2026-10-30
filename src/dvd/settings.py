@@ -36,3 +36,24 @@ def save(values: dict[str, Any]) -> None:
 def tmdb_key() -> str:
     """DVD_TMDB_KEY wins over the saved key."""
     return os.environ.get("DVD_TMDB_KEY") or str(load().get("tmdb_key") or "")
+
+
+def work_folder() -> Path | None:
+    """Where builds keep their work files (each disc in its own folder); None: next to the
+    project (`build/`). Encodes need a lot of space, so a roomy drive helps."""
+    value = load().get("work_folder")
+    return Path(value) if value else None
+
+
+def threads() -> int:
+    """Processor threads a build may use; 0: all of them."""
+    try:
+        return max(0, int(load().get("threads") or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def tools_folder() -> Path | None:
+    """A folder with FFmpeg, HCEnc, dvdauthor and the rest, instead of the bundled tools."""
+    value = load().get("tools")
+    return Path(value) if value else None

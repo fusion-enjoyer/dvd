@@ -47,6 +47,10 @@ def ffmpeg_args(settings: EncodeSettings, fps: float, passlog: Path, pass_no: in
                f":color_primaries={sd}:color_trc={sd}:colorspace={sd}",
         "-pass", str(pass_no), "-passlogfile", str(passlog),
     ]  # fmt: skip
+    from dvd.settings import threads
+
+    if threads():
+        args += ["-threads", str(threads())]
     if s.interlaced:
         args += ["-alternate_scan", "1"]  # field order comes from setparams
     chapters = sorted({c for c in s.chapters if c > 0})

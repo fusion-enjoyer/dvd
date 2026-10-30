@@ -283,6 +283,24 @@ TEXTS: dict[str, dict[str, str]] = {
             "sonu yumuşak). Hareketli arka planda filmin sesi kalır."
         ),
         "menu.music_filter": "Ses (*.mp3 *.flac *.wav *.m4a *.aac *.ogg *.opus *.ac3 *.mka)",
+        "settings.work": "İş klasörü",
+        "settings.work_hint": (
+            "Build'in ara dosyaları (encode, mux) burada tutulur; boş bırakılırsa projenin "
+            "yanında. Bir film için diskin üç katı kadar yer gerekir."
+        ),
+        "settings.threads": "İşlemci iş parçacığı",
+        "settings.threads_all": "Hepsi",
+        "settings.threads_hint": (
+            "Build'in kullanacağı iş parçacığı sayısı; az seçilirse bilgisayar build "
+            "sırasında daha rahat kullanılır, build uzar."
+        ),
+        "settings.tools": "Araç klasörü",
+        "settings.tools_hint": (
+            "FFmpeg, HCEnc, dvdauthor ve spumux'u uygulamayla gelenler yerine bu klasörden "
+            "kullan; boş bırakılırsa uygulamanınkiler."
+        ),
+        "settings.default": "Varsayılan",
+        "settings.choose": "Seç…",
         "settings.open": "Ayarlar",
         "settings.title": "Ayarlar",
         "settings.language": "Arayüz dili",

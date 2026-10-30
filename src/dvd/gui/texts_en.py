@@ -274,6 +274,24 @@ EN: dict[str, str] = {
         "file, faded in and out). A moving background keeps the film's sound."
     ),
     "menu.music_filter": "Sound (*.mp3 *.flac *.wav *.m4a *.aac *.ogg *.opus *.ac3 *.mka)",
+    "settings.work": "Work folder",
+    "settings.work_hint": (
+        "A build keeps its work files (encodes, muxes) here; left empty, next to the "
+        "project. A film needs about three times the disc's size."
+    ),
+    "settings.threads": "Processor threads",
+    "settings.threads_all": "All",
+    "settings.threads_hint": (
+        "How many threads a build uses; fewer keep the computer easier to use during a "
+        "build, which then takes longer."
+    ),
+    "settings.tools": "Tools folder",
+    "settings.tools_hint": (
+        "Use FFmpeg, HCEnc, dvdauthor and spumux from this folder instead of the ones "
+        "that come with the program; left empty, those."
+    ),
+    "settings.default": "Default",
+    "settings.choose": "Choose…",
     "settings.open": "Settings",
     "settings.title": "Settings",
     "settings.language": "Interface language",

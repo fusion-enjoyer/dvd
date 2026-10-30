@@ -739,3 +739,35 @@ def test_menu_music_loops_behind_the_opening_page(tmp_path: Path):
     music = probe(next(tmp_path.rglob("motion/music.mpg")))
     assert music.duration == pytest.approx(10, abs=0.3)
     assert [(a.codec, a.channels) for a in music.audio] == [("ac3", 2)]
+
+
+@pytest.mark.skipif(not READY, reason="toolchain not installed")
+def test_work_folder_and_threads_from_the_settings(tmp_path: Path):
+    import vapoursynth as vs
+
+    from dvd import settings
+    from dvd.video.ffmpeg_enc import ffmpeg_args
+    from dvd.video.hcenc import EncodeSettings
+
+    work = tmp_path / "is"
+    settings.save({"work_folder": str(work)})
+    src = _sample(tmp_path, seconds=6)
+    project = new_project(probe(src), tmp_path)
+    project.menus = None
+    project.titles[0].video.overrides = {"encoder": "ffmpeg"}
+    project_file = tmp_path / "ayar.dvd.yaml"
+    save(project, project_file)
+    build(project_file, make_iso=False)
+    assert (work / "Deneme Filmi" / "t01.m2v").is_file()
+    assert not (tmp_path / "build").exists()
+    from dvd.build import use_threads
+
+    settings.save({"threads": 2})
+    use_threads()
+    assert vs.core.num_threads == 2
+    args = ffmpeg_args(EncodeSettings(bitrate=5000, maxrate=8000, aspect="16:9", standard="pal"),
+                       25.0, tmp_path / "log", 1)  # fmt: skip
+    assert args[args.index("-threads") + 1] == "2"
+    settings.save({"threads": 0})
+    use_threads()
+    assert vs.core.num_threads > 0

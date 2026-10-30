@@ -124,6 +124,25 @@ def _remember(out: Path, key: str) -> None:
     out.with_name(out.name + ".key").write_text(key, encoding="utf-8")
 
 
+def default_work_dir(project_file: Path, name: str) -> Path:
+    """The work folder of a disc: in the folder chosen in the settings, else next to the
+    project."""
+    from dvd.settings import work_folder
+
+    base = work_folder() or Path(project_file).parent / "build"
+    return base / name
+
+
+def use_threads() -> None:
+    """The processor threads the settings allow, for the frame server (encoders get theirs
+    on their command line)."""
+    import os
+
+    from dvd.settings import threads
+
+    vs.core.num_threads = threads() or os.cpu_count() or 1
+
+
 def safe_name(name: str) -> str:
     cleaned = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", name).strip(" .")
     return cleaned or "disc"
@@ -433,7 +452,8 @@ def build(
         project.disc.authoring = authoring
     name = safe_name(project.disc.name)
     out_dir = out_dir or project_file.parent / name
-    work_dir = work_dir or project_file.parent / "build" / name
+    work_dir = work_dir or default_work_dir(project_file, name)
+    use_threads()
     work_dir.mkdir(parents=True, exist_ok=True)
 
     def report(stage: str, fraction: float) -> None:
